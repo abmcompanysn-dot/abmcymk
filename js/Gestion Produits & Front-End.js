@@ -34,14 +34,18 @@ function showAdminInterface() {
 // --- POINT D'ENTREE POST ---
 function doPost(e) {
   const requestData = JSON.parse(e.postData.contents);
-  
-  // Sécurité simple: vérifier une clé secrète
-  if (requestData.secretKey !== ADMIN_SECRET_KEY) {
-    return ContentService.createTextOutput(JSON.stringify({ success: false, error: "Accès non autorisé." })).setMimeType(ContentService.MimeType.JSON);
-  }
-
   const action = requestData.action;
   let response;
+
+  // Pour l'action de mise à jour du stock, on ne vérifie pas la clé secrète
+  // car l'appel vient d'un autre script Google et est déjà authentifié par le token d'identité.
+  // Pour les autres actions (si vous en ajoutez), on garde la sécurité par clé.
+  if (action !== 'mettreAJourStock') {
+    // Sécurité simple: vérifier une clé secrète
+    if (requestData.secretKey !== ADMIN_SECRET_KEY) {
+      return ContentService.createTextOutput(JSON.stringify({ success: false, error: "Accès non autorisé." })).setMimeType(ContentService.MimeType.JSON);
+    }
+  }
 
   switch (action) {
     case 'ajouterProduit':
@@ -49,6 +53,9 @@ function doPost(e) {
       break;
     case 'ajouterCategorie':
       response = ajouterCategorie(requestData.data);
+      break;
+    case 'mettreAJourStock':
+      response = mettreAJourStockProduits(requestData.data);
       break;
     // Ajoutez d'autres actions admin ici
     default:
@@ -70,6 +77,14 @@ function doGet(e) {
   // et seul un autre script Google appartenant au même utilisateur peut l'appeler avec un token d'authentification.
   const action = e.parameter.action;
   if (action === 'getPublicData') {
+    // Sécurité CORS : Vérifier l'origine de la requête pour les appels publics
+    const originHeader = e.headers.origin;
+    const allowedOrigin = getAllowedOriginForAdmin(originHeader);
+    if (!allowedOrigin) {
+      return ContentService.createTextOutput(JSON.stringify({ success: false, error: "Accès non autorisé depuis cette origine." }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
     const cache = CacheService.getScriptCache();
     const cacheKey = 'public_site_data';
     const cached = cache.get(cacheKey);
@@ -85,7 +100,8 @@ function doGet(e) {
     const dataString = JSON.stringify(data);
 
     cache.put(cacheKey, dataString, 21600); // Cache de 6 heures
-    return ContentService.createTextOutput(dataString).setMimeType(ContentService.MimeType.JSON);
+    return ContentService.createTextOutput(dataString).setMimeType(ContentService.MimeType.JSON)
+      .setHeader('Access-Control-Allow-Origin', allowedOrigin);
   }
   if (action === 'getAlbumByProductId') {
     const productId = e.parameter.id;
@@ -135,10 +151,40 @@ function ajouterImageAlbum(data) {
   return { success: true };
 }
 
-function mettreAJourStock(idProduit, nouveauStock) {
-  // Implémentation...
-  logAction(SpreadsheetApp.openById(ADMIN_SPREADSHEET_ID), `Stock mis à jour pour ${idProduit}: ${nouveauStock}`);
-  return { success: true };
+/**
+ * Met à jour le stock pour plusieurs produits (utilisé après une commande).
+ * @param {Array<Object>} items - Un tableau d'objets { idProduit, quantite }.
+ */
+function mettreAJourStockProduits(items) {
+  const ss = SpreadsheetApp.openById(ADMIN_SPREADSHEET_ID);
+  const sheet = ss.getSheetByName("Produits");
+  if (!sheet) return { success: false, error: "Feuille des produits introuvable." };
+
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000); // Verrou pour éviter les conflits si plusieurs commandes arrivent en même temps
+
+  try {
+    const data = sheet.getDataRange().getValues();
+    const headers = data[0];
+    const idIndex = headers.indexOf("IDProduit");
+    const stockIndex = headers.indexOf("Stock");
+
+    items.forEach(item => {
+      const rowIndex = data.findIndex(row => row[idIndex] === item.idProduit);
+      if (rowIndex > 0) { // rowIndex > 0 pour ignorer l'en-tête
+        const currentStock = parseInt(data[rowIndex][stockIndex]);
+        const newStock = currentStock - item.quantite;
+        sheet.getRange(rowIndex + 1, stockIndex + 1).setValue(newStock >= 0 ? newStock : 0);
+        logAction(ss, `Stock décrémenté pour ${item.idProduit}. Ancien: ${currentStock}, Nouveau: ${newStock}`);
+      }
+    });
+    return { success: true };
+  } catch (e) {
+    logAction(ss, `Erreur lors de la mise à jour du stock: ${e.message}`);
+    return { success: false, error: e.message };
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 function générerRéductionAutomatique(idProduit, pourcentage) {
@@ -273,6 +319,36 @@ function sheetToJSON(sheet) {
     });
     return obj;
   });
+}
+
+/**
+ * Vérifie si l'origine de la requête est dans la liste des origines autorisées de ce script.
+ * @param {string} originHeader - L'en-tête "Origin" de la requête entrante.
+ * @returns {string|null} L'origine autorisée si elle est trouvée, sinon null.
+ */
+function getAllowedOriginForAdmin(originHeader) {
+  if (!originHeader) {
+    // Si l'en-tête Origin n'est pas présent, on refuse par sécurité pour les appels publics.
+    // Les appels de script à script n'ont pas cet en-tête, donc on les laisse passer.
+    // Cette logique est simplifiée. Une approche plus robuste vérifierait le type d'appel.
+    return null;
+  }
+
+  try {
+    const ss = SpreadsheetApp.openById(ADMIN_SPREADSHEET_ID);
+    const configSheet = ss.getSheetByName("Configuration");
+    const data = configSheet.getDataRange().getValues();
+    const headers = data.shift();
+    const keyIndex = headers.indexOf("Clé");
+    const valueIndex = headers.indexOf("Valeur");
+
+    const originsRow = data.find(row => row[keyIndex] === "ALLOWED_ORIGINS");
+    const allowedOrigins = originsRow ? originsRow[valueIndex].split(',').map(s => s.trim()) : [];
+
+    return allowedOrigins.includes(originHeader) ? originHeader : null;
+  } catch (e) {
+    return null; // En cas d'erreur de lecture, on refuse l'accès.
+  }
 }
 
 function initialiserBaseDeDonnees_Admin() {

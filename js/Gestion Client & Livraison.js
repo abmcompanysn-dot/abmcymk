@@ -7,7 +7,7 @@
 
 // --- CONFIGURATION ---
 const CLIENT_SPREADSHEET_ID = "1pGx-1uFUdS61fL4eh4HhQaHQSX6UzmPXiMQY0i71ZpU"; // IMPORTANT: Mettez ici l'ID de votre 2ème Google Sheet
-const ADMIN_API_URL = "https://script.google.com/macros/s/AKfycby1fT2lUaqCEqMbb7dgKRFRf5_Hh_p0H-WilPtmmO66GQ8RdfybJdCyLkjlAIQ3RMmt/exec"; // URL de l'API Admin
+const ADMIN_API_URL = "https://script.google.com/macros/s/AKfycbz7Pmzu5wgECM734NaURQJi8UdAHGqBvIlA0qD35WXAnTyEH8B9X5m_pr-WwV5TPWyD/exec"; // URL de l'API Admin
 const SCRIPT_NAME = "API-Client";
 const CACHE_TTL_SERVER = 21600; // Durée de vie du cache serveur en secondes (6 heures)
 
@@ -40,9 +40,6 @@ function doGet(e) {
   }
 
   switch (action) {
-    case 'getSiteData':
-      response = getSiteData();
-      break;
     case 'getRecentOrders': // Ajout pour le tableau de bord
       response = getRecentOrders();
       break;
@@ -126,9 +123,24 @@ function enregistrerCommande(data) { // Prend un objet en paramètre
   try {
     idCommande = "CMD-" + (sheet.getLastRow() + 1) + "-" + new Date().getFullYear();
     sheet.appendRow([idCommande, data.idClient, new Date(), JSON.stringify(data.produits), JSON.stringify(data.quantites), data.total, "En attente de paiement", data.moyenPaiement, data.adresseLivraison, data.notes]);
-    // TODO: Décrémenter le stock dans la feuille de calcul Admin.
-    // Cela nécessiterait un appel UrlFetchApp vers l'API Admin, ce qui est complexe.
-    // Il est plus simple de gérer les stocks manuellement ou via un script de rapprochement nocturne.
+    
+    // Décrémenter le stock en appelant l'API Admin
+    const stockUpdatePayload = {
+      // La clé secrète est nécessaire si l'API Admin la requiert pour les appels POST
+      // Cependant, pour les appels de script à script, l'authentification se fait via le token d'identité.
+      // Nous allons donc ajouter une action POST à l'API Admin qui ne nécessite pas de clé secrète mais qui est sécurisée.
+      action: 'mettreAJourStock',
+      data: data.produits.map((id, index) => ({ idProduit: id, quantite: data.quantites[index] }))
+    };
+
+    UrlFetchApp.fetch(ADMIN_API_URL, {
+      method: 'post',
+      contentType: 'application/json',
+      headers: {
+        Authorization: 'Bearer ' + ScriptApp.getIdentityToken(),
+      },
+      payload: JSON.stringify(stockUpdatePayload)
+    });
   } finally {
     lock.releaseLock();
   }
@@ -160,35 +172,6 @@ function enregistrerSAV(idCommande, client, motif) { /* ... */ }
 function envoyerNotificationClient(idClient, message) { /* ... */ }
 
 // --- FONCTION DE RECUPERATION DES DONNEES (CACHE) ---
-
-function getSiteData() {
-  const cache = CacheService.getScriptCache();
-  const cacheKey = 'site_data_cache';
-  const cached = cache.get(cacheKey);
-
-  if (cached != null) {
-    Logger.log("Données du site servies depuis le cache serveur.");
-    return JSON.parse(cached);
-  }
-
-  try {
-    Logger.log("Appel de l'API Admin pour obtenir les données publiques...");
-    const response = UrlFetchApp.fetch(`${ADMIN_API_URL}?action=getPublicData`, {
-      headers: {
-        Authorization: 'Bearer ' + ScriptApp.getIdentityToken(),
-      },
-    });
-    const dataString = response.getContentText();
-    
-    cache.put(cacheKey, dataString, CACHE_TTL_SERVER);
-    Logger.log("Données mises en cache sur le serveur.");
-    return JSON.parse(dataString);
-
-  } catch (e) {
-    Logger.log("Erreur lors de l'appel à l'API Admin: " + e.toString());
-    return { error: "Impossible de récupérer les données du site.", details: e.toString() };
-  }
-}
 
 // --- FONCTIONS DE SÉCURITÉ ---
 

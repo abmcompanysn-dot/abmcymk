@@ -424,7 +424,7 @@ async function preloadCriticalData() {
     console.log("Cache local vide ou expiré. Appel du backend...");
     try {
         // On appelle le point d'entrée unique qui retourne toutes les données nécessaires
-        const response = await fetch(`${CONFIG.CLIENT_API_URL}?action=getSiteData`);
+        const response = await fetch(`${CONFIG.PRODUCT_API_URL}?action=getPublicData`);
 
         if (!response.ok) {
             throw new Error(`Erreur réseau: ${response.statusText}`);
