@@ -546,11 +546,14 @@ async function handleAuthForm(event, type) {
                 telephone: ''
             }
         };
-    } else {
-        // TODO: Implement login logic
-        statusDiv.textContent = 'La fonctionnalité de connexion est en cours de développement.';
-        statusDiv.classList.add('text-yellow-600');
-        return;
+    } else { // type === 'login'
+        payload = {
+            action: 'connecterClient',
+            data: {
+                email: form.querySelector('#login-email').value,
+                motDePasse: form.querySelector('#login-password').value
+            }
+        };
     }
 
     try {
@@ -568,9 +571,17 @@ async function handleAuthForm(event, type) {
         const result = await response.json();
 
         if (result.success) {
-            statusDiv.textContent = 'Inscription réussie ! Vous pouvez maintenant passer à l\'onglet de connexion.';
-            statusDiv.classList.add('text-green-600');
-            form.reset();
+            if (type === 'register') {
+                statusDiv.textContent = 'Inscription réussie ! Vous pouvez maintenant vous connecter.';
+                statusDiv.classList.add('text-green-600');
+                form.reset();
+            } else { // type === 'login'
+                statusDiv.textContent = 'Connexion réussie ! Redirection...';
+                statusDiv.classList.add('text-green-600');
+                // Stocker les informations de l'utilisateur et rediriger
+                localStorage.setItem('abmcyUser', JSON.stringify(result.user));
+                window.location.href = 'compte.html'; // Redirection vers la page de compte
+            }
         } else {
             throw new Error(result.error || 'Une erreur est survenue.');
         }

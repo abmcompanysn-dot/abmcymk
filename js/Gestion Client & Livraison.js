@@ -7,7 +7,7 @@
 
 // --- CONFIGURATION ---
 const CLIENT_SPREADSHEET_ID = "1pGx-1uFUdS61fL4eh4HhQaHQSX6UzmPXiMQY0i71ZpU"; // IMPORTANT: Mettez ici l'ID de votre 2ème Google Sheet
-const ADMIN_API_URL = "https://script.google.com/macros/s/AKfycbz7Pmzu5wgECM734NaURQJi8UdAHGqBvIlA0qD35WXAnTyEH8B9X5m_pr-WwV5TPWyD/exec"; // URL de l'API Admin
+const ADMIN_API_URL = "https://script.google.com/macros/s/AKfycby1fT2lUaqCEqMbb7dgKRFRf5_Hh_p0H-WilPtmmO66GQ8RdfybJdCyLkjlAIQ3RMmt/exec"; // URL de l'API Admin
 const SCRIPT_NAME = "API-Client";
 const CACHE_TTL_SERVER = 21600; // Durée de vie du cache serveur en secondes (6 heures)
 
@@ -40,6 +40,9 @@ function doGet(e) {
   }
 
   switch (action) {
+    case 'getSiteData':
+      response = getSiteData();
+      break;
     case 'getRecentOrders': // Ajout pour le tableau de bord
       response = getRecentOrders();
       break;
@@ -71,6 +74,9 @@ function doPost(e) {
     case 'creerCompteClient':
       response = creerCompteClient(requestData.data);
       break;
+    case 'connecterClient':
+      response = connecterClient(requestData.data);
+      break;
     // Ajoutez d'autres actions client ici (créerCompteClient, etc.)
     default:
       response = { success: false, error: "Action non reconnue." };
@@ -84,7 +90,7 @@ function doPost(e) {
 function creerCompteClient(data) { // Prend un objet en paramètre
   const ss = SpreadsheetApp.openById(CLIENT_SPREADSHEET_ID);
   const sheet = getOrCreateSheet(ss, "Utilisateurs", [
-    "IDClient", "Nom", "Email", "MotDePasse", "Adresse", "Téléphone", 
+    "IDClient", "Nom", "Email", "MotDePasseHash", "Salt", "Adresse", "Téléphone", 
     "DateInscription", "Statut", "Rôle"
   ]);
 
@@ -96,17 +102,62 @@ function creerCompteClient(data) { // Prend un objet en paramètre
     return { success: false, error: "Un compte avec cet email existe déjà." };
   }
 
-  // TODO: Hasher le mot de passe avant de le stocker
+  // Hachage du mot de passe
+  const salt = Utilities.getUuid();
+  const passwordHash = hashPassword(data.motDePasse, salt);
 
   const idClient = "CUST-" + Utilities.getUuid().substring(0, 8).toUpperCase();
   try {
-    sheet.appendRow([idClient, data.nom, data.email, data.motDePasse, data.adresse, data.telephone, new Date(), "Actif", "Client"]);
+    sheet.appendRow([idClient, data.nom, data.email, passwordHash, salt, data.adresse, data.telephone, new Date(), "Actif", "Client"]);
   } catch (e) {
     logAction(ss, `Erreur lors de l'écriture dans la feuille Utilisateurs: ${e.message}`);
     return { success: false, error: "Erreur interne lors de la création du compte." };
   }
   logAction(ss, `Nouveau compte client créé: ${data.email} (ID: ${idClient})`);
   return { success: true, id: idClient };
+}
+
+/**
+ * Gère la connexion d'un client.
+ */
+function connecterClient(data) {
+  const ss = SpreadsheetApp.openById(CLIENT_SPREADSHEET_ID);
+  const sheet = ss.getSheetByName("Utilisateurs");
+  if (!sheet) return { success: false, error: "Erreur interne: feuille utilisateurs introuvable." };
+
+  const usersData = sheet.getDataRange().getValues();
+  const headers = usersData.shift();
+  const emailIndex = headers.indexOf("Email");
+  const hashIndex = headers.indexOf("MotDePasseHash");
+  const saltIndex = headers.indexOf("Salt");
+
+  const userRow = usersData.find(row => row[emailIndex] === data.email);
+
+  if (!userRow) {
+    return { success: false, error: "Email ou mot de passe incorrect." };
+  }
+
+  const storedHash = userRow[hashIndex];
+  const storedSalt = userRow[saltIndex];
+  const providedPasswordHash = hashPassword(data.motDePasse, storedSalt);
+
+  if (providedPasswordHash !== storedHash) {
+    return { success: false, error: "Email ou mot de passe incorrect." };
+  }
+
+  // Connexion réussie, on retourne les informations de l'utilisateur (sans le mot de passe)
+  const userObject = {};
+  headers.forEach((header, index) => {
+    if (header !== "MotDePasseHash" && header !== "Salt") {
+      userObject[header] = userRow[index];
+    }
+  });
+
+  logAction(ss, `Connexion réussie pour: ${data.email}`);
+  return {
+    success: true,
+    user: userObject
+  };
 }
 
 function enregistrerCommande(data) { // Prend un objet en paramètre
@@ -173,6 +224,45 @@ function envoyerNotificationClient(idClient, message) { /* ... */ }
 
 // --- FONCTION DE RECUPERATION DES DONNEES (CACHE) ---
 
+function getSiteData() {
+  const cache = CacheService.getScriptCache();
+  const cacheKey = 'site_data_cache';
+  const cached = cache.get(cacheKey);
+
+  if (cached != null) {
+    Logger.log("Données du site servies depuis le cache serveur.");
+    return JSON.parse(cached);
+  }
+
+  try {
+    Logger.log("Appel de l'API Admin pour obtenir les données publiques...");
+    const response = UrlFetchApp.fetch(`${ADMIN_API_URL}?action=getPublicData`, {
+      headers: {
+        Authorization: 'Bearer ' + ScriptApp.getIdentityToken(),
+      },
+    });
+    const dataString = response.getContentText();
+    
+    cache.put(cacheKey, dataString, CACHE_TTL_SERVER);
+    Logger.log("Données mises en cache sur le serveur.");
+    return JSON.parse(dataString);
+
+  } catch (e) {
+    Logger.log("Erreur lors de l'appel à l'API Admin: " + e.toString());
+    return { error: "Impossible de récupérer les données du site.", details: e.toString() };
+  }
+}
+
+/**
+ * Fonction de hachage simple pour les mots de passe.
+ * @param {string} password Le mot de passe en clair.
+ * @param {string} salt Le "grain de sel" unique à l'utilisateur.
+ * @returns {string} Le mot de passe haché.
+ */
+function hashPassword(password, salt) {
+  const digest = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, password + salt);
+  return Utilities.base64Encode(digest);
+}
 // --- FONCTIONS DE SÉCURITÉ ---
 
 /**
@@ -272,7 +362,7 @@ function getRecentOrders() {
 // Fonction pour initialiser tous les onglets d'un coup
 function initialiserBaseDeDonnees_Client() {
   const ss = SpreadsheetApp.openById(CLIENT_SPREADSHEET_ID);
-  getOrCreateSheet(ss, "Utilisateurs", ["IDClient", "Nom", "Email", "MotDePasse", "Adresse", "Téléphone", "DateInscription", "Statut", "Rôle"]);
+  getOrCreateSheet(ss, "Utilisateurs", ["IDClient", "Nom", "Email", "MotDePasseHash", "Salt", "Adresse", "Téléphone", "DateInscription", "Statut", "Rôle"]);
   getOrCreateSheet(ss, "Commandes", ["IDCommande", "IDClient", "Date", "Produits", "Quantités", "Total", "Statut", "MoyenPaiement", "AdresseLivraison", "Notes"]);
   getOrCreateSheet(ss, "Paiements", ["IDCommande", "Montant", "MoyenPaiement", "Statut", "Date", "TransactionID", "PreuvePaiement"]);
   getOrCreateSheet(ss, "Livraisons", ["IDCommande", "Transporteur", "NuméroSuivi", "DateEstimee", "Statut", "DateLivraison", "Commentaire"]);
