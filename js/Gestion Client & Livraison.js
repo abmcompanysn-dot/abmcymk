@@ -6,8 +6,8 @@
  */
 
 // --- CONFIGURATION ---
-const SPREADSHEET_ID = "VOTRE_ID_DE_FEUILLE_DE_CALCUL_ICI"; // Le même ID que le Script 1
-const ADMIN_API_URL = "URL_DE_VOTRE_SCRIPT_1_ADMIN_ICI"; // URL de l'API Admin
+const SPREADSHEET_ID = "1pGx-1uFUdS61fL4eh4HhQaHQSX6UzmPXiMQY0i71ZpU"; // Le même ID que le Script 1
+const ADMIN_API_URL = "https://script.google.com/macros/s/AKfycbwB5wmfFB-PSfMl7UUFKM2W1IAOf7W9hiurgfrPYMouDeZlWDu10lz2DFV074f-5Ksy/exec"; // URL de l'API Admin
 const SCRIPT_NAME = "API-Client";
 const CACHE_TTL_SERVER = 21600; // Durée de vie du cache serveur en secondes (6 heures)
 
@@ -77,12 +77,23 @@ function creerCompteClient(data) { // Prend un objet en paramètre
     "DateInscription", "Statut", "Rôle"
   ]);
 
-  // TODO: Ajouter une vérification pour voir si l'email existe déjà
+  // Vérification si l'email existe déjà
+  const emailColumn = sheet.getRange("C:C").getValues();
+  const emailList = emailColumn.flat(); // Aplatit le tableau 2D en 1D
+  if (emailList.includes(data.email)) {
+    logAction(ss, `Tentative d'inscription échouée (email déjà utilisé): ${data.email}`);
+    return { success: false, error: "Un compte avec cet email existe déjà." };
+  }
+
   // TODO: Hasher le mot de passe avant de le stocker
 
   const idClient = "CUST-" + Utilities.getUuid().substring(0, 8).toUpperCase();
-  sheet.appendRow([idClient, data.nom, data.email, data.motDePasse, data.adresse, data.telephone, new Date(), "Actif", "Client"]);
-  
+  try {
+    sheet.appendRow([idClient, data.nom, data.email, data.motDePasse, data.adresse, data.telephone, new Date(), "Actif", "Client"]);
+  } catch (e) {
+    logAction(ss, `Erreur lors de l'écriture dans la feuille Utilisateurs: ${e.message}`);
+    return { success: false, error: "Erreur interne lors de la création du compte." };
+  }
   logAction(ss, `Nouveau compte client créé: ${data.email} (ID: ${idClient})`);
   return { success: true, id: idClient };
 }
