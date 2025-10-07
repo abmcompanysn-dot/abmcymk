@@ -73,6 +73,7 @@ function toggleMobileMenu() {
 async function populateCategoryMenu() {
     const menu = document.getElementById('mobileMenu');
     if (!menu) return;
+    let menuHTML = ''; // Initialiser la variable ici
 
     try {
         const response = await fetch(`${CONFIG.PRODUCT_API_URL}?action=getPublicData`);
@@ -82,7 +83,7 @@ async function populateCategoryMenu() {
         const data = await response.json();
         const categories = data.categories || [];
 
-        const menuHTML = categories.map(cat => 
+        menuHTML = categories.map(cat => 
         `<a href="categorie.html?cat=${cat.IDCategorie}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">${cat.Nom}</a>`
         ).join('');
         menu.innerHTML = menuHTML;

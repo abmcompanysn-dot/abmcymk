@@ -90,7 +90,9 @@ function doGet(e) {
     const cached = cache.get(cacheKey);
 
     if (cached != null) {
-      return ContentService.createTextOutput(cached).setMimeType(ContentService.MimeType.JSON);
+      return ContentService.createTextOutput(cached)
+        .setMimeType(ContentService.MimeType.JSON)
+        .setHeader('Access-Control-Allow-Origin', allowedOrigin);
     }
 
     const ss = SpreadsheetApp.openById(ADMIN_SPREADSHEET_ID);
