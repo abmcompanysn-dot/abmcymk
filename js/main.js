@@ -3,7 +3,7 @@ const CONFIG = {
     CLIENT_API_URL: "https://script.google.com/macros/s/AKfycbxehBgmtpyBWPlNiDP1IJixHSr40Peuut4_OlfndVldp6jrsoHKsSb-UnlUFXIeU4gs/exec",
 
     // URL de l'API publique des produits (Script 1: Gestion Produits)
-    PRODUCT_API_URL: "https://script.google.com/macros/s/AKfycbz7Pmzu5wgECM734NaURQJi8UdAHGqBvIlA0qD35WXAnTyEH8B9X5m_pr-WwV5TPWyD/exec",
+    PRODUCT_API_URL: "https://script.google.com/macros/s/AKfycbyO7fJRsVrz7fAsTA5C9ngFd_fbARvsv9c_w8jCifTM_K8dE4rWV0vf84liv-rglqwD/exec",
     
     // Autres configurations
     DEFAULT_PRODUCT_IMAGE: "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png",
