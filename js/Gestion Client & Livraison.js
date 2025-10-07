@@ -32,6 +32,13 @@ function doGet(e) {
   const action = e.parameter.action;
   let response;
 
+  // Sécurité : Vérifier l'origine de la requête
+  const originHeader = e.headers.origin;
+  const allowedOrigin = getAllowedOrigin(originHeader);
+  if (!allowedOrigin) {
+    return ContentService.createTextOutput(JSON.stringify({ success: false, error: "Accès non autorisé depuis cette origine." })).setMimeType(ContentService.MimeType.JSON);
+  }
+
   switch (action) {
     case 'getSiteData':
       response = getSiteData();
@@ -45,13 +52,20 @@ function doGet(e) {
 
   return ContentService.createTextOutput(JSON.stringify(response))
     .setMimeType(ContentService.MimeType.JSON)
-    .withHeaders({'Access-Control-Allow-Origin': '*'}); // Ajout de l'en-tête CORS
+    .setHeader('Access-Control-Allow-Origin', allowedOrigin);
 }
 
 function doPost(e) {
   const requestData = JSON.parse(e.postData.contents);
   const action = requestData.action;
   let response;
+
+  // Sécurité : Vérifier l'origine de la requête
+  const originHeader = e.headers.origin;
+  const allowedOrigin = getAllowedOrigin(originHeader);
+  if (!allowedOrigin) {
+    return ContentService.createTextOutput(JSON.stringify({ success: false, error: "Accès non autorisé depuis cette origine." })).setMimeType(ContentService.MimeType.JSON);
+  }
 
   switch (action) {
     case 'enregistrerCommande':
@@ -67,7 +81,7 @@ function doPost(e) {
 
   return ContentService.createTextOutput(JSON.stringify(response))
     .setMimeType(ContentService.MimeType.JSON)
-    .withHeaders({'Access-Control-Allow-Origin': '*'}); // Ajout de l'en-tête CORS
+    .setHeader('Access-Control-Allow-Origin', allowedOrigin);
 }
 
 function creerCompteClient(data) { // Prend un objet en paramètre
@@ -176,6 +190,35 @@ function getSiteData() {
   }
 }
 
+// --- FONCTIONS DE SÉCURITÉ ---
+
+/**
+ * Vérifie si l'origine de la requête est dans la liste des origines autorisées.
+ * @param {string} originHeader - L'en-tête "Origin" de la requête entrante.
+ * @returns {string|null} L'origine autorisée si elle est trouvée, sinon null.
+ */
+function getAllowedOrigin(originHeader) {
+  if (!originHeader) {
+    // Si l'en-tête Origin n'est pas présent, on refuse par sécurité.
+    return null;
+  }
+
+  try {
+    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    const configSheet = ss.getSheetByName("Configuration");
+    const data = configSheet.getDataRange().getValues();
+    const headers = data.shift();
+    const keyIndex = headers.indexOf("Clé");
+    const valueIndex = headers.indexOf("Valeur");
+
+    const originsRow = data.find(row => row[keyIndex] === "ALLOWED_ORIGINS");
+    const allowedOrigins = originsRow ? originsRow[valueIndex].split(',').map(s => s.trim()) : [];
+
+    return allowedOrigins.includes(originHeader) ? originHeader : null;
+  } catch (e) {
+    return null; // En cas d'erreur de lecture, on refuse l'accès.
+  }
+}
 
 // --- FONCTIONS UTILITAIRES ---
 

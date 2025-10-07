@@ -110,7 +110,7 @@ function ajouterProduit(p) {
   const sheet = getOrCreateSheet(ss, "Produits", ["IDProduit", "Nom", "Catégorie", "PrixActuel", "PrixAncien", "Réduction%", "Stock", "ImageURL", "Description", "Tags", "Actif"]);
   const idProduit = "PROD-" + Utilities.getUuid().substring(0, 6).toUpperCase();
   let prixAncien = p.prixActuel;
-  if (p.reduction > 0) {
+  if (p.reduction > 0 && p.reduction < 100) {
     prixAncien = p.prixActuel / (1 - (p.reduction / 100));
   }
   sheet.appendRow([idProduit, p.nom, p.categorie, p.prixActuel, prixAncien, p.reduction, p.stock, p.imageURL, p.description, p.tags, true]);
@@ -282,4 +282,12 @@ function initialiserBaseDeDonnees_Admin() {
   getOrCreateSheet(ss, "Albums", ["IDProduit", "ImageURL", "Légende", "Ordre", "TypeImage"]);
   getOrCreateSheet(ss, "StockAlertes", ["IDProduit", "Seuil", "AlerteEnvoyée", "DateDernièreAlerte", "MéthodeNotification"]);
   getOrCreateSheet(ss, "Logs", ["Date", "Script", "Action"]);
+
+  // Création de l'onglet de configuration avec des valeurs par défaut
+  const configSheet = getOrCreateSheet(ss, "Configuration", ["Clé", "Valeur", "Description"]);
+  const configData = configSheet.getRange("A2:A").getValues().flat();
+  if (!configData.includes("ALLOWED_ORIGINS")) {
+    // Ajouter les URLs autorisées, séparées par des virgules. Inclure l'URL de développement local.
+    configSheet.appendRow(["ALLOWED_ORIGINS", "https://abmcymarket.vercel.app,http://127.0.0.1:5500", "Liste des URLs de sites autorisés à appeler l'API (séparées par des virgules)."]);
+  }
 }
