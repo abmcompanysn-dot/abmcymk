@@ -90,26 +90,26 @@ function saveCart(cart) {
 /**
  * Ajoute un produit au panier.
  * @param {Event} event - L'événement du clic pour l'empêcher de suivre le lien.
+ * @param {string} productId - L'ID unique du produit.
  * @param {string} name - Le nom du produit.
  * @param {number} price - Le prix du produit.
- * @param {string} icon - L'icône (emoji) du produit.
+ * @param {string} imageUrl - L'URL de l'image du produit.
  */
-function addToCart(event, name, price, icon) {
+function addToCart(event, productId, name, price, imageUrl) {
     event.preventDefault(); // Empêche la navigation si on clique sur le bouton dans un lien
     event.stopPropagation();
 
     const cart = getCart();
     const quantityInput = document.getElementById('quantity');
     const quantity = quantityInput ? parseInt(quantityInput.value) : 1;
-
-    const existingProductIndex = cart.findIndex(item => item.name === name);
+    const existingProductIndex = cart.findIndex(item => item.id === productId);
 
     if (existingProductIndex > -1) {
         // Le produit existe déjà, on augmente la quantité
         cart[existingProductIndex].quantity += quantity;
     } else {
         // Nouveau produit
-        cart.push({ name, price, icon, quantity });
+        cart.push({ id: productId, name, price, imageUrl, quantity });
     }
 
     saveCart(cart);
@@ -150,7 +150,9 @@ function renderCartPage() {
 
     const cartHTML = cart.map((item, index) => `
         <div class="flex items-center p-4 border-b">
-            <div class="w-16 h-16 bg-gray-200 rounded flex items-center justify-center text-3xl mr-4">${item.icon}</div>
+            <div class="w-16 h-16 bg-gray-200 rounded mr-4 overflow-hidden">
+                <img src="${item.imageUrl || CONFIG.DEFAULT_PRODUCT_IMAGE}" alt="${item.name}" class="w-full h-full object-cover">
+            </div>
             <div class="flex-grow">
                 <h4 class="font-semibold">${item.name}</h4>
                 <p class="text-sm text-gold">${item.price.toLocaleString('fr-FR')} F CFA</p>
@@ -274,11 +276,11 @@ function displaySearchResults() {
 
     const resultsHTML = filteredProducts.map(product => `
         <a href="produit.html?id=${product.IDProduit}" class="bg-white rounded-lg shadow-md overflow-hidden block">
-            <div class="h-48 bg-gray-200 flex items-center justify-center"><span class="text-6xl">${product.icone}</span></div>
+            <div class="h-48 bg-gray-200"><img src="${product.ImageURL || CONFIG.DEFAULT_PRODUCT_IMAGE}" alt="${product.Nom}" class="h-full w-full object-cover"></div>
             <div class="p-4">
                 <h4 class="font-semibold text-gray-800 mb-2">${product.Nom}</h4>
                 <span class="text-lg font-bold text-gold">${product.PrixActuel.toLocaleString('fr-FR')} F CFA</span>
-                <button class="w-full mt-3 bg-black text-white py-2 rounded hover:bg-gray-800 transition" onclick="addToCart(event, '${product.Nom}', ${product.PrixActuel}, '${product.icone}')">Ajouter au panier</button>
+                <button class="w-full mt-3 bg-black text-white py-2 rounded hover:bg-gray-800 transition" onclick="addToCart(event, '${product.IDProduit}', '${product.Nom}', ${product.PrixActuel}, '${product.ImageURL || CONFIG.DEFAULT_PRODUCT_IMAGE}')">Ajouter au panier</button>
             </div>
         </a>
     `).join('');
@@ -310,7 +312,7 @@ async function loadProductPage() {
 
         // Mettre à jour le HTML de la page avec les données du produit
         document.querySelector('h1').textContent = product.Nom;
-        document.querySelector('.text-9xl').textContent = product.icone;
+        document.querySelector('#product-image-main').src = product.ImageURL || CONFIG.DEFAULT_PRODUCT_IMAGE;
         // ... et ainsi de suite pour les autres éléments (prix, description, etc.)
         // Exemple pour le prix:
         document.querySelector('.text-3xl.font-bold.text-gold').textContent = `${product.PrixActuel.toLocaleString('fr-FR')} F CFA`;
@@ -318,7 +320,7 @@ async function loadProductPage() {
 
         // Mettre à jour le bouton "Ajouter au panier"
         const addToCartButton = document.querySelector('.w-full.bg-black');
-        addToCartButton.setAttribute('onclick', `addToCart(event, '${product.Nom}', ${product.PrixActuel}, '${product.icone}')`);
+        addToCartButton.setAttribute('onclick', `addToCart(event, '${product.IDProduit}', '${product.Nom}', ${product.PrixActuel}, '${product.ImageURL || CONFIG.DEFAULT_PRODUCT_IMAGE}')`);
 
     } catch (error) {
         console.error("Erreur de chargement du produit:", error);
@@ -364,7 +366,7 @@ async function processCheckout(event) {
         action: 'enregistrerCommande', // Correspond à la fonction du Script 2
         orderData: {
             idClient: "CUST-123", // TODO: Remplacer par l'ID du client connecté
-            produits: cart.map(item => item.name), // ou mieux, l'ID du produit
+            produits: cart.map(item => item.id), // On utilise l'ID du produit
             quantites: cart.map(item => item.quantity),
             adresseLivraison: `${deliveryData.address}, ${deliveryData.zip} ${deliveryData.city}`,
             total: cart.reduce((sum, item) => sum + (item.price * item.quantity), 0) + (cart.reduce((sum, item) => sum + (item.price * item.quantity), 0) > 30000 ? 0 : 5000),
@@ -500,7 +502,7 @@ function renderProductCard(product) {
                     <span class="text-lg font-bold text-gold">${price.toLocaleString('fr-FR')} F CFA</span>
                     ${oldPrice > price ? `<span class="text-sm text-gray-500 line-through">${oldPrice.toLocaleString('fr-FR')} F CFA</span>` : ''}
                 </div>
-                <button class="w-full mt-3 bg-black text-white py-2 rounded hover:bg-gray-800 transition" onclick="addToCart(event, '${product.Nom}', ${price}, '${product.icone || '🛍️'}')">
+                <button class="w-full mt-3 bg-black text-white py-2 rounded hover:bg-gray-800 transition" onclick="addToCart(event, '${product.IDProduit}', '${product.Nom}', ${price}, '${product.ImageURL || CONFIG.DEFAULT_PRODUCT_IMAGE}')">
                     Ajouter au panier
                 </button>
             </div>
