@@ -43,6 +43,11 @@ async function initializeApp() {
         document.getElementById('login-form').addEventListener('submit', (e) => handleAuthForm(e, 'login'));
         document.getElementById('register-form').addEventListener('submit', (e) => handleAuthForm(e, 'register'));
     }
+
+    // Si nous sommes sur la page compte, on l'initialise
+    if (document.querySelector('main h1.text-3xl')?.textContent.includes("Mon Compte")) {
+        initializeAccountPage();
+    }
 }
 
 /**
@@ -612,4 +617,47 @@ function switchTab(tabName) {
     registerForm.classList.toggle('hidden', tabName !== 'register');
 
     document.getElementById('auth-status').textContent = ''; // Clear status messages
+}
+
+// --- LOGIQUE DE LA PAGE COMPTE ---
+
+/**
+ * Initialise la page "Mon Compte".
+ * Vérifie si l'utilisateur est connecté, sinon le redirige.
+ * Affiche les informations de l'utilisateur.
+ */
+function initializeAccountPage() {
+    const user = JSON.parse(localStorage.getItem('abmcyUser'));
+
+    // Si l'utilisateur n'est pas connecté, on le renvoie à la page d'authentification
+    if (!user) {
+        window.location.href = 'authentification.html';
+        return;
+    }
+
+    // Afficher les informations de l'utilisateur
+    document.getElementById('user-name-display').textContent = user.Nom;
+    document.getElementById('user-email-display').textContent = user.Email;
+    document.getElementById('dashboard-user-name').textContent = user.Nom;
+    document.getElementById('dashboard-user-name-link').textContent = user.Nom;
+
+    // Initiales pour l'avatar
+    const initials = user.Nom.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+    document.querySelector('.w-16.h-16.rounded-full').textContent = initials;
+
+    // Logique de déconnexion
+    const logoutLink = document.getElementById('logout-link');
+    const logoutNav = document.querySelector('a[href="#"].text-red-600'); // Cible le lien de déconnexion dans la nav
+    
+    const logoutAction = (e) => {
+        e.preventDefault();
+        if (confirm("Êtes-vous sûr de vouloir vous déconnecter ?")) {
+            localStorage.removeItem('abmcyUser');
+            window.location.href = 'index.html';
+        }
+    };
+
+    logoutLink.addEventListener('click', logoutAction);
+    logoutNav.addEventListener('click', logoutAction);
+
 }
