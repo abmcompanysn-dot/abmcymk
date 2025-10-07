@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Catégorie - ABMCY MARKET</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --gold-color: #D4AF37; /* Or */
+            --dark-color: #1a1a1a; /* Noir doux */
+        }
+        .text-gold { color: var(--gold-color); }
+        .bg-gold { background-color: var(--gold-color); }
+        .border-gold { border-color: var(--gold-color); }
+        .ring-gold { --tw-ring-color: var(--gold-color); }
+        .font-montserrat { font-family: 'Montserrat', sans-serif; }
+        /* Espace pour la barre de navigation inférieure */
+        body { padding-bottom: 80px; }
+    </style>
+</head>
+<body class="bg-gray-100 font-montserrat">
+
+    <!-- Header -->
+    <header class="bg-white shadow-md sticky top-0 z-40">
+        <div class="container mx-auto px-4 py-2">
+            <div class="flex items-center justify-between">
+                <button class="p-2" onclick="toggleMobileMenu()">
+                    <svg class="w-6 h-6 text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+                </button>
+                <div id="mobileMenu" class="hidden absolute left-0 mt-2 w-64 bg-white rounded-md shadow-lg py-1 z-50 max-h-96 overflow-y-auto"></div>
+                
+                <a href="index.html" class="flex items-center">
+                    <div class="w-9 h-9 bg-dark-color rounded-lg flex items-center justify-center mr-2"><span class="text-gold font-bold text-xl">A</span></div>
+                    <h1 class="text-xl font-bold text-gray-800 hidden sm:block">ABMCY MARKET</h1>
+                </a>
+
+                <div class="flex-1 mx-4">
+                    <div class="relative">
+                        <input type="search" placeholder="Rechercher..." class="w-full p-2 pl-10 text-sm border rounded-lg focus:outline-none focus:ring-2 ring-gold">
+                        <svg class="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Contenu de la page Catégorie -->
+    <main class="container mx-auto px-4 py-12">
+        <h1 class="text-3xl font-bold text-gray-800 mb-2">Électronique</h1>
+        <p class="text-gray-600 mb-8">Découvrez notre sélection de produits électroniques.</p>
+
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
+            <!-- Filtres -->
+            <aside class="lg:col-span-1">
+                <div class="bg-white p-6 rounded-lg shadow">
+                    <h3 class="text-xl font-bold mb-4 border-b pb-2">Filtres</h3>
+                    <!-- Filtre par prix -->
+                    <div class="mb-6">
+                        <h4 class="font-semibold mb-2">Prix</h4>
+                        <input type="range" min="0" max="1000000" class="w-full">
+                        <div class="flex justify-between text-sm text-gray-600 mt-1">
+                            <span>0 F</span>
+                            <span>1M F</span>
+                        </div>
+                    </div>
+                    <!-- Filtre par marque -->
+                    <div class="mb-6">
+                        <h4 class="font-semibold mb-2">Marque</h4>
+                        <div class="space-y-2">
+                            <label class="flex items-center"><input type="checkbox" class="mr-2"> Marque A</label>
+                            <label class="flex items-center"><input type="checkbox" class="mr-2"> Marque B</label>
+                            <label class="flex items-center"><input type="checkbox" class="mr-2"> Marque C</label>
+                        </div>
+                    </div>
+                    <!-- Filtre par avis -->
+                    <div>
+                        <h4 class="font-semibold mb-2">Avis</h4>
+                        <div class="space-y-2">
+                            <label class="flex items-center"><input type="radio" name="rating" class="mr-2"> ★★★★★</label>
+                            <label class="flex items-center"><input type="radio" name="rating" class="mr-2"> ★★★★☆ & plus</label>
+                            <label class="flex items-center"><input type="radio" name="rating" class="mr-2"> ★★★☆☆ & plus</label>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Liste des produits -->
+            <div class="lg:col-span-3">
+                <!-- Options de tri -->
+                <div class="flex justify-between items-center mb-6">
+                    <span class="text-gray-600">Affichage de 12 produits</span>
+                    <select class="border rounded p-2">
+                        <option>Trier par pertinence</option>
+                        <option>Trier par prix croissant</option>
+                        <option>Trier par prix décroissant</option>
+                    </select>
+                </div>
+
+                <!-- Grille de produits -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <!-- Produit 1 -->
+                    <a href="produit.html" class="bg-white rounded-lg shadow-md overflow-hidden block">
+                        <div class="h-48 bg-gray-200 flex items-center justify-center"><span class="text-6xl">📱</span></div>
+                        <div class="p-4">
+                            <h4 class="font-semibold text-gray-800 mb-2">Smartphone Pro</h4>
+                            <div class="flex items-center space-x-2">
+                                <span class="text-lg font-bold text-gold">450000 F CFA</span>
+                            </div>
+                        </div>
+                    </a>
+                    <!-- Produit 2 -->
+                    <a href="produit.html" class="bg-white rounded-lg shadow-md overflow-hidden block">
+                        <div class="h-48 bg-gray-200 flex items-center justify-center"><span class="text-6xl">💻</span></div>
+                        <div class="p-4">
+                            <h4 class="font-semibold text-gray-800 mb-2">Laptop Gaming</h4>
+                            <div class="flex items-center space-x-2">
+                                <span class="text-lg font-bold text-gold">780000 F CFA</span>
+                            </div>
+                        </div>
+                    </a>
+                    <!-- Produit 3 -->
+                    <a href="produit.html" class="bg-white rounded-lg shadow-md overflow-hidden block">
+                        <div class="h-48 bg-gray-200 flex items-center justify-center"><span class="text-6xl">🎧</span></div>
+                        <div class="p-4">
+                            <h4 class="font-semibold text-gray-800 mb-2">Casque Audio</h4>
+                            <div class="flex items-center space-x-2">
+                                <span class="text-lg font-bold text-gold">58000 F CFA</span>
+                            </div>
+                        </div>
+                    </a>
+                    <!-- ... autres produits ... -->
+                </div>
+
+                <!-- Pagination -->
+                <div class="mt-8 flex justify-center">
+                    <nav class="flex items-center space-x-2">
+                        <a href="#" class="px-4 py-2 border rounded bg-white">&laquo;</a>
+                        <a href="#" class="px-4 py-2 border rounded bg-black text-white">1</a>
+                        <a href="#" class="px-4 py-2 border rounded bg-white">2</a>
+                        <a href="#" class="px-4 py-2 border rounded bg-white">3</a>
+                        <a href="#" class="px-4 py-2 border rounded bg-white">&raquo;</a>
+                    </nav>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Barre de navigation inférieure -->
+    <nav class="bg-white border-t-2 border-gray-200 fixed bottom-0 left-0 right-0 z-40">
+        <div class="container mx-auto px-4">
+            <div class="flex justify-around items-center h-16">
+                <a href="index.html" class="flex flex-col items-center text-gray-600 hover:text-gold transition">
+                    <svg class="w-6 h-6 mb-1" fill="currentColor" viewBox="0 0 20 20"><path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"></path></svg>
+                    <span class="text-xs font-semibold">Accueil</span>
+                </a>
+                <a href="suivi-commande.html" class="flex flex-col items-center text-gray-600 hover:text-gold transition">
+                    <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path></svg>
+                    <span class="text-xs">Suivi</span>
+                </a>
+                <a href="compte.html" class="flex flex-col items-center text-gray-600 hover:text-gold transition">
+                    <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+                    <span class="text-xs">Compte</span>
+                </a>
+                <a href="panier.html" class="flex flex-col items-center text-gray-600 hover:text-gold transition relative">
+                    <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L4.5 8M7 13h10l4-8H5.4M7 13L4.5 8M12 13h8.5l-4 8H8l-4-8h8.5z"></path></svg>
+                    <span id="bottomNavCartBadge" class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center hidden">0</span>
+                    <span class="text-xs">Panier</span>
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <script src="js/main.js"></script>
+    <script src="js/categories.js"></script>
+
+</body>
+</html>

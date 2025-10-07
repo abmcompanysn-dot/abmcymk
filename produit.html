@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Détail du Produit - ABMCY MARKET</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --gold-color: #D4AF37; /* Or */
+            --dark-color: #1a1a1a; /* Noir doux */
+        }
+        .text-gold { color: var(--gold-color); }
+        .bg-gold { background-color: var(--gold-color); }
+        .border-gold { border-color: var(--gold-color); }
+        .font-montserrat { font-family: 'Montserrat', sans-serif; }
+        /* Espace pour la barre de navigation inférieure */
+        body { padding-bottom: 80px; }
+    </style>
+</head>
+<body class="bg-gray-50 font-montserrat">
+
+    <!-- Header -->
+    <header class="bg-white shadow-md sticky top-0 z-40">
+        <div class="container mx-auto px-4 py-2">
+            <div class="flex items-center justify-between">
+                <button class="p-2" onclick="toggleMobileMenu()">
+                    <svg class="w-6 h-6 text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+                </button>
+                <div id="mobileMenu" class="hidden absolute left-0 mt-2 w-64 bg-white rounded-md shadow-lg py-1 z-50 max-h-96 overflow-y-auto"></div>
+                
+                <a href="index.html" class="flex items-center">
+                    <div class="w-9 h-9 bg-dark-color rounded-lg flex items-center justify-center mr-2"><span class="text-gold font-bold text-xl">A</span></div>
+                    <h1 class="text-xl font-bold text-gray-800 hidden sm:block">ABMCY MARKET</h1>
+                </a>
+
+                <div class="flex-1 mx-4">
+                    <div class="relative">
+                        <input type="search" placeholder="Rechercher..." class="w-full p-2 pl-10 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-gold">
+                        <svg class="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Contenu de la page produit -->
+    <main class="container mx-auto px-4 py-12">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-12 items-start">
+            <!-- Galerie d'images -->
+            <div id="product-gallery">
+                <div class="bg-gray-200 rounded-lg h-96 flex items-center justify-center mb-4 animate-pulse">
+                    <img id="main-product-image" src="https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png" alt="Image principale du produit" class="max-h-full max-w-full object-contain">
+                </div>
+                <div id="product-thumbnails" class="grid grid-cols-5 gap-2">
+                    <!-- Les miniatures seront injectées ici par JS -->
+                </div>
+            </div>
+
+            <!-- Informations produit -->
+            <div>
+                <h1 class="text-4xl font-bold text-gray-800 mb-2">Smartphone Pro</h1>
+                <div class="flex items-center mb-4">
+                    <span class="text-yellow-500">★★★★☆</span>
+                    <span class="text-gray-600 ml-2">(125 avis)</span>
+                </div>
+                <p class="text-gray-600 mb-6">
+                    Découvrez le nouveau Smartphone Pro avec son écran Super Retina XDR, une puce A15 Bionic ultra-rapide et un système photo pro pour des clichés et vidéos incroyables.
+                </p>
+                <div class="flex items-center space-x-3 mb-6">
+                    <span class="text-3xl font-bold text-gold">450000 F CFA</span>
+                    <span class="text-xl text-gray-500 line-through">650000 F CFA</span>
+                    <span class="bg-red-500 text-white px-3 py-1 rounded-full text-sm font-bold">-30%</span>
+                </div>
+                <div class="flex items-center space-x-4 mb-8">
+                    <label for="quantity" class="font-semibold">Quantité:</label>
+                    <input type="number" id="quantity" value="1" min="1" class="w-20 border border-gray-300 rounded p-2 text-center">
+                </div>
+                <button class="w-full bg-black text-white py-3 rounded-lg font-semibold hover:bg-gray-800 transition text-lg" onclick="addToCart(event, 'Smartphone Pro', 450000, '📱')">
+                    Ajouter au panier
+                </button>
+            </div>
+        </div>
+
+        <!-- Section Description & Avis -->
+        <div class="mt-16 border-t pt-8">
+            <h3 class="text-2xl font-bold mb-4">Description détaillée</h3>
+            <p class="text-gray-700">
+                Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed non risus. Suspendisse lectus tortor, dignissim sit amet, adipiscing nec, ultricies sed, dolor. Cras elementum ultrices diam. Maecenas ligula massa, varius a, semper congue, euismod non, mi.
+            </p>
+
+            <div class="mt-8">
+                <h3 class="text-2xl font-bold mb-4">Caractéristiques techniques</h3>
+                <ul class="list-disc list-inside text-gray-700 space-y-2">
+                    <li>Écran: Super Retina XDR 6.1 pouces</li>
+                    <li>Puce: A15 Bionic</li>
+                    <li>Appareil photo: Double appareil photo 12 Mpx</li>
+                    <li>Capacité: 256 Go</li>
+                    <li>Connectivité: 5G, Wi-Fi 6, Bluetooth 5.0</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Section Produits similaires -->
+        <section class="mt-16 border-t pt-8">
+            <h3 class="text-2xl font-bold text-gray-800 mb-8">Produits similaires</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <!-- Produit similaire 1 -->
+                <a href="produit.html" class="bg-white rounded-lg shadow-md overflow-hidden block">
+                    <div class="h-48 bg-gray-200 flex items-center justify-center"><span class="text-6xl">💻</span></div>
+                    <div class="p-4">
+                        <h4 class="font-semibold text-gray-800 mb-2">Laptop Ultra-fin</h4>
+                        <span class="text-lg font-bold text-gold">850000 F CFA</span>
+                    </div>
+                </a>
+                <!-- Produit similaire 2 -->
+                <a href="produit.html" class="bg-white rounded-lg shadow-md overflow-hidden block">
+                    <div class="h-48 bg-gray-200 flex items-center justify-center"><span class="text-6xl">⌚</span></div>
+                    <div class="p-4">
+                        <h4 class="font-semibold text-gray-800 mb-2">Montre Connectée Sport</h4>
+                        <span class="text-lg font-bold text-gold">180000 F CFA</span>
+                    </div>
+                </a>
+                <!-- Produit similaire 3 -->
+                <a href="produit.html" class="bg-white rounded-lg shadow-md overflow-hidden block">
+                    <div class="h-48 bg-gray-200 flex items-center justify-center"><span class="text-6xl">🎧</span></div>
+                    <div class="p-4">
+                        <h4 class="font-semibold text-gray-800 mb-2">Casque sans fil Pro</h4>
+                        <span class="text-lg font-bold text-gold">75000 F CFA</span>
+                    </div>
+                </a>
+                <!-- Produit similaire 4 -->
+                <a href="produit.html" class="bg-white rounded-lg shadow-md overflow-hidden block">
+                    <div class="h-48 bg-gray-200 flex items-center justify-center"><span class="text-6xl">📷</span></div>
+                    <div class="p-4">
+                        <h4 class="font-semibold text-gray-800 mb-2">Appareil Photo Reflex</h4>
+                        <span class="text-lg font-bold text-gold">620000 F CFA</span>
+                    </div>
+                </a>
+            </div>
+        </section>
+    </main>
+
+    <!-- Barre de navigation inférieure -->
+    <nav class="bg-white border-t-2 border-gray-200 fixed bottom-0 left-0 right-0 z-40">
+        <div class="container mx-auto px-4">
+            <div class="flex justify-around items-center h-16">
+                <a href="index.html" class="flex flex-col items-center text-gray-600 hover:text-gold transition">
+                    <svg class="w-6 h-6 mb-1" fill="currentColor" viewBox="0 0 20 20"><path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"></path></svg>
+                    <span class="text-xs font-semibold">Accueil</span>
+                </a>
+                <a href="suivi-commande.html" class="flex flex-col items-center text-gray-600 hover:text-gold transition">
+                    <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path></svg>
+                    <span class="text-xs">Suivi</span>
+                </a>
+                <a href="compte.html" class="flex flex-col items-center text-gray-600 hover:text-gold transition">
+                    <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+                    <span class="text-xs">Compte</span>
+                </a>
+                <a href="panier.html" class="flex flex-col items-center text-gray-600 hover:text-gold transition relative">
+                    <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L4.5 8M7 13h10l4-8H5.4M7 13L4.5 8M12 13h8.5l-4 8H8l-4-8h8.5z"></path></svg>
+                    <span id="bottomNavCartBadge" class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center hidden">0</span>
+                    <span class="text-xs">Panier</span>
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <script src="js/main.js"></script>
+    <script src="js/categories.js"></script>
+</body>
+</html>

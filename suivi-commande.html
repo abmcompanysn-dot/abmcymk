@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Suivi de Commande - ABMCY MARKET</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --gold-color: #D4AF37;
+            --dark-color: #1a1a1a;
+        }
+        .text-gold { color: var(--gold-color); }
+        .bg-gold { background-color: var(--gold-color); }
+        .border-gold { border-color: var(--gold-color); }
+        .font-montserrat { font-family: 'Montserrat', sans-serif; }
+        body { padding-bottom: 80px; }
+    </style>
+</head>
+<body class="bg-gray-100 font-montserrat">
+
+    <!-- Header -->
+    <header class="bg-white shadow-md sticky top-0 z-40">
+        <div class="container mx-auto px-4 py-2">
+            <div class="flex items-center justify-between">
+                <a href="index.html" class="flex items-center">
+                    <div class="w-9 h-9 bg-dark-color rounded-lg flex items-center justify-center mr-2"><span class="text-gold font-bold text-xl">A</span></div>
+                    <h1 class="text-xl font-bold text-gray-800">ABMCY MARKET</h1>
+                </a>
+                <a href="panier.html" class="relative p-2">
+                    <svg class="w-7 h-7 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L4.5 8M7 13h10l4-8H5.4M7 13L4.5 8M12 13h8.5l-4 8H8l-4-8h8.5z"></path></svg>
+                    <span id="cartBadge" class="absolute top-0 right-0 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center hidden">0</span>
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Contenu de la page -->
+    <main class="container mx-auto px-4 py-12">
+        <div class="max-w-2xl mx-auto bg-white p-8 rounded-lg shadow-lg">
+            <h1 class="text-3xl font-bold text-gray-800 mb-6 text-center">Suivre votre commande</h1>
+            <p class="text-gray-600 mb-8 text-center">Entrez votre numéro de commande et votre email pour voir le statut de votre livraison.</p>
+            
+            <form>
+                <div class="mb-4">
+                    <label for="order-id" class="block text-sm font-medium text-gray-700 mb-1">Numéro de commande</label>
+                    <input type="text" id="order-id" placeholder="Ex: 10524" class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-gold">
+                </div>
+                <div class="mb-6">
+                    <label for="email" class="block text-sm font-medium text-gray-700 mb-1">Email de facturation</label>
+                    <input type="email" id="email" placeholder="vous@exemple.com" class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-gold">
+                </div>
+                <button type="submit" class="w-full bg-black text-white py-3 rounded-lg font-semibold hover:bg-gray-800 transition">
+                    Suivre
+                </button>
+            </form>
+        </div>
+    </main>
+
+    <!-- Barre de navigation inférieure -->
+    <nav class="bg-white border-t-2 border-gray-200 fixed bottom-0 left-0 right-0 z-40">
+        <div class="container mx-auto px-4">
+            <div class="flex justify-around items-center h-16">
+                <a href="index.html" class="flex flex-col items-center text-gray-600 hover:text-gold transition">
+                    <svg class="w-6 h-6 mb-1" fill="currentColor" viewBox="0 0 20 20"><path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"></path></svg>
+                    <span class="text-xs font-semibold">Accueil</span>
+                </a>
+                <a href="suivi-commande.html" class="flex flex-col items-center text-gold hover:text-yellow-300 transition">
+                    <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path></svg>
+                    <span class="text-xs">Suivi</span>
+                </a>
+                <a href="compte.html" class="flex flex-col items-center text-gray-600 hover:text-gold transition">
+                    <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+                    <span class="text-xs">Compte</span>
+                </a>
+                <a href="panier.html" class="flex flex-col items-center text-gray-600 hover:text-gold transition relative">
+                    <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L4.5 8M7 13h10l4-8H5.4M7 13L4.5 8M12 13h8.5l-4 8H8l-4-8h8.5z"></path></svg>
+                    <span id="bottomNavCartBadge" class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center hidden">0</span>
+                    <span class="text-xs">Panier</span>
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <script src="js/main.js"></script>
+    <script src="js/categories.js"></script>
+</body>
+</html>
