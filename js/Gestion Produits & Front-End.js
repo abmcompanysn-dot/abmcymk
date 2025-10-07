@@ -287,7 +287,7 @@ function initialiserBaseDeDonnees_Admin() {
   const configSheet = getOrCreateSheet(ss, "Configuration", ["Clé", "Valeur", "Description"]);
   const configData = configSheet.getRange("A2:A").getValues().flat();
   if (!configData.includes("ALLOWED_ORIGINS")) {
-    // Ajouter les URLs autorisées, séparées par des virgules. Inclure l'URL de développement local.
-    configSheet.appendRow(["ALLOWED_ORIGINS", "https://abmcymarket.vercel.app,http://127.0.0.1:5500", "Liste des URLs de sites autorisés à appeler l'API (séparées par des virgules)."]);
+    // URL de votre site en production et URL pour le développement local.
+    configSheet.appendRow(["ALLOWED_ORIGINS", "https://abmcymarket.vercel.app,http://127.0.0.1:5500", "URLs autorisées à appeler l'API (séparées par des virgules)."]);
   }
 }

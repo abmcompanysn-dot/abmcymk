@@ -6,8 +6,8 @@
  */
 
 // --- CONFIGURATION ---
-const SPREADSHEET_ID = "1pGx-1uFUdS61fL4eh4HhQaHQSX6UzmPXiMQY0i71ZpU"; // Le même ID que le Script 1
-const ADMIN_API_URL = "https://script.google.com/macros/s/AKfycbwB5wmfFB-PSfMl7UUFKM2W1IAOf7W9hiurgfrPYMouDeZlWDu10lz2DFV074f-5Ksy/exec"; // URL de l'API Admin
+const CLIENT_SPREADSHEET_ID = "1pGx-1uFUdS61fL4eh4HhQaHQSX6UzmPXiMQY0i71ZpU"; // IMPORTANT: Mettez ici l'ID de votre 2ème Google Sheet
+const ADMIN_API_URL = "https://script.google.com/macros/s/AKfycby1fT2lUaqCEqMbb7dgKRFRf5_Hh_p0H-WilPtmmO66GQ8RdfybJdCyLkjlAIQ3RMmt/exec"; // URL de l'API Admin
 const SCRIPT_NAME = "API-Client";
 const CACHE_TTL_SERVER = 21600; // Durée de vie du cache serveur en secondes (6 heures)
 
@@ -85,7 +85,7 @@ function doPost(e) {
 }
 
 function creerCompteClient(data) { // Prend un objet en paramètre
-  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const ss = SpreadsheetApp.openById(CLIENT_SPREADSHEET_ID);
   const sheet = getOrCreateSheet(ss, "Utilisateurs", [
     "IDClient", "Nom", "Email", "MotDePasse", "Adresse", "Téléphone", 
     "DateInscription", "Statut", "Rôle"
@@ -113,7 +113,7 @@ function creerCompteClient(data) { // Prend un objet en paramètre
 }
 
 function enregistrerCommande(data) { // Prend un objet en paramètre
-  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const ss = SpreadsheetApp.openById(CLIENT_SPREADSHEET_ID);
   const sheet = getOrCreateSheet(ss, "Commandes", [
     "IDCommande", "IDClient", "Date", "Produits", "Quantités", "Total", 
     "Statut", "MoyenPaiement", "AdresseLivraison", "Notes"
@@ -138,7 +138,7 @@ function enregistrerCommande(data) { // Prend un objet en paramètre
 }
 
 function enregistrerPaiement(idCommande, montant, moyenPaiement, statut, transactionID, preuvePaiementURL) {
-  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const ss = SpreadsheetApp.openById(CLIENT_SPREADSHEET_ID);
   const sheet = getOrCreateSheet(ss, "Paiements", [
     "IDCommande", "Montant", "MoyenPaiement", "Statut", "Date", 
     "TransactionID", "PreuvePaiement"
@@ -204,7 +204,7 @@ function getAllowedOrigin(originHeader) {
   }
 
   try {
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    const ss = SpreadsheetApp.openById(CLIENT_SPREADSHEET_ID);
     const configSheet = ss.getSheetByName("Configuration");
     const data = configSheet.getDataRange().getValues();
     const headers = data.shift();
@@ -260,7 +260,7 @@ function sheetToJSON(sheet) {
 
 function getRecentOrders() {
   try {
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    const ss = SpreadsheetApp.openById(CLIENT_SPREADSHEET_ID);
     const sheet = ss.getSheetByName("Commandes");
     if (!sheet) return { success: false, error: "L'onglet Commandes est introuvable." };
 
@@ -288,11 +288,19 @@ function getRecentOrders() {
 
 // Fonction pour initialiser tous les onglets d'un coup
 function initialiserBaseDeDonnees_Client() {
-  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const ss = SpreadsheetApp.openById(CLIENT_SPREADSHEET_ID);
   getOrCreateSheet(ss, "Utilisateurs", ["IDClient", "Nom", "Email", "MotDePasse", "Adresse", "Téléphone", "DateInscription", "Statut", "Rôle"]);
   getOrCreateSheet(ss, "Commandes", ["IDCommande", "IDClient", "Date", "Produits", "Quantités", "Total", "Statut", "MoyenPaiement", "AdresseLivraison", "Notes"]);
   getOrCreateSheet(ss, "Paiements", ["IDCommande", "Montant", "MoyenPaiement", "Statut", "Date", "TransactionID", "PreuvePaiement"]);
   getOrCreateSheet(ss, "Livraisons", ["IDCommande", "Transporteur", "NuméroSuivi", "DateEstimee", "Statut", "DateLivraison", "Commentaire"]);
   getOrCreateSheet(ss, "SAV", ["IDCommande", "Client", "Motif", "Statut", "Date", "Résolution", "Commentaire"]);
   getOrCreateSheet(ss, "Logs", ["Date", "Script", "Action"]);
+
+  // Création de l'onglet de configuration avec des valeurs par défaut
+  const configSheet = getOrCreateSheet(ss, "Configuration", ["Clé", "Valeur", "Description"]);
+  const configData = configSheet.getRange("A2:A").getValues().flat();
+  if (!configData.includes("ALLOWED_ORIGINS")) {
+    // URL de votre site en production et URL pour le développement local.
+    configSheet.appendRow(["ALLOWED_ORIGINS", "https://abmcymarket.vercel.app,http://127.0.0.1:5500", "URLs autorisées à appeler l'API (séparées par des virgules)."]);
+  }
 }
