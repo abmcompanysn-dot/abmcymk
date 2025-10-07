@@ -355,20 +355,41 @@ async function loadProductPage() { // Make it async
         }
 
         // Mettre à jour le HTML de la page avec les données du produit
-        document.querySelector('h1').textContent = product.Nom;
-        document.querySelector('#product-image-main').src = product.ImageURL || CONFIG.DEFAULT_PRODUCT_IMAGE;
-        // ... et ainsi de suite pour les autres éléments (prix, description, etc.)
-        // Exemple pour le prix:
-        document.querySelector('.text-3xl.font-bold.text-gold').textContent = `${product.PrixActuel.toLocaleString('fr-FR')} F CFA`;
-        // Afficher le prix barré s'il y a une réduction
+        const nameEl = document.getElementById('product-name');
+        const descriptionEl = document.getElementById('product-description');
+        const priceContainer = document.getElementById('product-price-container');
+        const mainImage = document.getElementById('main-product-image');
+        const addToCartButton = document.getElementById('add-to-cart-button');
+
+        // Enlever les classes de chargement
+        nameEl.classList.remove('h-12', 'bg-gray-200', 'animate-pulse');
+        descriptionEl.classList.remove('h-20', 'bg-gray-200', 'animate-pulse');
+        mainImage.parentElement.classList.remove('animate-pulse');
+
+        // Remplir les données
+        nameEl.textContent = product.Nom;
+        descriptionEl.textContent = product.Description;
+        mainImage.src = product.ImageURL || CONFIG.DEFAULT_PRODUCT_IMAGE;
+        mainImage.alt = product.Nom;
+
+        // Gérer l'affichage du prix
+        let priceHTML = `<span class="text-3xl font-bold text-gold">${product.PrixActuel.toLocaleString('fr-FR')} F CFA</span>`;
+        if (product.PrixAncien && product.PrixAncien > product.PrixActuel) {
+            priceHTML += `<span class="text-xl text-gray-500 line-through">${product.PrixAncien.toLocaleString('fr-FR')} F CFA</span>`;
+        }
+        if (product['Réduction%'] > 0) {
+            priceHTML += `<span class="bg-red-500 text-white px-3 py-1 rounded-full text-sm font-bold">-${product['Réduction%']}%</span>`;
+        }
+        priceContainer.innerHTML = priceHTML;
 
         // Mettre à jour le bouton "Ajouter au panier"
-        const addToCartButton = document.querySelector('.w-full.bg-black');
         addToCartButton.setAttribute('onclick', `addToCart(event, '${product.IDProduit}', '${product.Nom}', ${product.PrixActuel}, '${product.ImageURL || CONFIG.DEFAULT_PRODUCT_IMAGE}')`);
+        addToCartButton.disabled = false;
 
     } catch (error) {
         console.error("Erreur de chargement du produit:", error);
-        document.querySelector('main').innerHTML = `<p class="text-center text-red-500">Impossible de charger les informations du produit.</p>`;
+        const mainContent = document.querySelector('main');
+        if(mainContent) mainContent.innerHTML = `<p class="text-center text-red-500">Impossible de charger les informations du produit. Veuillez réessayer.</p>`;
     }
 }
 
@@ -644,17 +665,17 @@ function initializeAccountPage() {
 
     // Initiales pour l'avatar
     const initials = user.Nom.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
-    document.querySelector('.w-16.h-16.rounded-full').textContent = initials;
+    document.getElementById('user-initials').textContent = initials;
 
     // Logique de déconnexion
     const logoutLink = document.getElementById('logout-link');
-    const logoutNav = document.querySelector('a[href="#"].text-red-600'); // Cible le lien de déconnexion dans la nav
+    const logoutNav = document.getElementById('logout-nav-link');
     
     const logoutAction = (e) => {
         e.preventDefault();
         if (confirm("Êtes-vous sûr de vouloir vous déconnecter ?")) {
             localStorage.removeItem('abmcyUser');
-            window.location.href = 'index.html';
+            window.location.href = 'authentification.html';
         }
     };
 

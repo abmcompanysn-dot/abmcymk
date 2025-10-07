@@ -60,84 +60,36 @@
 
             <!-- Informations produit -->
             <div>
-                <h1 class="text-4xl font-bold text-gray-800 mb-2">Smartphone Pro</h1>
+                <h1 id="product-name" class="text-4xl font-bold text-gray-800 mb-2 h-12 bg-gray-200 rounded animate-pulse"></h1>
                 <div class="flex items-center mb-4">
                     <span class="text-yellow-500">★★★★☆</span>
-                    <span class="text-gray-600 ml-2">(125 avis)</span>
+                    <span class="text-gray-600 ml-2">(Avis)</span>
                 </div>
-                <p class="text-gray-600 mb-6">
-                    Découvrez le nouveau Smartphone Pro avec son écran Super Retina XDR, une puce A15 Bionic ultra-rapide et un système photo pro pour des clichés et vidéos incroyables.
+                <p id="product-description" class="text-gray-600 mb-6 h-20 bg-gray-200 rounded animate-pulse">
                 </p>
-                <div class="flex items-center space-x-3 mb-6">
-                    <span class="text-3xl font-bold text-gold">450000 F CFA</span>
-                    <span class="text-xl text-gray-500 line-through">650000 F CFA</span>
-                    <span class="bg-red-500 text-white px-3 py-1 rounded-full text-sm font-bold">-30%</span>
+                <div id="product-price-container" class="flex items-center space-x-3 mb-6 h-10">
+                    <!-- Le prix sera injecté ici par JS -->
                 </div>
                 <div class="flex items-center space-x-4 mb-8">
                     <label for="quantity" class="font-semibold">Quantité:</label>
                     <input type="number" id="quantity" value="1" min="1" class="w-20 border border-gray-300 rounded p-2 text-center">
                 </div>
-                <button class="w-full bg-black text-white py-3 rounded-lg font-semibold hover:bg-gray-800 transition text-lg" onclick="addToCart(event, 'Smartphone Pro', 450000, '📱')">
+                <button id="add-to-cart-button" class="w-full bg-black text-white py-3 rounded-lg font-semibold hover:bg-gray-800 transition text-lg" disabled>
                     Ajouter au panier
                 </button>
             </div>
         </div>
 
         <!-- Section Description & Avis -->
-        <div class="mt-16 border-t pt-8">
-            <h3 class="text-2xl font-bold mb-4">Description détaillée</h3>
-            <p class="text-gray-700">
-                Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed non risus. Suspendisse lectus tortor, dignissim sit amet, adipiscing nec, ultricies sed, dolor. Cras elementum ultrices diam. Maecenas ligula massa, varius a, semper congue, euismod non, mi.
-            </p>
-
-            <div class="mt-8">
-                <h3 class="text-2xl font-bold mb-4">Caractéristiques techniques</h3>
-                <ul class="list-disc list-inside text-gray-700 space-y-2">
-                    <li>Écran: Super Retina XDR 6.1 pouces</li>
-                    <li>Puce: A15 Bionic</li>
-                    <li>Appareil photo: Double appareil photo 12 Mpx</li>
-                    <li>Capacité: 256 Go</li>
-                    <li>Connectivité: 5G, Wi-Fi 6, Bluetooth 5.0</li>
-                </ul>
-            </div>
+        <div id="product-details-section" class="mt-16 border-t pt-8">
+            <!-- Le contenu (description détaillée, caractéristiques) sera injecté ici -->
         </div>
 
         <!-- Section Produits similaires -->
         <section class="mt-16 border-t pt-8">
             <h3 class="text-2xl font-bold text-gray-800 mb-8">Produits similaires</h3>
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <!-- Produit similaire 1 -->
-                <a href="produit.html" class="bg-white rounded-lg shadow-md overflow-hidden block">
-                    <div class="h-48 bg-gray-200 flex items-center justify-center"><span class="text-6xl">💻</span></div>
-                    <div class="p-4">
-                        <h4 class="font-semibold text-gray-800 mb-2">Laptop Ultra-fin</h4>
-                        <span class="text-lg font-bold text-gold">850000 F CFA</span>
-                    </div>
-                </a>
-                <!-- Produit similaire 2 -->
-                <a href="produit.html" class="bg-white rounded-lg shadow-md overflow-hidden block">
-                    <div class="h-48 bg-gray-200 flex items-center justify-center"><span class="text-6xl">⌚</span></div>
-                    <div class="p-4">
-                        <h4 class="font-semibold text-gray-800 mb-2">Montre Connectée Sport</h4>
-                        <span class="text-lg font-bold text-gold">180000 F CFA</span>
-                    </div>
-                </a>
-                <!-- Produit similaire 3 -->
-                <a href="produit.html" class="bg-white rounded-lg shadow-md overflow-hidden block">
-                    <div class="h-48 bg-gray-200 flex items-center justify-center"><span class="text-6xl">🎧</span></div>
-                    <div class="p-4">
-                        <h4 class="font-semibold text-gray-800 mb-2">Casque sans fil Pro</h4>
-                        <span class="text-lg font-bold text-gold">75000 F CFA</span>
-                    </div>
-                </a>
-                <!-- Produit similaire 4 -->
-                <a href="produit.html" class="bg-white rounded-lg shadow-md overflow-hidden block">
-                    <div class="h-48 bg-gray-200 flex items-center justify-center"><span class="text-6xl">📷</span></div>
-                    <div class="p-4">
-                        <h4 class="font-semibold text-gray-800 mb-2">Appareil Photo Reflex</h4>
-                        <span class="text-lg font-bold text-gold">620000 F CFA</span>
-                    </div>
-                </a>
+            <div id="similar-products-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <!-- Les produits similaires seront injectés ici par JS -->
             </div>
         </section>
     </main>

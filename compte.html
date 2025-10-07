@@ -54,7 +54,7 @@
             <aside class="md:col-span-1">
                 <div class="bg-white p-4 rounded-lg shadow">
                     <div class="flex items-center space-x-4 mb-4">
-                        <div class="w-16 h-16 rounded-full bg-gray-300 flex items-center justify-center text-2xl font-bold text-gray-600">JD</div>
+                        <div id="user-initials" class="w-16 h-16 rounded-full bg-gray-300 flex items-center justify-center text-2xl font-bold text-gray-600"></div>
                         <div id="user-info-display">
                             <h2 class="font-bold text-lg" id="user-name-display"></h2>
                             <p class="text-sm text-gray-500" id="user-email-display"></p>
@@ -73,7 +73,7 @@
                         <a href="#" class="flex items-center space-x-3 p-3 hover:bg-gray-100 rounded-lg">
                             <span>Détails du compte</span>
                         </a>
-                        <a href="#" class="flex items-center space-x-3 p-3 text-red-600 hover:bg-red-50 rounded-lg">
+                        <a href="#" id="logout-nav-link" class="flex items-center space-x-3 p-3 text-red-600 hover:bg-red-50 rounded-lg">
                             <span>Se déconnecter</span>
                         </a>
                     </nav>
@@ -84,7 +84,7 @@
             <div class="md:col-span-2">
                 <div class="bg-white p-8 rounded-lg shadow">
                     <h3 class="text-xl font-bold mb-6">Tableau de bord</h3>
-                    <p class="mb-6">Bonjour <span class="font-semibold" id="dashboard-user-name"></span>, (si vous n'êtes pas <span class="font-semibold" id="dashboard-user-name-link"></span>, <a href="#" class="text-red-600" id="logout-link">déconnectez-vous</a>)</p>
+                    <p class="mb-6">Bonjour <span class="font-semibold" id="dashboard-user-name"></span>, (si vous n'êtes pas <span class="font-semibold" id="dashboard-user-name-link"></span>, <a href="#" class="text-red-600" id="logout-link">déconnectez-vous</a>).</p>
                     <p>Depuis votre tableau de bord, vous pouvez consulter vos <a href="#" class="text-gold hover:underline">commandes récentes</a>, gérer vos <a href="#" class="text-gold hover:underline">adresses de livraison et de facturation</a>, et <a href="#" class="text-gold hover:underline">modifier votre mot de passe et les détails de votre compte</a>.</p>
                     <div id="recent-orders-section" class="mt-8 border-t pt-6"></div>
                 </div>
