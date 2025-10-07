@@ -7,12 +7,6 @@ const CONFIG = {
     
     // Autres configurations
     DEFAULT_PRODUCT_IMAGE: "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png",
-    
-    // Clé pour le cache dans le navigateur du client
-    CACHE_KEY_DATA: "abmcy_site_data_cache",
-
-    // Durée de vie du cache en millisecondes (ici, 2 heures)
-    CACHE_TTL_FRONTEND: 2 * 60 * 60 * 1000, 
 };
 
 // Attendre que le contenu de la page soit entièrement chargé
@@ -27,14 +21,12 @@ document.addEventListener('DOMContentLoaded', () => {
 async function initializeApp() {
     // Ces fonctions s'exécutent immédiatement, sans attendre les données des produits
     updateCartBadges();
-    initializeSearch();
-
-    // On attend que les données soient chargées (depuis le cache ou le backend)
-    await preloadCriticalData(); 
+    
+    // Initialisation des éléments qui nécessitent des données du backend
+    await populateCategoryMenu(); // Doit être appelé avant initializeSearch si la recherche utilise les catégories
+    await initializeSearch(); // Peut nécessiter les produits
 
     // Une fois les données prêtes, on initialise le reste
-    populateCategoryMenu();
-
     // Si nous sommes sur la page panier, on l'affiche
     if (document.getElementById('panier-page')) {
         renderCartPage();
@@ -55,6 +47,11 @@ async function initializeApp() {
         renderHomepageProducts();
     }
 
+    // Si nous sommes sur la page compte, on l'initialise
+    if (document.querySelector('main h1.text-3xl')?.textContent.includes("Mon Compte")) {
+        initializeAccountPage();
+    }
+
     // Si nous sommes sur la page d'authentification, on attache les événements aux deux formulaires
     if (document.getElementById('auth-forms')) {
         document.getElementById('login-form').addEventListener('submit', (e) => handleAuthForm(e, 'login'));
@@ -73,14 +70,26 @@ function toggleMobileMenu() {
 /**
  * Remplit dynamiquement le menu des catégories à partir du fichier categories.js.
  */
-function populateCategoryMenu() {
+async function populateCategoryMenu() {
     const menu = document.getElementById('mobileMenu');
     if (!menu) return;
 
-    // Les données viennent de l'objet global `siteData`
-    const menuHTML = siteData.categories.map(cat => 
+    try {
+        const response = await fetch(`${CONFIG.PRODUCT_API_URL}?action=getPublicData`);
+        if (!response.ok) {
+            throw new Error(`Erreur réseau: ${response.statusText}`);
+        }
+        const data = await response.json();
+        const categories = data.categories || [];
+
+        const menuHTML = categories.map(cat => 
         `<a href="categorie.html?cat=${cat.IDCategorie}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">${cat.Nom}</a>`
-    ).join('');
+        ).join('');
+        menu.innerHTML = menuHTML;
+    } catch (error) {
+        console.error("Erreur lors du chargement des catégories:", error);
+        menu.innerHTML = '<p class="px-4 py-2 text-sm text-red-500">Erreur de chargement des catégories.</p>';
+    }
 
     menu.innerHTML = menuHTML;
 }
@@ -117,7 +126,7 @@ function addToCart(event, productId, name, price, imageUrl) {
     event.stopPropagation();
 
     const cart = getCart();
-    const quantityInput = document.getElementById('quantity');
+    const quantityInput = document.getElementById('quantity'); // Pour la page produit
     const quantity = quantityInput ? parseInt(quantityInput.value) : 1;
     const existingProductIndex = cart.findIndex(item => item.id === productId);
 
@@ -262,7 +271,7 @@ function initializeSearch() {
  * Affiche les résultats sur la page de recherche.
  * La recherche se fait maintenant côté client pour plus de rapidité.
  */
-function displaySearchResults() {
+async function displaySearchResults() {
     const params = new URLSearchParams(window.location.search);
     const query = params.get('q');
 
@@ -276,15 +285,26 @@ function displaySearchResults() {
     queryDisplay.textContent = query;
     searchInput.value = query;
 
-    // La recherche se fait sur le tableau 'allProducts' déjà chargé
-    const lowerCaseQuery = query.toLowerCase();
-    const filteredProducts = siteData.products.filter(product => 
-        product.Nom.toLowerCase().includes(lowerCaseQuery) ||
-        product.Catégorie.toLowerCase().includes(lowerCaseQuery) ||
-        (product.Tags && product.Tags.toLowerCase().includes(lowerCaseQuery))
-    );
+    let filteredProducts = [];
+    try {
+        const response = await fetch(`${CONFIG.PRODUCT_API_URL}?action=getPublicData`);
+        if (!response.ok) {
+            throw new Error(`Erreur réseau: ${response.statusText}`);
+        }
+        const data = await response.json();
+        const allProducts = data.products || [];
 
-    resultsCount.textContent = `${filteredProducts.length} résultat(s) trouvé(s).`;
+        const lowerCaseQuery = query.toLowerCase();
+        filteredProducts = allProducts.filter(product => 
+            product.Nom.toLowerCase().includes(lowerCaseQuery) ||
+            product.Catégorie.toLowerCase().includes(lowerCaseQuery) ||
+            (product.Tags && product.Tags.toLowerCase().includes(lowerCaseQuery))
+        );
+        resultsCount.textContent = `${filteredProducts.length} résultat(s) trouvé(s).`;
+    } catch (error) {
+        console.error("Erreur lors de la recherche:", error);
+        resultsCount.textContent = `Erreur lors de la recherche.`;
+    }
 
     if (filteredProducts.length === 0) {
         resultsContainer.innerHTML = `<p class="col-span-full text-center text-gray-500">Aucun produit ne correspond à votre recherche.</p>`;
@@ -310,7 +330,7 @@ function displaySearchResults() {
 /**
  * Charge les données d'un produit spécifique sur la page produit.
  */
-async function loadProductPage() {
+async function loadProductPage() { // Make it async
     const params = new URLSearchParams(window.location.search);
     const productId = params.get('id');
 
@@ -320,8 +340,15 @@ async function loadProductPage() {
     }
 
     try {
-        // On cherche directement dans les données préchargées
-        const product = siteData.products.find(p => p.IDProduit == productId);
+        // Fetch all products and find the specific one
+        const response = await fetch(`${CONFIG.PRODUCT_API_URL}?action=getPublicData`);
+        if (!response.ok) {
+            throw new Error(`Erreur réseau: ${response.statusText}`);
+        }
+        const data = await response.json();
+        const allProducts = data.products || [];
+
+        const product = allProducts.find(p => p.IDProduit == productId);
 
         if (!product) {
             throw new Error("Produit non trouvé.");
@@ -423,84 +450,38 @@ async function processCheckout(event) {
     }
 }
 
-// --- SYSTÈME DE CACHE AVANCÉ (FRONTEND) ---
-
-let siteData = {
-    products: [],
-    categories: []
-};
-
-/**
- * Précharge les données critiques (produits, catégories) en utilisant le cache local.
- */
-async function preloadCriticalData() {
-    const cachedItem = localStorage.getItem(CONFIG.CACHE_KEY_DATA);
-    const now = new Date().getTime();
-
-    if (cachedItem) {
-        const cachedData = JSON.parse(cachedItem);
-        if (now - cachedData.timestamp < CONFIG.CACHE_TTL_FRONTEND) {
-            console.log("Données chargées depuis le cache local (navigateur).");
-            siteData = cachedData.data;
-            return; // Sortie anticipée, les données sont valides
-        }
-    }
-
-    console.log("Cache local vide ou expiré. Appel du backend...");
-    try {
-        // On appelle le point d'entrée unique qui retourne toutes les données nécessaires
-        const response = await fetch(`${CONFIG.PRODUCT_API_URL}?action=getPublicData`);
-
-        if (!response.ok) {
-            throw new Error(`Erreur réseau: ${response.statusText}`);
-        }
-
-        const freshData = await response.json();
-
-        // On s'assure que les données reçues sont valides
-        if (!freshData || !freshData.products) {
-            throw new Error("Format de données invalide reçu du backend.");
-        }
-
-        siteData = freshData;
-
-        localStorage.setItem(CONFIG.CACHE_KEY_DATA, JSON.stringify({
-            timestamp: now,
-            data: siteData
-        }));
-        console.log("Données fraîches chargées depuis le backend et mises en cache local.");
-
-    } catch (error) {
-        console.error("IMPOSSIBLE DE PRÉCHARGER LES DONNÉES CRITIQUES:", error);
-        // Mécanisme de fallback : essayer d'utiliser le cache expiré s'il existe
-        if (cachedItem) {
-            console.warn("Utilisation des données du cache expiré comme solution de secours.");
-            siteData = JSON.parse(cachedItem).data;
-        } else {
-            // Ne rien faire et laisser les placeholders.
-            // Le site continuera de fonctionner avec les produits par défaut de index.html.
-            console.error("Aucune donnée disponible (ni backend, ni cache). Le site s'affiche avec les produits par défaut.");
-        }
-    }
-}
-
 /**
  * Affiche dynamiquement les produits sur la page d'accueil.
  */
-function renderHomepageProducts() {
+async function renderHomepageProducts() {
     const electronicsSection = document.querySelector('#electronics-products');
     const clothingSection = document.querySelector('#clothing-products');
     const homeSection = document.querySelector('#home-products');
 
-    if (!electronicsSection || !siteData.products) return;
+    if (!electronicsSection) return; // Si on n'est pas sur la page d'accueil
 
-    const electronics = siteData.products.filter(p => p.Catégorie === 'Électronique' || p.categorie === 'Électronique').slice(0, 4);
-    const clothing = siteData.products.filter(p => p.Catégorie === 'Vêtements').slice(0, 4);
-    const home = siteData.products.filter(p => p.Catégorie === 'Maison').slice(0, 4);
+    try {
+        const response = await fetch(`${CONFIG.PRODUCT_API_URL}?action=getPublicData`);
+        if (!response.ok) {
+            throw new Error(`Erreur réseau: ${response.statusText}`);
+        }
+        const data = await response.json();
+        const allProducts = data.products || [];
 
-    electronicsSection.innerHTML = electronics.map(product => renderProductCard(product)).join('');
-    clothingSection.innerHTML = clothing.map(product => renderProductCard(product)).join('');
-    homeSection.innerHTML = home.map(product => renderProductCard(product)).join('');
+        const electronics = allProducts.filter(p => p.Catégorie === 'Électronique' || p.categorie === 'Électronique').slice(0, 4);
+        const clothing = allProducts.filter(p => p.Catégorie === 'Vêtements').slice(0, 4);
+        const home = allProducts.filter(p => p.Catégorie === 'Maison').slice(0, 4);
+
+        electronicsSection.innerHTML = electronics.map(product => renderProductCard(product)).join('');
+        clothingSection.innerHTML = clothing.map(product => renderProductCard(product)).join('');
+        homeSection.innerHTML = home.map(product => renderProductCard(product)).join('');
+    } catch (error) {
+        console.error("Erreur lors du chargement des produits de la page d'accueil:", error);
+        // Afficher un message d'erreur ou des placeholders si le chargement échoue
+        if (electronicsSection) electronicsSection.innerHTML = '<p class="col-span-full text-center text-red-500">Impossible de charger les produits.</p>';
+        if (clothingSection) clothingSection.innerHTML = '<p class="col-span-full text-center text-red-500">Impossible de charger les produits.</p>';
+        if (homeSection) homeSection.innerHTML = '<p class="col-span-full text-center text-red-500">Impossible de charger les produits.</p>';
+    }
 }
 
 /**
@@ -508,7 +489,7 @@ function renderHomepageProducts() {
  * @param {object} product - L'objet produit.
  * @returns {string} Le HTML de la carte.
  */
-function renderProductCard(product) {
+function renderProductCard(product) { // This function remains synchronous as it only formats data
     const price = product.PrixActuel || 0;
     const oldPrice = product.PrixAncien || 0;
     const discount = product['Réduction%'] || 0;
@@ -637,4 +618,46 @@ function switchTab(tabName) {
     registerForm.classList.toggle('hidden', tabName !== 'register');
 
     document.getElementById('auth-status').textContent = ''; // Clear status messages
+}
+
+// --- LOGIQUE DE LA PAGE COMPTE ---
+
+/**
+ * Initialise la page "Mon Compte".
+ * Vérifie si l'utilisateur est connecté, sinon le redirige.
+ * Affiche les informations de l'utilisateur.
+ */
+function initializeAccountPage() {
+    const user = JSON.parse(localStorage.getItem('abmcyUser'));
+
+    // Si l'utilisateur n'est pas connecté, on le renvoie à la page d'authentification
+    if (!user) {
+        window.location.href = 'authentification.html';
+        return;
+    }
+
+    // Afficher les informations de l'utilisateur
+    document.getElementById('user-name-display').textContent = user.Nom;
+    document.getElementById('user-email-display').textContent = user.Email;
+    document.getElementById('dashboard-user-name').textContent = user.Nom;
+    document.getElementById('dashboard-user-name-link').textContent = user.Nom;
+
+    // Initiales pour l'avatar
+    const initials = user.Nom.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+    document.querySelector('.w-16.h-16.rounded-full').textContent = initials;
+
+    // Logique de déconnexion
+    const logoutLink = document.getElementById('logout-link');
+    const logoutNav = document.querySelector('a[href="#"].text-red-600'); // Cible le lien de déconnexion dans la nav
+    
+    const logoutAction = (e) => {
+        e.preventDefault();
+        if (confirm("Êtes-vous sûr de vouloir vous déconnecter ?")) {
+            localStorage.removeItem('abmcyUser');
+            window.location.href = 'index.html';
+        }
+    };
+
+    logoutLink.addEventListener('click', logoutAction);
+    logoutNav.addEventListener('click', logoutAction);
 }
