@@ -29,6 +29,15 @@ function showAdminInterface() {
  * Fournit la liste des catégories au front-end (AdminInterface.html).
  */
 function doGet(e) {
+  // Routeur pour les requêtes GET publiques
+  const action = e.parameter.action;
+
+  if (action === 'getPublicData') {
+    // C'est le nouveau point d'entrée pour votre site web
+    return getPublicData();
+  }
+
+  // L'appel existant pour le panneau d'administration
   try {
     const categories = getCategoriesWithProductCounts(); // Appel à la nouvelle fonction
     return createJsonResponse({ success: true, data: categories });
