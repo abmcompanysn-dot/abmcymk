@@ -1,9 +1,9 @@
 const CONFIG = {
     // URL de l'API publique (Script 2: Gestion Client & Livraison)
-    CLIENT_API_URL: "https://script.google.com/macros/s/AKfycbxehBgmtpyBWPlNiDP1IJixHSr40Peuut4_OlfndVldp6jrsoHKsSb-UnlUFXIeU4gs/exec",
+    CLIENT_API_URL: "https://script.google.com/macros/s/AKfycbwi3zpOqK7EKSKDCQ1VTIYvrfesOTTpNBs4vQvh_3BCcSE65KGjlWnLsilUtyvOdsgT/exec",
 
     // URL de l'API publique des produits (Script 1: Gestion Produits)
-    PRODUCT_API_URL: "https://script.google.com/macros/s/AKfycbyO7fJRsVrz7fAsTA5C9ngFd_fbARvsv9c_w8jCifTM_K8dE4rWV0vf84liv-rglqwD/exec",
+    PRODUCT_API_URL: "https://script.google.com/macros/s/AKfycbw0dWVwcXOivb9u7ULSkIFeOk54QZQxiBFmtC6UaSzK315nJLk6d9HW4TSHJiweVe-P/exec",
     
     // Autres configurations
     DEFAULT_PRODUCT_IMAGE: "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png",
@@ -438,7 +438,7 @@ async function processCheckout(event) {
     // 3. Préparer l'objet de la commande pour le backend
     const orderPayload = {
         action: 'enregistrerCommande', // Correspond à la fonction du Script 2
-        orderData: {
+        data: {
             idClient: clientId,
             produits: cart.map(item => item.id), // On utilise l'ID du produit
             quantites: cart.map(item => item.quantity),
@@ -451,7 +451,7 @@ async function processCheckout(event) {
 
     // 4. Envoyer la commande à l'API Client (Script 2)
     try {
-        const response = await fetch(CLIENT_API_URL, {
+        const response = await fetch(CONFIG.CLIENT_API_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(orderPayload)

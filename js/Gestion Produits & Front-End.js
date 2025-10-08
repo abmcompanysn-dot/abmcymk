@@ -7,11 +7,16 @@
 
 // --- CONFIGURATION ---
 const ADMIN_SPREADSHEET_ID = "1kTQsUgcvcWxJNgHuITi4nlMhAqwyVAMhQbzIMIODcBg";
-const SCRIPT_NAME_ADMIN = "Admin-Produits";
-const ADMIN_SECRET_KEY = "12345";
+const SCRIPT_NAME = "API-Produits";
+
+const SHEET_NAMES = {
+  PRODUCTS: "Produits",
+  CATEGORIES: "Catégories",
+  ALBUMS: "Albums",
+  LOGS: "Logs"
+};
 
 // --- GESTIONNAIRE DE MENU ---
-
 function onOpen() {
   SpreadsheetApp.getUi()
       .createMenu('ABMCY Market [ADMIN]')
@@ -31,125 +36,98 @@ function showAdminInterface() {
   SpreadsheetApp.getUi().showSidebar(html);
 }
 
-// --- POINT D'ENTREE POST ---
+// --- POINTS D'ENTREE DE L'API ---
+
 function doPost(e) {
-  const requestData = JSON.parse(e.postData.contents);
-  const action = requestData.action;
-  let response;
+  try {
+    const request = JSON.parse(e.postData.contents);
+    const action = request.action;
+    const data = request.data;
 
-  // Pour l'action de mise à jour du stock, on ne vérifie pas la clé secrète
-  // car l'appel vient d'un autre script Google et est déjà authentifié par le token d'identité.
-  // Pour les autres actions (si vous en ajoutez), on garde la sécurité par clé.
-  if (action !== 'mettreAJourStock') {
-    // Sécurité simple: vérifier une clé secrète
-    if (requestData.secretKey !== ADMIN_SECRET_KEY) {
-      return ContentService.createTextOutput(JSON.stringify({ success: false, error: "Accès non autorisé." })).setMimeType(ContentService.MimeType.JSON);
+    if (!action) {
+      return createJsonResponse({ success: false, error: 'Action non spécifiée.' });
     }
+
+    // Le routeur principal pour les actions POST
+    switch (action) {
+      case 'mettreAJourStock':
+        // Cette action est appelée par l'autre script, sécurisée par le token d'identité.
+        return mettreAJourStockProduits(data);
+      // D'autres actions POST pourraient être ajoutées ici.
+      default:
+        logAction('doPost', { error: 'Action POST non reconnue', action: action });
+        return createJsonResponse({ success: false, error: `Action POST non reconnue: ${action}` });
+    }
+  } catch (error) {
+    logError(e.postData.contents, error);
+    return createJsonResponse({ success: false, error: `Erreur serveur: ${error.message}` });
   }
-
-  switch (action) {
-    case 'ajouterProduit':
-      response = ajouterProduit(requestData.data);
-      break;
-    case 'ajouterCategorie':
-      response = ajouterCategorie(requestData.data);
-      break;
-    case 'mettreAJourStock':
-      response = mettreAJourStockProduits(requestData.data);
-      break;
-    // Ajoutez d'autres actions admin ici
-    default:
-      response = { success: false, error: "Action admin non reconnue." };
-  }
-
-  // Invalider le cache après chaque modification
-  const cache = CacheService.getScriptCache();
-  cache.remove('public_site_data');
-  Logger.log("Cache serveur invalidé suite à une action admin.");
-
-  return ContentService.createTextOutput(JSON.stringify(response)).setMimeType(ContentService.MimeType.JSON);
 }
 
-// --- POINT D'ENTREE GET (pour la communication inter-services) ---
 function doGet(e) {
-  // Ce point d'entrée est destiné à être appelé par le Script 2 (Client)
-  // Il est sécurisé car le script est déployé avec accès "Moi uniquement",
-  // et seul un autre script Google appartenant au même utilisateur peut l'appeler avec un token d'authentification.
-  const action = e.parameter.action;
-  if (action === 'getPublicData') {
-    // Sécurité CORS : Vérifier l'origine de la requête pour les appels publics
-    const originHeader = e.headers.origin;
-    const allowedOrigin = getAllowedOriginForAdmin(originHeader);
-    if (!allowedOrigin) {
-      return ContentService.createTextOutput(JSON.stringify({ success: false, error: "Accès non autorisé depuis cette origine." }))
-        .setMimeType(ContentService.MimeType.JSON);
+  try {
+    const action = e.parameter.action;
+    const data = e.parameter;
+
+    if (!action) {
+      return createJsonResponse({ success: true, message: 'API Produits ABMCY Market - Active' });
     }
 
-    const cache = CacheService.getScriptCache();
-    const cacheKey = 'public_site_data';
-    const cached = cache.get(cacheKey);
-
-    if (cached != null) {
-      return ContentService.createTextOutput(cached)
-        .setMimeType(ContentService.MimeType.JSON)
-        .setHeader('Access-Control-Allow-Origin', allowedOrigin);
+    // Le routeur principal pour les actions GET
+    switch (action) {
+      case 'getPublicData':
+        return getPublicData();
+      case 'getAlbumByProductId':
+        return getAlbumByProductId(data);
+      default:
+        logAction('doGet', { error: 'Action GET non reconnue', action: action });
+        return createJsonResponse({ success: false, error: `Action GET non reconnue: ${action}` });
     }
-
-    const ss = SpreadsheetApp.openById(ADMIN_SPREADSHEET_ID);
-    const products = sheetToJSON(ss.getSheetByName("Produits"));
-    const categories = sheetToJSON(ss.getSheetByName("Catégories"));
-    const data = { products, categories };
-    const dataString = JSON.stringify(data);
-
-    cache.put(cacheKey, dataString, 21600); // Cache de 6 heures
-    return ContentService.createTextOutput(dataString).setMimeType(ContentService.MimeType.JSON)
-      .setHeader('Access-Control-Allow-Origin', allowedOrigin);
+  } catch (error) {
+    logError(JSON.stringify(e.parameter), error);
+    return createJsonResponse({ success: false, error: `Erreur serveur: ${error.message}` });
   }
-  if (action === 'getAlbumByProductId') {
-    const productId = e.parameter.id;
-    if (!productId) {
-      return ContentService.createTextOutput(JSON.stringify({error: "Product ID is missing"})).setMimeType(ContentService.MimeType.JSON);
-    }
-    const ss = SpreadsheetApp.openById(ADMIN_SPREADSHEET_ID);
-    const albumSheet = ss.getSheetByName("Albums");
-    const allAlbumImages = sheetToJSON(albumSheet);
-    const productImages = allAlbumImages.filter(img => img.IDProduit == productId).sort((a, b) => a.Ordre - b.Ordre);
-    return ContentService.createTextOutput(JSON.stringify(productImages)).setMimeType(ContentService.MimeType.JSON);
-  }
-  
-  return ContentService.createTextOutput(JSON.stringify({error: "Action non autorisée"})).setMimeType(ContentService.MimeType.JSON);
 }
-
 
 // --- FONCTIONS DE MODIFICATION ---
+// Ces fonctions sont appelées par l'interface admin via google.script.run
 
 function ajouterProduit(p) {
-  const ss = SpreadsheetApp.openById(ADMIN_SPREADSHEET_ID);
-  const sheet = getOrCreateSheet(ss, "Produits", ["IDProduit", "Nom", "Catégorie", "PrixActuel", "PrixAncien", "Réduction%", "Stock", "ImageURL", "Description", "Tags", "Actif"]);
-  const idProduit = "PROD-" + Utilities.getUuid().substring(0, 6).toUpperCase();
-  let prixAncien = p.prixActuel;
-  if (p.reduction > 0 && p.reduction < 100) {
-    prixAncien = p.prixActuel / (1 - (p.reduction / 100));
+  try {
+    const ss = SpreadsheetApp.openById(ADMIN_SPREADSHEET_ID);
+    const sheet = ss.getSheetByName(SHEET_NAMES.PRODUCTS);
+    const idProduit = "PROD-" + Utilities.getUuid().substring(0, 6).toUpperCase();
+    let prixAncien = p.prixActuel;
+    if (p.reduction > 0 && p.reduction < 100) {
+      prixAncien = p.prixActuel / (1 - (p.reduction / 100));
+    }
+    sheet.appendRow([idProduit, p.nom, p.categorie, p.prixActuel, prixAncien, p.reduction, p.stock, p.imageURL, p.description, p.tags, true]);
+    
+    invalidateCache();
+    logAction('ajouterProduit', { nom: p.nom, id: idProduit });
+    return { success: true, id: idProduit }; // Retourne un objet simple pour google.script.run
+  } catch (error) {
+    logError(JSON.stringify({action: 'ajouterProduit', data: p}), error);
+    return { success: false, error: error.message };
   }
-  sheet.appendRow([idProduit, p.nom, p.categorie, p.prixActuel, prixAncien, p.reduction, p.stock, p.imageURL, p.description, p.tags, true]);
-  logAction(ss, `Produit ajouté: ${p.nom} (ID: ${idProduit})`);
-  return { success: true, id: idProduit };
 }
 
 function ajouterCategorie(c) {
   const ss = SpreadsheetApp.openById(ADMIN_SPREADSHEET_ID);
-  const sheet = getOrCreateSheet(ss, "Catégories", ["IDCategorie", "Nom", "Description", "ParentCategorie", "OrdreAffichage"]);
+  const sheet = ss.getSheetByName(SHEET_NAMES.CATEGORIES);
   const idCategorie = "CAT-" + Utilities.getUuid().substring(0, 4).toUpperCase();
   sheet.appendRow([idCategorie, c.nom, c.description, c.parentCategorie, c.ordreAffichage]);
-  logAction(ss, `Catégorie ajoutée: ${c.nom}`);
+  invalidateCache();
+  logAction('ajouterCategorie', { nom: c.nom });
   return { success: true, id: idCategorie };
 }
 
 function ajouterImageAlbum(data) {
   const ss = SpreadsheetApp.openById(ADMIN_SPREADSHEET_ID);
-  const sheet = getOrCreateSheet(ss, "Albums", ["IDProduit", "ImageURL", "Légende", "Ordre", "TypeImage"]);
+  const sheet = ss.getSheetByName(SHEET_NAMES.ALBUMS);
   sheet.appendRow([data.idProduit, data.imageURL, data.legende, data.ordre, data.typeImage]);
-  logAction(ss, `Image ajoutée à l'album du produit ${data.idProduit}`);
+  invalidateCache();
+  logAction('ajouterImageAlbum', { produit: data.idProduit });
   return { success: true };
 }
 
@@ -158,14 +136,14 @@ function ajouterImageAlbum(data) {
  * @param {Array<Object>} items - Un tableau d'objets { idProduit, quantite }.
  */
 function mettreAJourStockProduits(items) {
-  const ss = SpreadsheetApp.openById(ADMIN_SPREADSHEET_ID);
-  const sheet = ss.getSheetByName("Produits");
-  if (!sheet) return { success: false, error: "Feuille des produits introuvable." };
-
   const lock = LockService.getScriptLock();
   lock.waitLock(30000); // Verrou pour éviter les conflits si plusieurs commandes arrivent en même temps
 
   try {
+    const ss = SpreadsheetApp.openById(ADMIN_SPREADSHEET_ID);
+    const sheet = ss.getSheetByName(SHEET_NAMES.PRODUCTS);
+    if (!sheet) throw new Error("Feuille des produits introuvable.");
+
     const data = sheet.getDataRange().getValues();
     const headers = data[0];
     const idIndex = headers.indexOf("IDProduit");
@@ -177,22 +155,65 @@ function mettreAJourStockProduits(items) {
         const currentStock = parseInt(data[rowIndex][stockIndex]);
         const newStock = currentStock - item.quantite;
         sheet.getRange(rowIndex + 1, stockIndex + 1).setValue(newStock >= 0 ? newStock : 0);
-        logAction(ss, `Stock décrémenté pour ${item.idProduit}. Ancien: ${currentStock}, Nouveau: ${newStock}`);
+        logAction('mettreAJourStock', { produit: item.idProduit, ancien: currentStock, nouveau: newStock });
       }
     });
-    return { success: true };
-  } catch (e) {
-    logAction(ss, `Erreur lors de la mise à jour du stock: ${e.message}`);
-    return { success: false, error: e.message };
+    invalidateCache();
+    return createJsonResponse({ success: true });
+  } catch (error) {
+    logError(JSON.stringify({action: 'mettreAJourStockProduits', data: items}), error);
+    return createJsonResponse({ success: false, error: error.message });
   } finally {
     lock.releaseLock();
   }
 }
 
-function générerRéductionAutomatique(idProduit, pourcentage) {
-  // Implémentation...
-  logAction(SpreadsheetApp.openById(ADMIN_SPREADSHEET_ID), `Réduction de ${pourcentage}% appliquée au produit ${idProduit}`);
-  return { success: true };
+// --- FONCTIONS DE LECTURE ---
+
+function getPublicData() {
+  const cache = CacheService.getScriptCache();
+  const cacheKey = 'public_site_data';
+  const cached = cache.get(cacheKey);
+
+  if (cached != null) {
+    return ContentService.createTextOutput(cached).setMimeType(ContentService.MimeType.JSON);
+  }
+
+  const ss = SpreadsheetApp.openById(ADMIN_SPREADSHEET_ID);
+  const products = sheetToJSON(ss.getSheetByName(SHEET_NAMES.PRODUCTS));
+  const categories = sheetToJSON(ss.getSheetByName(SHEET_NAMES.CATEGORIES));
+  const data = { products, categories };
+  const dataString = JSON.stringify(data);
+
+  cache.put(cacheKey, dataString, 21600); // Cache de 6 heures
+  return ContentService.createTextOutput(dataString).setMimeType(ContentService.MimeType.JSON);
+}
+
+function getAlbumByProductId(data) {
+  const productId = data.id;
+  if (!productId) {
+    return createJsonResponse({ success: false, error: "Product ID is missing" });
+  }
+  const ss = SpreadsheetApp.openById(ADMIN_SPREADSHEET_ID);
+  const albumSheet = ss.getSheetByName(SHEET_NAMES.ALBUMS);
+  const allAlbumImages = sheetToJSON(albumSheet);
+  const productImages = allAlbumImages.filter(img => img.IDProduit == productId).sort((a, b) => a.Ordre - b.Ordre);
+  return createJsonResponse({ success: true, data: productImages });
+}
+
+// --- GESTION DU CACHE ---
+
+/**
+ * Invalide le cache des données publiques.
+ */
+function invalidateCache() {
+  try {
+    const cache = CacheService.getScriptCache();
+    cache.remove('public_site_data');
+    logAction('invalidateCache', { reason: 'Modification des données' });
+  } catch (e) {
+    logError('invalidateCache', e);
+  }
 }
 
 
@@ -205,7 +226,7 @@ function générerRéductionAutomatique(idProduit, pourcentage) {
 function nightlyCacheRefresh() {
   const cache = CacheService.getScriptCache();
   cache.remove('public_site_data');
-  Logger.log("TRIGGER 23h: Cache serveur nocturne invalidé avec succès.");
+  logAction('nightlyCacheRefresh', { status: 'Cache invalidé' });
 }
 
 /**
@@ -252,8 +273,8 @@ function getSampleCategories() {
 
 function seedProducts() {
   const ss = SpreadsheetApp.openById(ADMIN_SPREADSHEET_ID);
-  const productsSheet = getOrCreateSheet(ss, "Produits", ["IDProduit", "Nom", "Catégorie", "PrixActuel", "PrixAncien", "Réduction%", "Stock", "ImageURL", "Description", "Tags", "Actif"]);
-  const categoriesSheet = getOrCreateSheet(ss, "Catégories", ["IDCategorie", "Nom", "Description", "ParentCategorie", "OrdreAffichage"]);
+  getOrCreateSheet(ss, SHEET_NAMES.PRODUCTS, ["IDProduit", "Nom", "Catégorie", "PrixActuel", "PrixAncien", "Réduction%", "Stock", "ImageURL", "Description", "Tags", "Actif"]);
+  getOrCreateSheet(ss, SHEET_NAMES.CATEGORIES, ["IDCategorie", "Nom", "Description", "ParentCategorie", "OrdreAffichage"]);
 
   const sampleProducts = getSampleProducts();
   sampleProducts.forEach(p => {
@@ -279,22 +300,49 @@ function clearProductsAndCategories() {
 
   if (response == ui.Button.YES) {
     const ss = SpreadsheetApp.openById(ADMIN_SPREADSHEET_ID);
-    const productsSheet = ss.getSheetByName("Produits");
-    const categoriesSheet = ss.getSheetByName("Catégories");
+    const productsSheet = ss.getSheetByName(SHEET_NAMES.PRODUCTS);
+    const categoriesSheet = ss.getSheetByName(SHEET_NAMES.CATEGORIES);
 
     if (productsSheet) productsSheet.getRange("A2:Z").clearContent();
     if (categoriesSheet) categoriesSheet.getRange("A2:Z").clearContent();
 
-    logAction(ss, "Produits et catégories vidés.");
+    logAction('clearProductsAndCategories', { status: 'Données effacées' });
     ui.alert('Opération terminée', 'Les données des produits et catégories ont été effacées.', ui.ButtonSet.OK);
   }
 }
 
 // --- UTILITAIRES ---
 
-function logAction(spreadsheet, details) {
-  const sheet = getOrCreateSheet(spreadsheet, "Logs", ["Date", "Script", "Action"]);
-  sheet.appendRow([new Date(), SCRIPT_NAME_ADMIN, details]);
+function createJsonResponse(data) {
+  return ContentService.createTextOutput(JSON.stringify(data))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function logAction(actionName, data) {
+  try {
+    const logSheet = SpreadsheetApp.openById(ADMIN_SPREADSHEET_ID).getSheetByName(SHEET_NAMES.LOGS);
+    if (logSheet) {
+      logSheet.appendRow([
+        new Date(),
+        SCRIPT_NAME,
+        actionName,
+        JSON.stringify(data)
+      ]);
+    }
+  } catch (e) {
+    Logger.log(`Échec de l'enregistrement de l'action: ${e.toString()}`);
+  }
+}
+
+function logError(requestContent, error) {
+  try {
+    const errorSheet = SpreadsheetApp.openById(ADMIN_SPREADSHEET_ID).getSheetByName(SHEET_NAMES.LOGS);
+    if (errorSheet) {
+      errorSheet.appendRow([new Date(), SCRIPT_NAME, 'ERREUR', `Requête: ${requestContent} | Erreur: ${error.message} | Pile: ${error.stack}`]);
+    }
+  } catch (e) {
+    Logger.log(`Échec de l'enregistrement de l'erreur: ${e.toString()}`);
+  }
 }
 
 function getOrCreateSheet(spreadsheet, sheetName, headers) {
@@ -323,49 +371,11 @@ function sheetToJSON(sheet) {
   });
 }
 
-/**
- * Vérifie si l'origine de la requête est dans la liste des origines autorisées de ce script.
- * @param {string} originHeader - L'en-tête "Origin" de la requête entrante.
- * @returns {string|null} L'origine autorisée si elle est trouvée, sinon null.
- */
-function getAllowedOriginForAdmin(originHeader) {
-  if (!originHeader) {
-    // Si l'en-tête Origin n'est pas présent, on refuse par sécurité pour les appels publics.
-    // Les appels de script à script n'ont pas cet en-tête, donc on les laisse passer.
-    // Cette logique est simplifiée. Une approche plus robuste vérifierait le type d'appel.
-    return null;
-  }
-
-  try {
-    const ss = SpreadsheetApp.openById(ADMIN_SPREADSHEET_ID);
-    const configSheet = ss.getSheetByName("Configuration");
-    const data = configSheet.getDataRange().getValues();
-    const headers = data.shift();
-    const keyIndex = headers.indexOf("Clé");
-    const valueIndex = headers.indexOf("Valeur");
-
-    const originsRow = data.find(row => row[keyIndex] === "ALLOWED_ORIGINS");
-    const allowedOrigins = originsRow ? originsRow[valueIndex].split(',').map(s => s.trim()) : [];
-
-    return allowedOrigins.includes(originHeader) ? originHeader : null;
-  } catch (e) {
-    return null; // En cas d'erreur de lecture, on refuse l'accès.
-  }
-}
-
 function initialiserBaseDeDonnees_Admin() {
   const ss = SpreadsheetApp.openById(ADMIN_SPREADSHEET_ID);
-  getOrCreateSheet(ss, "Produits", ["IDProduit", "Nom", "Catégorie", "PrixActuel", "PrixAncien", "Réduction%", "Stock", "ImageURL", "Description", "Tags", "Actif"]);
-  getOrCreateSheet(ss, "Catégories", ["IDCategorie", "Nom", "Description", "ParentCategorie", "OrdreAffichage"]);
-  getOrCreateSheet(ss, "Albums", ["IDProduit", "ImageURL", "Légende", "Ordre", "TypeImage"]);
+  getOrCreateSheet(ss, SHEET_NAMES.PRODUCTS, ["IDProduit", "Nom", "Catégorie", "PrixActuel", "PrixAncien", "Réduction%", "Stock", "ImageURL", "Description", "Tags", "Actif"]);
+  getOrCreateSheet(ss, SHEET_NAMES.CATEGORIES, ["IDCategorie", "Nom", "Description", "ParentCategorie", "OrdreAffichage"]);
+  getOrCreateSheet(ss, SHEET_NAMES.ALBUMS, ["IDProduit", "ImageURL", "Légende", "Ordre", "TypeImage"]);
   getOrCreateSheet(ss, "StockAlertes", ["IDProduit", "Seuil", "AlerteEnvoyée", "DateDernièreAlerte", "MéthodeNotification"]);
-  getOrCreateSheet(ss, "Logs", ["Date", "Script", "Action"]);
-
-  // Création de l'onglet de configuration avec des valeurs par défaut
-  const configSheet = getOrCreateSheet(ss, "Configuration", ["Clé", "Valeur", "Description"]);
-  const configData = configSheet.getRange("A2:A").getValues().flat();
-  if (!configData.includes("ALLOWED_ORIGINS")) {
-    // URL de votre site en production et URL pour le développement local.
-    configSheet.appendRow(["ALLOWED_ORIGINS", "https://abmcymarket.vercel.app,http://127.0.0.1:5500", "URLs autorisées à appeler l'API (séparées par des virgules)."]);
-  }
+  getOrCreateSheet(ss, SHEET_NAMES.LOGS, ["Date", "Script", "Action", "Détails"]);
 }
