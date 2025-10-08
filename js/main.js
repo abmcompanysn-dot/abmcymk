@@ -37,6 +37,16 @@ async function initializeApp() {
         displaySearchResults();
     }
 
+    // Si nous sommes sur une page catégorie, afficher les produits
+    if (window.location.pathname.endsWith('categorie.html')) {
+        displayCategoryProducts();
+    }
+
+    // Si nous sommes sur la page des promotions, afficher les produits
+    if (window.location.pathname.endsWith('promotion.html')) {
+        displayPromotionProducts();
+    }
+
     // Si nous sommes sur la page produit, charger les données du produit
     if (window.location.pathname.endsWith('produit.html')) {
         loadProductPage();
@@ -84,8 +94,11 @@ async function populateCategoryMenu() {
         const categories = data.categories || [];
 
         menuHTML = categories.map(cat => 
-        `<a href="categorie.html?cat=${cat.IDCategorie}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">${cat.Nom}</a>`
+        // Correction: Utiliser l'ID et le nom pour la page catégorie
+        `<a href="categorie.html?id=${cat.IDCategorie}&name=${encodeURIComponent(cat.Nom)}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">${cat.Nom}</a>`
         ).join('');
+        // Ajout du lien vers les promotions
+        menuHTML += '<a href="promotion.html" class="block px-4 py-2 text-sm text-red-600 font-semibold hover:bg-gray-100">Promotions</a>';
         menu.innerHTML = menuHTML;
     } catch (error) {
         console.error("Erreur lors du chargement des catégories:", error);
@@ -324,6 +337,85 @@ async function displaySearchResults() {
     `).join('');
 
     resultsContainer.innerHTML = resultsHTML;
+}
+
+/**
+ * NOUVEAU: Affiche les produits pour une catégorie donnée.
+ */
+async function displayCategoryProducts() {
+    const params = new URLSearchParams(window.location.search);
+    const categoryId = params.get('id');
+    const categoryName = params.get('name');
+
+    const nameDisplay = document.getElementById('category-name-display');
+    const resultsContainer = document.getElementById('category-results-container');
+    const resultsCount = document.getElementById('category-results-count');
+
+    if (!categoryId || !resultsContainer) return;
+
+    nameDisplay.textContent = categoryName || "Catégorie";
+
+    try {
+        const response = await fetch(`${CONFIG.PRODUCT_API_URL}?action=getPublicData`);
+        if (!response.ok) throw new Error(`Erreur réseau: ${response.statusText}`);
+        
+        const data = await response.json();
+        const allProducts = data.products || [];
+
+        // Filtrer les produits par l'ID de la catégorie
+        const filteredProducts = allProducts.filter(product => product.Catégorie === categoryName); // Supposant que la catégorie est stockée par nom
+
+        resultsCount.textContent = `${filteredProducts.length} produit(s) dans cette catégorie.`;
+
+        if (filteredProducts.length === 0) {
+            resultsContainer.innerHTML = `<p class="col-span-full text-center text-gray-500">Aucun produit dans cette catégorie pour le moment.</p>`;
+            return;
+        }
+
+        const resultsHTML = filteredProducts.map(product => renderProductCard(product)).join('');
+        resultsContainer.innerHTML = resultsHTML;
+
+    } catch (error) {
+        console.error("Erreur lors de l'affichage des produits de la catégorie:", error);
+        resultsCount.textContent = `Erreur lors du chargement des produits.`;
+        resultsContainer.innerHTML = `<p class="col-span-full text-center text-red-500">Impossible de charger les produits.</p>`;
+    }
+}
+
+/**
+ * NOUVEAU: Affiche les produits en promotion.
+ */
+async function displayPromotionProducts() {
+    const resultsContainer = document.getElementById('promotion-results-container');
+    const resultsCount = document.getElementById('promotion-results-count');
+
+    if (!resultsContainer) return;
+
+    try {
+        const response = await fetch(`${CONFIG.PRODUCT_API_URL}?action=getPublicData`);
+        if (!response.ok) throw new Error(`Erreur réseau: ${response.statusText}`);
+        
+        const data = await response.json();
+        const allProducts = data.products || [];
+
+        // Filtrer les produits qui ont une réduction
+        const discountedProducts = allProducts.filter(product => product['Réduction%'] && parseFloat(product['Réduction%']) > 0);
+
+        resultsCount.textContent = `${discountedProducts.length} produit(s) en promotion.`;
+
+        if (discountedProducts.length === 0) {
+            resultsContainer.innerHTML = `<p class="col-span-full text-center text-gray-500">Aucun produit en promotion pour le moment.</p>`;
+            return;
+        }
+
+        const resultsHTML = discountedProducts.map(product => renderProductCard(product)).join('');
+        resultsContainer.innerHTML = resultsHTML;
+
+    } catch (error) {
+        console.error("Erreur lors de l'affichage des promotions:", error);
+        resultsCount.textContent = `Erreur lors du chargement des promotions.`;
+        resultsContainer.innerHTML = `<p class="col-span-full text-center text-red-500">Impossible de charger les promotions.</p>`;
+    }
 }
 
 // --- LOGIQUE DE LA PAGE PRODUIT ---
@@ -682,4 +774,25 @@ function initializeAccountPage() {
 
     logoutLink.addEventListener('click', logoutAction);
     logoutNav.addEventListener('click', logoutAction);
+
+    // Charger et afficher les commandes récentes
+    loadRecentOrdersForAccount(user.IDClient);
+}
+
+/**
+ * NOUVEAU: Charge les commandes récentes pour la page de compte.
+ */
+async function loadRecentOrdersForAccount(clientId) {
+    const ordersSection = document.getElementById('recent-orders-section');
+    if (!ordersSection) return;
+
+    ordersSection.innerHTML = '<p>Chargement des commandes récentes...</p>';
+
+    // Note: Cette action n'existe pas encore côté backend, il faudra l'ajouter.
+    // Pour l'instant, on simule ou on laisse un message.
+    // Dans un futur développement, on appellerait une action comme 'getOrdersByClientId'.
+    ordersSection.innerHTML = `
+        <h4 class="text-lg font-semibold mb-4">Mes commandes récentes</h4>
+        <p class="text-gray-500">Cette fonctionnalité est en cours de développement.</p>
+    `;
 }
