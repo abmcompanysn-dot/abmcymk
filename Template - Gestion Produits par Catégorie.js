@@ -68,18 +68,9 @@ function doGet(e) {
       return createJsonResponse({ success: true, count: productCount });
     }
     if (action === 'getProducts') {
-      const cache = CacheService.getScriptCache();
-      const cacheKey = `products_${SpreadsheetApp.getActiveSpreadsheet().getId()}`;
-      const cachedProducts = cache.get(cacheKey);
-
-      if (cachedProducts) {
-        return createJsonResponse(JSON.parse(cachedProducts));
-      }
-
+      // Lit les produits directement depuis la feuille à chaque appel (pas de cache)
       const products = sheetToJSON(SpreadsheetApp.getActiveSpreadsheet().getSheets()[0]);
       const responseData = { success: true, data: products };
-      cache.put(cacheKey, JSON.stringify(responseData), 21600); // Cache de 6 heures
-
       return createJsonResponse(responseData);
     }
     return createJsonResponse({ success: false, error: "Action GET non reconnue." });
