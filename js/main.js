@@ -364,7 +364,12 @@ async function displayCategoryProducts() {
         const catalog = await getFullCatalog();
         const allProducts = catalog.data.products;
         // Filtrer les produits par l'ID de la catégorie
-        const filteredProducts = allProducts.filter(product => product.Catégorie === categoryName); // Supposant que la catégorie est stockée par nom
+        const normalizedCategoryName = categoryName.trim().toLowerCase();
+        const filteredProducts = allProducts.filter(product => {
+            // Rendre la comparaison insensible à la casse et aux espaces
+            const productCategory = product.Catégorie || '';
+            return productCategory.trim().toLowerCase() === normalizedCategoryName;
+        });
 
         resultsCount.textContent = `${filteredProducts.length} produit(s) dans cette catégorie.`;
 
