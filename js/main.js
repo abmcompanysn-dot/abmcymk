@@ -10,8 +10,7 @@ const CONFIG = {
 };
 
 // Variables globales pour le chargement progressif de la page d'accueil
-let categoryDirectory = []; // Stocke la liste des catégories et leurs URLs
-let allLoadedProducts = []; // Stocke tous les produits déjà chargés
+let fullCatalogData = null;
 let renderedCategoriesCount = 0;
 const CATEGORIES_PER_LOAD = 3;
 
@@ -618,71 +617,52 @@ async function renderHomepageProducts() {
  * Charge un lot de catégories de produits et les affiche.
  */
 function loadMoreCategories() {
+    if (!fullCatalogData) return;
+
     const homepageContainer = document.querySelector('#homepage-sections');
     const loadMoreContainer = document.querySelector('#load-more-container');
+    const allCategories = fullCatalogData.data.categories.sort((a, b) => a.Ordre - b.Ordre);
+    const allProducts = fullCatalogData.data.products;
 
     // Afficher un état de chargement sur le bouton
     const loadMoreButton = document.getElementById('load-more-btn');
     if (loadMoreButton) {
         loadMoreButton.disabled = true;
-        loadMoreButton.innerHTML = '<div class="loader mx-auto"></div>';
+        loadMoreButton.innerHTML = '<span class="loader inline-block w-5 h-5 border-2 border-t-transparent rounded-full animate-spin"></span> Chargement...';
     }
 
     // Déterminer le prochain lot de catégories à afficher
-    const categoriesToLoad = categoryDirectory.slice(renderedCategoriesCount, renderedCategoriesCount + CATEGORIES_PER_LOAD);
+    const categoriesToShow = allCategories.slice(renderedCategoriesCount, renderedCategoriesCount + CATEGORIES_PER_LOAD);
 
-    // Créer les promesses de fetch pour les produits des catégories à charger
-    const productFetchPromises = categoriesToLoad.map(category => {
-        if (category.ScriptURL) {
-            return fetch(`${category.ScriptURL}?action=getProducts`).then(res => res.json());
-        }
-        return Promise.resolve({ success: false });
-    });
+    let newHTML = '';
+    categoriesToShow.forEach((category, index) => {
+        const categoryProducts = allProducts.filter(p => p.Catégorie === category.NomCategorie).slice(0, 4);
+        const bgColor = (renderedCategoriesCount + index) % 2 === 0 ? 'bg-white' : 'bg-gray-100';
 
-    // Exécuter les appels en parallèle
-    Promise.all(productFetchPromises).then(results => {
-        let newHTML = '';
-        results.forEach((productResult, index) => {
-            const category = categoriesToLoad[index];
-            let productsForCategory = [];
-            if (productResult.success && productResult.data) {
-                productsForCategory = productResult.data;
-                allLoadedProducts = allLoadedProducts.concat(productsForCategory); // Ajouter les nouveaux produits à la liste globale
-            }
-
-            const bgColor = (renderedCategoriesCount + index) % 2 === 0 ? 'bg-white' : 'bg-gray-100';
-
-            newHTML += `
-                <section class="py-12 ${bgColor}">
-                    <div class="container mx-auto px-4">
-                        <div class="flex items-center justify-between mb-8">
-                            <h3 class="text-3xl font-bold text-gray-800">${category.NomCategorie}</h3>
-                            <a href="categorie.html?id=${category.IDCategorie}&name=${encodeURIComponent(category.NomCategorie)}" class="text-gold hover:underline">Voir plus</a>
-                        </div>
-                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                            ${productsForCategory.slice(0, 4).map(product => renderProductCard(product)).join('')}
-                        </div>
+        newHTML += `
+            <section class="py-12 ${bgColor}">
+                <div class="container mx-auto px-4">
+                    <div class="flex items-center justify-between mb-8">
+                        <h3 class="text-3xl font-bold text-gray-800">${category.NomCategorie}</h3>
+                        <a href="categorie.html?id=${category.IDCategorie}&name=${encodeURIComponent(category.NomCategorie)}" class="text-gold hover:underline">Voir plus</a>
                     </div>
-                </section>
-            `;
-        });
-
-        homepageContainer.insertAdjacentHTML('beforeend', newHTML);
-        renderedCategoriesCount += categoriesToLoad.length;
-
-        // Mettre à jour ou supprimer le bouton "Charger plus"
-        if (renderedCategoriesCount >= categoryDirectory.length) {
-            loadMoreContainer.innerHTML = ''; // Toutes les catégories sont chargées
-        } else {
-            loadMoreContainer.innerHTML = `<button id="load-more-btn" onclick="loadMoreCategories()" class="bg-black text-white px-8 py-3 rounded-lg font-semibold hover:bg-gray-800 transition">Charger plus de catégories</button>`;
-        }
-    }).catch(error => {
-        console.error("Erreur lors du chargement de produits supplémentaires:", error);
-        if (loadMoreButton) {
-            loadMoreButton.disabled = false;
-            loadMoreButton.textContent = 'Erreur, réessayer';
-        }
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                        ${categoryProducts.map(product => renderProductCard(product)).join('')}
+                    </div>
+                </div>
+            </section>
+        `;
     });
+
+    homepageContainer.insertAdjacentHTML('beforeend', newHTML);
+    renderedCategoriesCount += categoriesToShow.length;
+
+    // Mettre à jour ou supprimer le bouton "Charger plus"
+    if (renderedCategoriesCount >= allCategories.length) {
+        loadMoreContainer.innerHTML = ''; // Toutes les catégories sont chargées
+    } else {
+        loadMoreContainer.innerHTML = `<button id="load-more-btn" onclick="loadMoreCategories()" class="bg-black text-white px-8 py-3 rounded-lg font-semibold hover:bg-gray-800 transition">Charger plus de catégories</button>`;
+    }
 }
 
 /**
@@ -690,29 +670,57 @@ function loadMoreCategories() {
  * Met en cache les résultats pour améliorer les performances de navigation.
  */
 async function getFullCatalog() {
-    // Si le répertoire des catégories est déjà chargé, on ne fait rien de plus ici.
-    // Cette fonction est maintenant principalement un point d'entrée pour les pages
-    // qui ont besoin de tout le catalogue d'un coup (ex: recherche).
-    if (categoryDirectory.length > 0) {
-        return { success: true, data: { categories: categoryDirectory, products: allLoadedProducts } };
-    }
+    console.log('%c[API] Démarrage du chargement en direct depuis le serveur (mode DEV).', 'color: orange');
 
-    // --- Étape 1: Charger dynamiquement la liste des catégories ---
-    const categoryResponse = await fetch(CONFIG.CENTRAL_API_URL);
-    if (!categoryResponse.ok) {
-        throw new Error(`Erreur réseau lors de la récupération des catégories.`);
-    }
-    const categoryResult = await categoryResponse.json();
-    if (!categoryResult.success) {
-        throw new Error(categoryResult.error || "Impossible de charger la liste des catégories.");
-    }
-    
-    // Stocker le répertoire des catégories pour une utilisation future
-    categoryDirectory = categoryResult.data.sort((a, b) => a.Ordre - b.Ordre);
+    try {
+        // --- Étape 1: Charger dynamiquement la liste des catégories depuis le script central ---
+        console.log(`%c[API] Appel au script central pour la liste des catégories...`, 'color: blue');
+        const categoryResponse = await fetch(CONFIG.CENTRAL_API_URL);
+        if (!categoryResponse.ok) {
+            throw new Error(`Erreur réseau (Catégories): ${categoryResponse.statusText}`);
+        }
+        const categoryResult = await categoryResponse.json();
+        if (!categoryResult.success) {
+            throw new Error(categoryResult.error || "Impossible de charger la liste des catégories.");
+        }
+        const categories = categoryResult.data;
+        console.log(`%c[API] ${categories.length} catégories reçues.`, 'color: #03a9f4');
 
-    // Pour les pages autres que l'accueil, on pourrait vouloir charger tous les produits ici.
-    // Pour l'instant, on retourne juste les catégories. Les produits seront chargés au besoin.
-    return { success: true, data: { categories: categoryDirectory, products: [] } };
+        // --- Étape 2: Contacter chaque URL de catégorie pour récupérer les produits ---
+        let allProducts = [];
+        console.log('%c[API] Lancement des appels parallèles pour récupérer les produits de chaque catégorie...', 'color: blue');
+        const fetchPromises = categories.map(category => {
+            if (category.ScriptURL) {
+                // console.log(` -> Appel de la catégorie : ${category.NomCategorie}`); // Décommenter pour plus de détails
+                return fetch(`${category.ScriptURL}?action=getProducts`).then(res => {
+                    if (!res.ok) {
+                        console.warn(` -> Erreur réseau pour la catégorie ${category.NomCategorie}: ${res.statusText}`);
+                        return { success: false, message: `Erreur réseau ${res.status}` };
+                    }
+                    return res.json();
+                });
+            }
+            return Promise.resolve({ success: false, message: `URL de script manquante pour ${category.NomCategorie}` });
+        });
+
+        const productResults = await Promise.all(fetchPromises);
+        console.log('%c[API] Tous les appels de produits sont terminés.', 'color: #03a9f4');
+
+        productResults.forEach(result => {
+            if (result.success && result.data) {
+                allProducts = allProducts.concat(result.data);
+            } else {
+                // Les erreurs sont déjà loguées plus haut
+            }
+        });
+        
+        const fullCatalog = { success: true, data: { products: allProducts, categories: categories } };
+        console.log(`%c[API] Catalogue complet assemblé (${allProducts.length} produits).`, 'color: green');
+        return fullCatalog;
+    } catch (error) {
+        console.error('%c[ERREUR FATALE] Impossible de construire le catalogue.', 'color: red; font-weight: bold;', error);
+        throw error;
+    }
 }
 
 /**
