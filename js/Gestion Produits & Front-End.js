@@ -126,6 +126,7 @@ function onOpen() {
       .addSeparator()
       .addSubMenu(SpreadsheetApp.getUi().createMenu('🧪 Testing')
           .addItem('🌱 Remplir avec des données personnelles', 'seedPersonalData_Admin')
+          .addItem('🧹 Vider le cache du site', 'invalidateCache')
           .addItem('🧹 Vider toutes les données', 'clearAllData_Admin'))
       .addToUi();
 }
