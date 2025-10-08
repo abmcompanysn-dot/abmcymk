@@ -29,8 +29,8 @@ function showAdminInterface() {
  */
 function doGet(e) {
   try {
-    // Le seul rôle public de ce script est de fournir la liste des catégories (l'annuaire).
-    // Le panneau d'administration et le site web utiliseront cette même fonction.
+    // Le seul rôle public de ce script pour le site web est de fournir la liste des catégories (l'annuaire).
+    // Le panneau d'administration utilise également cette fonction via google.script.run.
     const categories = getCategoriesWithProductCounts();
     return createJsonResponse({ success: true, data: categories });
   } catch (error) {
