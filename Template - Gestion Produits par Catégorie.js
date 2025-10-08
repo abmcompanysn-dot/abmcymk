@@ -68,7 +68,6 @@ function doGet(e) {
       return createJsonResponse({ success: true, count: productCount });
     }
     if (action === 'getProducts') {
-      // Lit les produits directement depuis la feuille à chaque appel (pas de cache)
       const products = sheetToJSON(SpreadsheetApp.getActiveSpreadsheet().getSheets()[0]);
       const responseData = { success: true, data: products };
       return createJsonResponse(responseData);
@@ -167,7 +166,6 @@ function seedDefaultProducts() {
     addProduct(productData);
   });
 
-  invalidateCategoryCache(); // Vider le cache après avoir ajouté les produits
   SpreadsheetApp.getUi().alert('10 produits de test ont été ajoutés avec succès !');
 }
 

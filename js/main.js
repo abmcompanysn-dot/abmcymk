@@ -670,14 +670,7 @@ function loadMoreCategories() {
  * Met en cache les résultats pour améliorer les performances de navigation.
  */
 async function getFullCatalog() {
-    console.log('%c[CACHE] Vérification du catalogue en cache...', 'color: gray');
-    const cachedData = sessionStorage.getItem('fullCatalog');
-    if (cachedData) {
-        console.log('%c[CACHE] Catalogue trouvé en cache. Utilisation des données locales.', 'color: green');
-        return JSON.parse(cachedData);
-    }
-
-    console.log('%c[API] Cache vide. Démarrage du chargement complet depuis le serveur.', 'color: orange');
+    console.log('%c[API] Démarrage du chargement en direct depuis le serveur (mode DEV).', 'color: orange');
 
     try {
         // --- Étape 1: Charger dynamiquement la liste des catégories depuis le script central ---
@@ -698,7 +691,14 @@ async function getFullCatalog() {
         console.log('%c[API] Lancement des appels parallèles pour récupérer les produits de chaque catégorie...', 'color: blue');
         const fetchPromises = categories.map(category => {
             if (category.ScriptURL) {
-                return fetch(`${category.ScriptURL}?action=getProducts`).then(res => res.json());
+                // console.log(` -> Appel de la catégorie : ${category.NomCategorie}`); // Décommenter pour plus de détails
+                return fetch(`${category.ScriptURL}?action=getProducts`).then(res => {
+                    if (!res.ok) {
+                        console.warn(` -> Erreur réseau pour la catégorie ${category.NomCategorie}: ${res.statusText}`);
+                        return { success: false, message: `Erreur réseau ${res.status}` };
+                    }
+                    return res.json();
+                });
             }
             return Promise.resolve({ success: false, message: `URL de script manquante pour ${category.NomCategorie}` });
         });
@@ -709,12 +709,13 @@ async function getFullCatalog() {
         productResults.forEach(result => {
             if (result.success && result.data) {
                 allProducts = allProducts.concat(result.data);
+            } else {
+                // Les erreurs sont déjà loguées plus haut
             }
         });
         
         const fullCatalog = { success: true, data: { products: allProducts, categories: categories } };
-        console.log(`%c[CACHE] Catalogue complet assemblé (${allProducts.length} produits). Mise en cache dans sessionStorage.`, 'color: green');
-        sessionStorage.setItem('fullCatalog', JSON.stringify(fullCatalog));
+        console.log(`%c[API] Catalogue complet assemblé (${allProducts.length} produits).`, 'color: green');
         return fullCatalog;
     } catch (error) {
         console.error('%c[ERREUR FATALE] Impossible de construire le catalogue.', 'color: red; font-weight: bold;', error);
