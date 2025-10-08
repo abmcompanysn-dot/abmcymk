@@ -24,6 +24,7 @@
     <h2 class="text-xl font-bold text-gray-800 mb-4">Ajouter un Produit</h2>
     <form id="addProductForm" class="space-y-3">
       <input type="text" id="nom" placeholder="Nom du produit" class="w-full p-2 border rounded" required>
+      <input type="text" id="marque" placeholder="Marque du produit" class="w-full p-2 border rounded">
       <input type="text" id="categorie" placeholder="Catégorie" class="w-full p-2 border rounded" required>
       <input type="number" id="prixActuel" placeholder="Prix Actuel" class="w-full p-2 border rounded" required>
       <input type="number" id="reduction" placeholder="Réduction en % (ex: 15)" class="w-full p-2 border rounded" value="0">
@@ -46,6 +47,7 @@
 
         const productData = {
           nom: document.getElementById('nom').value,
+          marque: document.getElementById('marque').value,
           categorie: document.getElementById('categorie').value,
           prixActuel: parseFloat(document.getElementById('prixActuel').value),
           reduction: parseFloat(document.getElementById('reduction').value),

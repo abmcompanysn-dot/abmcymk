@@ -101,7 +101,7 @@ function ajouterProduit(p) {
     if (p.reduction > 0 && p.reduction < 100) {
       prixAncien = p.prixActuel / (1 - (p.reduction / 100));
     }
-    sheet.appendRow([idProduit, p.nom, p.categorie, p.prixActuel, prixAncien, p.reduction, p.stock, p.imageURL, p.description, p.tags, true]);
+    sheet.appendRow([idProduit, p.nom, p.marque, p.categorie, p.prixActuel, prixAncien, p.reduction, p.stock, 0, 0, p.imageURL, p.description, p.tags, true]);
     
     invalidateCache();
     logAction('ajouterProduit', { nom: p.nom, id: idProduit });
@@ -252,12 +252,12 @@ function createNightlyTrigger() {
  */
 function getSampleProducts() {
   return [
-    // nom, categorie, prixActuel, reduction, stock, imageURL, description, tags
-    ['Smartphone X-Pro', 'Électronique', 450000, 15, 50, 'https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png', 'Un smartphone ultra-performant avec un écran OLED.', 'téléphone,mobile,tech'],
-    ['Laptop UltraBook Z', 'Électronique', 780000, 10, 30, 'https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png', 'Léger, puissant et une autonomie incroyable.', 'ordinateur,laptop,tech'],
-    ['Casque Audio Pro', 'Accessoires', 85000, 20, 100, 'https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png', 'Réduction de bruit active et son haute-fidélité.', 'audio,casque,musique'],
-    ['T-shirt "Code Life"', 'Vêtements', 15000, 0, 200, 'https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png', 'Le t-shirt parfait pour les développeurs passionnés.', 'vêtement,mode,geek'],
-    ['Jean Slim Fit', 'Vêtements', 42000, 5, 150, 'https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png', 'Un jean confortable et stylé pour toutes les occasions.', 'vêtement,mode,jean']
+    // nom, marque, categorie, prixActuel, reduction, stock, noteMoyenne, nombreAvis, imageURL, description, tags
+    ['Smartphone X-Pro', 'TechCorp', 'Électronique', 450000, 15, 50, 4.8, 152, 'https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png', 'Un smartphone ultra-performant avec un écran OLED.', 'téléphone,mobile,tech'],
+    ['Laptop UltraBook Z', 'Zenith', 'Électronique', 780000, 10, 30, 4.6, 89, 'https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png', 'Léger, puissant et une autonomie incroyable.', 'ordinateur,laptop,tech'],
+    ['Casque Audio Pro', 'SoundWave', 'Accessoires', 85000, 20, 100, 4.7, 210, 'https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png', 'Réduction de bruit active et son haute-fidélité.', 'audio,casque,musique'],
+    ['T-shirt "Code Life"', 'DevStyle', 'Vêtements', 15000, 0, 200, 4.9, 35, 'https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png', 'Le t-shirt parfait pour les développeurs passionnés.', 'vêtement,mode,geek'],
+    ['Jean Slim Fit', 'UrbanWear', 'Vêtements', 42000, 5, 150, 4.5, 112, 'https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png', 'Un jean confortable et stylé pour toutes les occasions.', 'vêtement,mode,jean']
   ];
 }
 
@@ -273,14 +273,14 @@ function getSampleCategories() {
 
 function seedProducts() {
   const ss = SpreadsheetApp.openById(ADMIN_SPREADSHEET_ID);
-  getOrCreateSheet(ss, SHEET_NAMES.PRODUCTS, ["IDProduit", "Nom", "Catégorie", "PrixActuel", "PrixAncien", "Réduction%", "Stock", "ImageURL", "Description", "Tags", "Actif"]);
+  initialiserBaseDeDonnees_Admin(); // Assure que toutes les colonnes sont présentes
   getOrCreateSheet(ss, SHEET_NAMES.CATEGORIES, ["IDCategorie", "Nom", "Description", "ParentCategorie", "OrdreAffichage"]);
 
   const sampleProducts = getSampleProducts();
   sampleProducts.forEach(p => {
     ajouterProduit({
-      nom: p[0], categorie: p[1], prixActuel: p[2], reduction: p[3], stock: p[4], 
-      imageURL: p[5], description: p[6], tags: p[7]
+      nom: p[0], marque: p[1], categorie: p[2], prixActuel: p[3], reduction: p[4], stock: p[5], 
+      imageURL: p[8], description: p[9], tags: p[10]
     });
   });
 
@@ -373,7 +373,7 @@ function sheetToJSON(sheet) {
 
 function initialiserBaseDeDonnees_Admin() {
   const ss = SpreadsheetApp.openById(ADMIN_SPREADSHEET_ID);
-  getOrCreateSheet(ss, SHEET_NAMES.PRODUCTS, ["IDProduit", "Nom", "Catégorie", "PrixActuel", "PrixAncien", "Réduction%", "Stock", "ImageURL", "Description", "Tags", "Actif"]);
+  getOrCreateSheet(ss, SHEET_NAMES.PRODUCTS, ["IDProduit", "Nom", "Marque", "Catégorie", "PrixActuel", "PrixAncien", "Réduction%", "Stock", "NoteMoyenne", "NombreAvis", "ImageURL", "Description", "Tags", "Actif"]);
   getOrCreateSheet(ss, SHEET_NAMES.CATEGORIES, ["IDCategorie", "Nom", "Description", "ParentCategorie", "OrdreAffichage"]);
   getOrCreateSheet(ss, SHEET_NAMES.ALBUMS, ["IDProduit", "ImageURL", "Légende", "Ordre", "TypeImage"]);
   getOrCreateSheet(ss, "StockAlertes", ["IDProduit", "Seuil", "AlerteEnvoyée", "DateDernièreAlerte", "MéthodeNotification"]);
