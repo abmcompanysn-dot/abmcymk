@@ -3,7 +3,7 @@ const CONFIG = {
     CLIENT_API_URL: "https://script.google.com/macros/s/AKfycbwi3zpOqK7EKSKDCQ1VTIYvrfesOTTpNBs4vQvh_3BCcSE65KGjlWnLsilUtyvOdsgT/exec",
 
     // URL du script central. On ajoute l'action dans la requête fetch.
-    CENTRAL_API_URL: "https://script.google.com/macros/s/AKfycbxwa1mOLlp6DmcaX_AFNvnXWqOFk8W8lfOJPKu97zvTUxZTPyhZZZijIWrwQHVkXw3H/exec", // Your central script URL
+    CENTRAL_API_URL: "https://script.google.com/macros/s/AKfycbydXUZ-C_YStK_x3kfgodbAj0Br6NUQtFZwM61rfV4qp3qKrsiKReakp4nsoHA3lw0/exec", // Your central script URL
     
     // Autres configurations
     DEFAULT_PRODUCT_IMAGE: "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png",
