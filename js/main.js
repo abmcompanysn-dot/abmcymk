@@ -2,8 +2,8 @@ const CONFIG = {
     // URL de l'API publique (Script 2: Gestion Client & Livraison)
     CLIENT_API_URL: "https://script.google.com/macros/s/AKfycbwi3zpOqK7EKSKDCQ1VTIYvrfesOTTpNBs4vQvh_3BCcSE65KGjlWnLsilUtyvOdsgT/exec",
 
-    // NOUVEAU: URL du script central qui gère les catégories
-    CATEGORY_MANAGER_API_URL: "https://script.google.com/macros/s/AKfycby5EHJj-ZavcEksqGGJ-Q3VALar-CjEMA_yNMynwCTXzOQYZxSxePeTZtxQi_IgylM/exec",
+    // URL du script central. On ajoute l'action dans la requête fetch.
+    CENTRAL_API_URL: "https://script.google.com/macros/s/AKfycby5EHJj-ZavcEksqGGJ-Q3VALar-CjEMA_yNMynwCTXzOQYZxSxePeTZtxQi_IgylM/exec",
     
     // Autres configurations
     DEFAULT_PRODUCT_IMAGE: "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png",
