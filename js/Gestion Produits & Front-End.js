@@ -32,6 +32,11 @@ function doGet(e) {
   // Routeur pour les requêtes GET publiques
   const action = e.parameter.action;
 
+  if (action === 'getCatalogVersion') {
+    // C'est le nouveau point d'entrée pour la version du catalogue
+    return getCatalogVersion();
+  }
+
   if (action === 'getPublicData') {
     // C'est le nouveau point d'entrée pour votre site web
     return getPublicData();
@@ -94,6 +99,25 @@ function getCategoriesWithProductCounts() {
 }
 
 /**
+ * NOUVEAU: Renvoie la version actuelle du catalogue depuis un fichier sur Drive.
+ */
+function getCatalogVersion() {
+  try {
+    const fileName = "catalog_version.json";
+    const files = DriveApp.getFilesByName(fileName);
+    if (files.hasNext()) {
+      const file = files.next();
+      const content = file.getBlob().getDataAsString();
+      return ContentService.createTextOutput(content).setMimeType(ContentService.MimeType.JSON);
+    } else {
+      return createJsonResponse({ success: true, version: null }); // Pas encore de version
+    }
+  } catch (error) {
+    return createJsonResponse({ success: false, error: `Erreur lors de la lecture de la version : ${error.message}` });
+  }
+}
+
+/**
  * NOUVEAU: Récupère toutes les données publiques (catégories et tous les produits)
  * pour le site web front-end.
  * Cette fonction est maintenant très rapide car elle lit un fichier pré-généré.
@@ -142,6 +166,11 @@ function buildFullCatalogCache() {
   };
 
   saveToDrive("public_catalog.json", JSON.stringify(publicData));
+  
+  // NOUVEAU: Sauvegarder la version du catalogue
+  const versionData = { version: new Date().getTime() };
+  saveToDrive("catalog_version.json", JSON.stringify(versionData));
+
   SpreadsheetApp.getUi().alert("Le cache du catalogue a été généré avec succès !");
 }
 

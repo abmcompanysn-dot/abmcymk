@@ -2,8 +2,8 @@ const CONFIG = {
     // URL de l'API publique (Script 2: Gestion Client & Livraison)
     CLIENT_API_URL: "https://script.google.com/macros/s/AKfycbwi3zpOqK7EKSKDCQ1VTIYvrfesOTTpNBs4vQvh_3BCcSE65KGjlWnLsilUtyvOdsgT/exec",
 
-    // URL du script central qui fournit toutes les données publiques
-    PUBLIC_DATA_API_URL: "https://script.google.com/macros/s/AKfycby5EHJj-ZavcEksqGGJ-Q3VALar-CjEMA_yNMynwCTXzOQYZxSxePeTZtxQi_IgylM/exec?action=getPublicData",
+    // URL du script central. On ajoute l'action dans la requête fetch.
+    CENTRAL_API_URL: "https://script.google.com/macros/s/AKfycby5EHJj-ZavcEksqGGJ-Q3VALar-CjEMA_yNMynwCTXzOQYZxSxePeTZtxQi_IgylM/exec",
     
     // Autres configurations
     DEFAULT_PRODUCT_IMAGE: "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png",
@@ -606,25 +606,42 @@ async function renderHomepageProducts() {
  * Met en cache les résultats pour améliorer les performances de navigation.
  */
 async function getFullCatalog() {
-    // Vérifier si les données sont déjà en cache dans la session
-    const cachedData = sessionStorage.getItem('fullCatalog');
-    if (cachedData) {
-        return JSON.parse(cachedData);
-    }
+    try {
+        // 1. Récupérer la version actuelle du catalogue depuis le serveur
+        const versionResponse = await fetch(`${CONFIG.CENTRAL_API_URL}?action=getCatalogVersion`);
+        const versionResult = await versionResponse.json();
+        const serverVersion = versionResult.version;
 
-    // Appelle le nouveau point d'entrée unique
-    const response = await fetch(CONFIG.PUBLIC_DATA_API_URL);
-    if (!response.ok) {
-        throw new Error(`Erreur réseau: ${response.statusText}`);
-    }
-    const result = await response.json();
-    if (!result.success) {
-        throw new Error(result.error || "Impossible de charger le catalogue.");
-    }
+        // 2. Récupérer la version locale et les données locales
+        const localVersion = sessionStorage.getItem('catalogVersion');
+        const cachedData = sessionStorage.getItem('fullCatalog');
 
-    const fullCatalog = result.data;
-    sessionStorage.setItem('fullCatalog', JSON.stringify(fullCatalog)); // Mettre en cache pour la session
-    return fullCatalog;
+        // 3. Comparer les versions
+        if (cachedData && serverVersion && localVersion && serverVersion == localVersion) {
+            // Les versions correspondent et les données existent, on utilise le cache
+            return JSON.parse(cachedData);
+        } else {
+            // Les versions ne correspondent pas ou le cache est vide, on recharge tout
+            const response = await fetch(`${CONFIG.CENTRAL_API_URL}?action=getPublicData`);
+            if (!response.ok) {
+                throw new Error(`Erreur réseau: ${response.statusText}`);
+            }
+            const result = await response.json();
+            if (!result.success) {
+                throw new Error(result.error || "Impossible de charger le catalogue.");
+            }
+
+            const fullCatalog = result.data;
+            // Mettre en cache les nouvelles données ET la nouvelle version
+            sessionStorage.setItem('fullCatalog', JSON.stringify(fullCatalog));
+            sessionStorage.setItem('catalogVersion', serverVersion);
+            
+            return fullCatalog;
+        }
+    } catch (error) {
+        console.error("Impossible de récupérer le catalogue:", error);
+        throw error; // Propager l'erreur pour que les autres fonctions puissent la gérer
+    }
 }
 
 /**
