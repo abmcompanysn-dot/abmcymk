@@ -7,7 +7,7 @@
 
 // --- CONFIGURATION ---
 const CLIENT_SPREADSHEET_ID = "1pGx-1uFUdS61fL4eh4HhQaHQSX6UzmPXiMQY0i71ZpU"; // IMPORTANT: Mettez ici l'ID de votre 2ème Google Sheet
-const ADMIN_API_URL = "https://script.google.com/macros/s/AKfycbw0dWVwcXOivb9u7ULSkIFeOk54QZQxiBFmtC6UaSzK315nJLk6d9HW4TSHJiweVe-P/execc"; // URL de l'API Admin
+const ADMIN_API_URL = "https://script.google.com/macros/s/AKfycby5EHJj-ZavcEksqGGJ-Q3VALar-CjEMA_yNMynwCTXzOQYZxSxePeTZtxQi_IgylM/exec"; // URL de l'API Admin
 const SCRIPT_NAME = "API-Client";
 
 const SHEET_NAMES = {

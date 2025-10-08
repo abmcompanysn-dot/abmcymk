@@ -2,8 +2,8 @@ const CONFIG = {
     // URL de l'API publique (Script 2: Gestion Client & Livraison)
     CLIENT_API_URL: "https://script.google.com/macros/s/AKfycbwi3zpOqK7EKSKDCQ1VTIYvrfesOTTpNBs4vQvh_3BCcSE65KGjlWnLsilUtyvOdsgT/exec",
 
-    // URL de l'API publique des produits (Script 1: Gestion Produits)
-    PRODUCT_API_URL: "https://script.google.com/macros/s/AKfycbwtAtDMtIiA3LaAEu69JXjciSmumWxYve-N0iqz7FcIHNB8uC7Xpys5is7ZZiNhQ0pH/exec",
+    // NOUVEAU: URL du script central qui gère les catégories
+    CATEGORY_MANAGER_API_URL: "https://script.google.com/macros/s/AKfycby5EHJj-ZavcEksqGGJ-Q3VALar-CjEMA_yNMynwCTXzOQYZxSxePeTZtxQi_IgylM/exec",
     
     // Autres configurations
     DEFAULT_PRODUCT_IMAGE: "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png",
@@ -90,12 +90,8 @@ async function populateCategoryMenu() {
     let menuHTML = ''; // Initialiser la variable ici
 
     try {
-        const response = await fetch(`${CONFIG.PRODUCT_API_URL}?action=getPublicData`);
-        if (!response.ok) {
-            throw new Error(`Erreur réseau: ${response.statusText}`);
-        }
-        const data = await response.json();
-        const categories = data.categories || [];
+        // On appelle le nouveau gestionnaire de catégories
+        const categories = await getCategoriesFromManager();
         
         // Ajout d'un titre et d'un bouton de fermeture
         menuHTML = `<div class="p-4 border-b"><h3 class="font-bold text-lg">Catégories</h3></div>`;
@@ -308,12 +304,8 @@ async function displaySearchResults() {
 
     let filteredProducts = [];
     try {
-        const response = await fetch(`${CONFIG.PRODUCT_API_URL}?action=getPublicData`);
-        if (!response.ok) {
-            throw new Error(`Erreur réseau: ${response.statusText}`);
-        }
-        const data = await response.json();
-        const allProducts = data.products || [];
+        // Utilise la nouvelle fonction pour récupérer tous les produits
+        const { products: allProducts } = await getAllProductsFromMicroservices();
 
         const lowerCaseQuery = query.toLowerCase();
         filteredProducts = allProducts.filter(product => 
@@ -363,11 +355,8 @@ async function displayCategoryProducts() {
     nameDisplay.textContent = categoryName || "Catégorie";
 
     try {
-        const response = await fetch(`${CONFIG.PRODUCT_API_URL}?action=getPublicData`);
-        if (!response.ok) throw new Error(`Erreur réseau: ${response.statusText}`);
-        
-        const data = await response.json();
-        const allProducts = data.products || [];
+        // Utilise la nouvelle fonction pour récupérer tous les produits
+        const { products: allProducts } = await getAllProductsFromMicroservices();
 
         // Filtrer les produits par l'ID de la catégorie
         const filteredProducts = allProducts.filter(product => product.Catégorie === categoryName); // Supposant que la catégorie est stockée par nom
@@ -399,11 +388,8 @@ async function displayPromotionProducts() {
     if (!resultsContainer) return;
 
     try {
-        const response = await fetch(`${CONFIG.PRODUCT_API_URL}?action=getPublicData`);
-        if (!response.ok) throw new Error(`Erreur réseau: ${response.statusText}`);
-        
-        const data = await response.json();
-        const allProducts = data.products || [];
+        // Utilise la nouvelle fonction pour récupérer tous les produits
+        const { products: allProducts } = await getAllProductsFromMicroservices();
 
         // Filtrer les produits qui ont une réduction
         const discountedProducts = allProducts.filter(product => product['Réduction%'] && parseFloat(product['Réduction%']) > 0);
@@ -441,13 +427,8 @@ async function loadProductPage() { // Make it async
 
     try {
         // Fetch all products and find the specific one
-        const response = await fetch(`${CONFIG.PRODUCT_API_URL}?action=getPublicData`);
-        if (!response.ok) {
-            throw new Error(`Erreur réseau: ${response.statusText}`);
-        }
-        const data = await response.json();
-        const allProducts = data.products || [];
-
+        const { products: allProducts } = await getAllProductsFromMicroservices();
+        
         const product = allProducts.find(p => p.IDProduit == productId);
 
         if (!product) {
@@ -612,13 +593,8 @@ async function renderHomepageProducts() {
     if (!homepageContainer) return; // Si on n'est pas sur la page d'accueil
 
     try {
-        const response = await fetch(`${CONFIG.PRODUCT_API_URL}?action=getPublicData`);
-        if (!response.ok) {
-            throw new Error(`Erreur réseau: ${response.statusText}`);
-        }
-        const data = await response.json();
-        const allCategories = data.categories || [];
-        const allProducts = data.products || [];
+        // Utilise la nouvelle fonction pour récupérer toutes les données
+        const { categories: allCategories, products: allProducts } = await getAllProductsFromMicroservices();
 
         // Sélectionner les 3 premières catégories à afficher
         const categoriesToShow = allCategories.sort((a, b) => a.Ordre - b.Ordre).slice(0, 3);
@@ -649,6 +625,56 @@ async function renderHomepageProducts() {
         console.error("Erreur lors du chargement des produits de la page d'accueil:", error);
         homepageContainer.innerHTML = '<p class="py-12 text-center text-red-500">Impossible de charger les sections de produits.</p>';
     }
+}
+
+/**
+ * NOUVEAU: Récupère la liste des catégories depuis le script central.
+ */
+async function getCategoriesFromManager() {
+    const response = await fetch(CONFIG.CATEGORY_MANAGER_API_URL);
+    if (!response.ok) {
+        throw new Error(`Erreur réseau lors de la récupération des catégories: ${response.statusText}`);
+    }
+    const result = await response.json();
+    if (!result.success) {
+        throw new Error(result.error || "Impossible de charger les catégories.");
+    }
+    return result.data || [];
+}
+
+/**
+ * NOUVEAU: Fonction centrale pour récupérer tous les produits depuis l'architecture micro-services.
+ * Met en cache les résultats pour améliorer les performances de navigation.
+ */
+async function getAllProductsFromMicroservices() {
+    // Vérifier si les données sont déjà en cache dans la session
+    const cachedData = sessionStorage.getItem('fullCatalog');
+    if (cachedData) {
+        return JSON.parse(cachedData);
+    }
+
+    const categories = await getCategoriesFromManager();
+    let allProducts = [];
+
+    // Créer un tableau de promesses pour toutes les requêtes fetch
+    const fetchPromises = categories.map(category => {
+        if (category.ScriptURL) {
+            return fetch(`${category.ScriptURL}?action=getProducts`).then(res => res.json());
+        }
+        return Promise.resolve({ success: false }); // Retourner une promesse résolue pour les catégories sans URL
+    });
+
+    const results = await Promise.all(fetchPromises);
+
+    results.forEach(result => {
+        if (result.success && result.data) {
+            allProducts = allProducts.concat(result.data);
+        }
+    });
+    
+    const fullCatalog = { products: allProducts, categories: categories };
+    sessionStorage.setItem('fullCatalog', JSON.stringify(fullCatalog)); // Mettre en cache pour la session
+    return fullCatalog;
 }
 
 /**
