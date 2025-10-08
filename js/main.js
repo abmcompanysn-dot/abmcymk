@@ -609,42 +609,17 @@ async function renderHomepageProducts() {
  * Met en cache les résultats pour améliorer les performances de navigation.
  */
 async function getFullCatalog() {
-    try {
-        // 1. Récupérer la version actuelle du catalogue depuis le serveur
-        const versionResponse = await fetch(`${CONFIG.CENTRAL_API_URL}?action=getCatalogVersion`);
-        const versionResult = await versionResponse.json();
-        const serverVersion = versionResult.version;
-
-        // 2. Récupérer la version locale et les données locales
-        const localVersion = sessionStorage.getItem('catalogVersion');
-        const cachedData = sessionStorage.getItem('fullCatalog');
-
-        // 3. Comparer les versions
-        if (cachedData && serverVersion && localVersion && serverVersion == localVersion) {
-            // Les versions correspondent et les données existent, on utilise le cache.
-            return JSON.parse(cachedData);
-        } else {
-            // Les versions ne correspondent pas ou le cache est vide, on recharge tout
-            const response = await fetch(`${CONFIG.CENTRAL_API_URL}?action=getPublicData`);
-            if (!response.ok) {
-                throw new Error(`Erreur réseau: ${response.statusText}`);
-            }
-            const result = await response.json();
-            if (!result.success) {
-                throw new Error(result.error || "Impossible de charger le catalogue.");
-            }
-
-            const fullCatalog = result; // Le résultat contient déjà { success: true, data: { ... } }
-            // Mettre en cache les nouvelles données ET la nouvelle version
-            sessionStorage.setItem('fullCatalog', JSON.stringify(fullCatalog));
-            sessionStorage.setItem('catalogVersion', serverVersion);
-            
-            return fullCatalog; // On retourne l'objet complet
-        }
-    } catch (error) {
-        console.error("Impossible de récupérer le catalogue:", error);
-        throw error; // Propager l'erreur pour que les autres fonctions puissent la gérer
+    // Version simplifiée SANS CACHE CÔTÉ CLIENT
+    // Appelle le point d'entrée unique à chaque fois.
+    const response = await fetch(`${CONFIG.CENTRAL_API_URL}?action=getPublicData`);
+    if (!response.ok) {
+        throw new Error(`Erreur réseau: ${response.statusText}`);
     }
+    const result = await response.json();
+    if (!result.success) {
+        throw new Error(result.error || "Impossible de charger le catalogue.");
+    }
+    return result;
 }
 
 /**

@@ -2,6 +2,12 @@
 
 const PRODUCT_HEADERS = ["IDProduit", "Nom", "Marque", "PrixActuel", "PrixAncien", "Réduction%", "Stock", "ImageURL", "Description", "Tags", "Actif", "Catégorie", "NoteMoyenne", "NombreAvis", "Galerie"];
 
+const ALLOWED_ORIGINS = [
+  "https://abmcymarket.vercel.app", // URL de production
+  "http://127.0.0.1:5500",         // URL de développement local
+  "https://*.google.com"            // Pour le panneau d'administration
+];
+
 const PERSONAL_DATA = {
   logoUrl: 'https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png',
   gallery: Array(5).fill('https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png').join(','),
@@ -29,6 +35,7 @@ function onOpen() {
   SpreadsheetApp.getUi()
       .createMenu('Gestion Catégorie')
       .addItem('Initialiser la feuille', 'setupSheet')
+      .addItem('Vider le cache de cette catégorie', 'invalidateCategoryCache')
       .addItem('Remplir avec des données de test', 'seedDefaultProducts')
       .addSeparator()
       .addItem('Ajouter un produit', 'showProductAddUI')
@@ -40,12 +47,15 @@ function onOpen() {
  */
 function doPost(e) {
   try {
+    // La logique de sécurité CORS n'est généralement pas nécessaire pour POST si l'appel vient d'un autre script Google.
     const request = JSON.parse(e.postData.contents);
     if (request.action === 'ajouterProduit') {
+      invalidateCategoryCache(); // Vider le cache après un ajout
       return addProduct(request.data);
     }
     // Future actions like 'updateProduct' or 'deleteProduct' would go here
     return createJsonResponse({ success: false, error: "Action POST non reconnue." });
+
   } catch (error) {
     return createJsonResponse({ success: false, error: error.message });
   }
@@ -56,22 +66,37 @@ function doPost(e) {
  */
 function doGet(e) {
   try {
+    // Sécurité CORS pour les appels GET venant du navigateur
+    const origin = e.headers ? e.headers.origin : null;
+    if (!isOriginAllowed(origin)) {
+      return createJsonResponse({ success: false, error: "Accès non autorisé depuis cette origine." });
+    }
+
     const action = e.parameter.action;
     if (action === 'getProductCount') {
       const ss = SpreadsheetApp.getActiveSpreadsheet();
       const sheet = ss.getSheets()[0];
       const productCount = sheet.getLastRow() > 1 ? sheet.getLastRow() - 1 : 0; // Soustraire la ligne d'en-tête
-      return createJsonResponse({ success: true, count: productCount });
+      return createJsonResponse({ success: true, count: productCount }, origin);
     }
     if (action === 'getProducts') {
-      const ss = SpreadsheetApp.getActiveSpreadsheet();
-      const sheet = ss.getSheets()[0];
-      const products = sheetToJSON(sheet);
-      return createJsonResponse({ success: true, data: products });
+      const cache = CacheService.getScriptCache();
+      const cacheKey = `products_${SpreadsheetApp.getActiveSpreadsheet().getId()}`;
+      const cachedProducts = cache.get(cacheKey);
+
+      if (cachedProducts) {
+        return createJsonResponse(JSON.parse(cachedProducts), origin);
+      }
+
+      const products = sheetToJSON(SpreadsheetApp.getActiveSpreadsheet().getSheets()[0]);
+      const responseData = { success: true, data: products };
+      cache.put(cacheKey, JSON.stringify(responseData), 21600); // Cache de 6 heures
+
+      return createJsonResponse(responseData, origin);
     }
-    return createJsonResponse({ success: false, error: "Action GET non reconnue." });
+    return createJsonResponse({ success: false, error: "Action GET non reconnue." }, origin);
   } catch (error) {
-    return createJsonResponse({ success: false, error: error.message });
+    return createJsonResponse({ success: false, error: error.message }, e.headers ? e.headers.origin : null);
   }
 }
 
@@ -141,6 +166,18 @@ function getCategoryName() {
 }
 
 /**
+ * Vide le cache pour cette catégorie spécifique.
+ */
+function invalidateCategoryCache() {
+  try {
+    const cache = CacheService.getScriptCache();
+    const cacheKey = `products_${SpreadsheetApp.getActiveSpreadsheet().getId()}`;
+    cache.remove(cacheKey);
+    Logger.log(`Cache vidé pour la clé : ${cacheKey}`);
+  } catch (e) { Logger.log(`Erreur lors du vidage du cache : ${e.message}`); }
+}
+
+/**
  * Remplit la feuille avec 10 produits de test.
  */
 function seedDefaultProducts() {
@@ -151,6 +188,7 @@ function seedDefaultProducts() {
     addProduct(productData);
   });
 
+  invalidateCategoryCache(); // Vider le cache après avoir ajouté les produits
   SpreadsheetApp.getUi().alert('10 produits de test ont été ajoutés avec succès !');
 }
 
@@ -171,9 +209,20 @@ function seedDefaultProducts() {
 /**
  * Crée une réponse JSON standard.
  */
-function createJsonResponse(data) {
-  return ContentService.createTextOutput(JSON.stringify(data))
+function createJsonResponse(data, origin) {
+  const jsonResponse = ContentService.createTextOutput(JSON.stringify(data))
     .setMimeType(ContentService.MimeType.JSON);
+  
+  if (origin && isOriginAllowed(origin)) {
+    jsonResponse.setHeader('Access-Control-Allow-Origin', origin);
+  }
+  
+  return jsonResponse;
+}
+
+function isOriginAllowed(origin) {
+  if (!origin) return false; // Refuser les requêtes sans origine
+  return ALLOWED_ORIGINS.some(allowed => origin.endsWith(allowed.replace('https://', '')));
 }
 
 /**
