@@ -91,7 +91,8 @@ async function populateCategoryMenu() {
 
     try {
         // On récupère les données depuis la nouvelle fonction centrale
-        const { categories } = await getFullCatalog();
+        const catalog = await getFullCatalog();
+        const categories = catalog.data.categories;
         
         // Ajout d'un titre et d'un bouton de fermeture
         menuHTML = `<div class="p-4 border-b"><h3 class="font-bold text-lg">Catégories</h3></div>`;
@@ -304,7 +305,8 @@ async function displaySearchResults() {
 
     let filteredProducts = [];
     try {
-        const { products: allProducts } = await getFullCatalog();
+        const catalog = await getFullCatalog();
+        const allProducts = catalog.data.products;
 
         const lowerCaseQuery = query.toLowerCase();
         filteredProducts = allProducts.filter(product => 
@@ -354,8 +356,8 @@ async function displayCategoryProducts() {
     nameDisplay.textContent = categoryName || "Catégorie";
 
     try {
-        const { products: allProducts } = await getFullCatalog();
-
+        const catalog = await getFullCatalog();
+        const allProducts = catalog.data.products;
         // Filtrer les produits par l'ID de la catégorie
         const filteredProducts = allProducts.filter(product => product.Catégorie === categoryName); // Supposant que la catégorie est stockée par nom
 
@@ -386,8 +388,8 @@ async function displayPromotionProducts() {
     if (!resultsContainer) return;
 
     try {
-        const { products: allProducts } = await getFullCatalog();
-
+        const catalog = await getFullCatalog();
+        const allProducts = catalog.data.products;
         // Filtrer les produits qui ont une réduction
         const discountedProducts = allProducts.filter(product => product['Réduction%'] && parseFloat(product['Réduction%']) > 0);
 
@@ -423,8 +425,8 @@ async function loadProductPage() { // Make it async
     }
 
     try {
-        const { products: allProducts } = await getFullCatalog();
-        const product = allProducts.find(p => p.IDProduit == productId);
+        const catalog = await getFullCatalog();
+        const product = catalog.data.products.find(p => p.IDProduit == productId);
 
         if (!product) {
             throw new Error("Produit non trouvé.");
@@ -588,8 +590,9 @@ async function renderHomepageProducts() {
     if (!homepageContainer) return; // Si on n'est pas sur la page d'accueil
 
     try {
-        const { categories: allCategories, products: allProducts } = await getFullCatalog();
-
+        const catalog = await getFullCatalog();
+        const allCategories = catalog.data.categories;
+        const allProducts = catalog.data.products;
         let homepageHTML = '';
         // The rest of the logic to display the sections is already correct
 
