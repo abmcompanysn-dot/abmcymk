@@ -2,12 +2,6 @@
 
 const PRODUCT_HEADERS = ["IDProduit", "Nom", "Marque", "PrixActuel", "PrixAncien", "Réduction%", "Stock", "ImageURL", "Description", "Tags", "Actif", "Catégorie", "NoteMoyenne", "NombreAvis", "Galerie"];
 
-const ALLOWED_ORIGINS = [
-  "https://abmcymarket.vercel.app", // URL de production
-  "http://127.0.0.1:5500",         // URL de développement local
-  "https://*.google.com"            // Pour le panneau d'administration
-];
-
 const PERSONAL_DATA = {
   logoUrl: 'https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png',
   gallery: Array(5).fill('https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png').join(','),
@@ -66,18 +60,12 @@ function doPost(e) {
  */
 function doGet(e) {
   try {
-    // Sécurité CORS pour les appels GET venant du navigateur
-    const origin = e.headers ? e.headers.origin : null;
-    if (!isOriginAllowed(origin)) {
-      return createJsonResponse({ success: false, error: "Accès non autorisé depuis cette origine." });
-    }
-
     const action = e.parameter.action;
     if (action === 'getProductCount') {
       const ss = SpreadsheetApp.getActiveSpreadsheet();
       const sheet = ss.getSheets()[0];
       const productCount = sheet.getLastRow() > 1 ? sheet.getLastRow() - 1 : 0; // Soustraire la ligne d'en-tête
-      return createJsonResponse({ success: true, count: productCount }, origin);
+      return createJsonResponse({ success: true, count: productCount });
     }
     if (action === 'getProducts') {
       const cache = CacheService.getScriptCache();
@@ -85,18 +73,18 @@ function doGet(e) {
       const cachedProducts = cache.get(cacheKey);
 
       if (cachedProducts) {
-        return createJsonResponse(JSON.parse(cachedProducts), origin);
+        return createJsonResponse(JSON.parse(cachedProducts));
       }
 
       const products = sheetToJSON(SpreadsheetApp.getActiveSpreadsheet().getSheets()[0]);
       const responseData = { success: true, data: products };
       cache.put(cacheKey, JSON.stringify(responseData), 21600); // Cache de 6 heures
 
-      return createJsonResponse(responseData, origin);
+      return createJsonResponse(responseData);
     }
-    return createJsonResponse({ success: false, error: "Action GET non reconnue." }, origin);
+    return createJsonResponse({ success: false, error: "Action GET non reconnue." });
   } catch (error) {
-    return createJsonResponse({ success: false, error: error.message }, e.headers ? e.headers.origin : null);
+    return createJsonResponse({ success: false, error: error.message });
   }
 }
 
@@ -209,20 +197,12 @@ function seedDefaultProducts() {
 /**
  * Crée une réponse JSON standard.
  */
-function createJsonResponse(data, origin) {
+function createJsonResponse(data) {
   const jsonResponse = ContentService.createTextOutput(JSON.stringify(data))
-    .setMimeType(ContentService.MimeType.JSON);
-  
-  if (origin && isOriginAllowed(origin)) {
-    jsonResponse.setHeader('Access-Control-Allow-Origin', origin);
-  }
-  
+    .setMimeType(ContentService.MimeType.JSON)
+    .setHeader('Access-Control-Allow-Origin', '*'); // Autorise les appels de n'importe quel site
+    
   return jsonResponse;
-}
-
-function isOriginAllowed(origin) {
-  if (!origin) return false; // Refuser les requêtes sans origine
-  return ALLOWED_ORIGINS.some(allowed => origin.endsWith(allowed.replace('https://', '')));
 }
 
 /**

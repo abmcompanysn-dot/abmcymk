@@ -3,7 +3,7 @@ const CONFIG = {
     CLIENT_API_URL: "https://script.google.com/macros/s/AKfycbwi3zpOqK7EKSKDCQ1VTIYvrfesOTTpNBs4vQvh_3BCcSE65KGjlWnLsilUtyvOdsgT/exec",
 
     // URL du script central. On ajoute l'action dans la requête fetch.
-    CENTRAL_API_URL: "https://script.google.com/macros/s/AKfycby5EHJj-ZavcEksqGGJ-Q3VALar-CjEMA_yNMynwCTXzOQYZxSxePeTZtxQi_IgylM/exec",
+    CENTRAL_API_URL: "https://script.google.com/macros/s/AKfycbxwa1mOLlp6DmcaX_AFNvnXWqOFk8W8lfOJPKu97zvTUxZTPyhZZZijIWrwQHVkXw3H/exec",
     
     // Autres configurations
     DEFAULT_PRODUCT_IMAGE: "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png",
@@ -609,17 +609,48 @@ async function renderHomepageProducts() {
  * Met en cache les résultats pour améliorer les performances de navigation.
  */
 async function getFullCatalog() {
-    // Version simplifiée SANS CACHE CÔTÉ CLIENT
-    // Appelle le point d'entrée unique à chaque fois.
-    const response = await fetch(`${CONFIG.CENTRAL_API_URL}?action=getPublicData`);
-    if (!response.ok) {
-        throw new Error(`Erreur réseau: ${response.statusText}`);
+    // Vérifier si les données sont déjà en cache dans la session du navigateur
+    const cachedData = sessionStorage.getItem('fullCatalog');
+    if (cachedData) {
+        return JSON.parse(cachedData);
     }
-    const result = await response.json();
-    if (!result.success) {
-        throw new Error(result.error || "Impossible de charger le catalogue.");
+
+    // --- Étape 1: Charger dynamiquement la liste des catégories ---
+    const categoryResponse = await fetch(CONFIG.CENTRAL_API_URL);
+    if (!categoryResponse.ok) {
+        throw new Error(`Erreur réseau lors de la récupération des catégories.`);
     }
-    return result;
+    const categoryResult = await categoryResponse.json();
+    if (!categoryResult.success) {
+        throw new Error(categoryResult.error || "Impossible de charger la liste des catégories.");
+    }
+    const categories = categoryResult.data;
+
+    // --- Étape 2: Contacter chaque URL de catégorie pour récupérer les produits ---
+    let allProducts = [];
+    // Créer un tableau de promesses pour toutes les requêtes fetch
+    const fetchPromises = categories.map(category => {
+        if (category.ScriptURL) {
+            // On appelle l'URL dédiée de chaque catégorie
+            return fetch(`${category.ScriptURL}?action=getProducts`).then(res => res.json());
+        }
+        return Promise.resolve({ success: false }); // Retourner une promesse vide si pas d'URL
+    });
+
+    // Attendre que toutes les requêtes soient terminées
+    const productResults = await Promise.all(fetchPromises);
+
+    // Assembler les résultats
+    productResults.forEach(result => {
+        if (result.success && result.data) {
+            allProducts = allProducts.concat(result.data);
+        }
+    });
+    
+    // --- Étape 3: Assembler le catalogue final et le mettre en cache ---
+    const fullCatalog = { success: true, data: { products: allProducts, categories: categories } };
+    sessionStorage.setItem('fullCatalog', JSON.stringify(fullCatalog)); // Mettre en cache pour la session
+    return fullCatalog;
 }
 
 /**

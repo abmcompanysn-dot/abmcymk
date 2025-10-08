@@ -28,16 +28,10 @@ function showAdminInterface() {
  * Fournit la liste des catégories au front-end (AdminInterface.html).
  */
 function doGet(e) {
-  // Routeur pour les requêtes GET publiques
-  const action = e.parameter.action;
-
-  if (action === 'getPublicData') {
-    // C'est le nouveau point d'entrée pour votre site web
-    return getPublicData();
-  }
-
-  // L'appel existant pour le panneau d'administration
   try {
+    // Le rôle principal de ce script est de fournir la liste des catégories.
+    // C'est la seule action GET publique pour le site web.
+    // Le panneau d'administration utilise aussi cette fonction via google.script.run.
     const categories = getCategoriesWithProductCounts(); // Appel à la nouvelle fonction
     return createJsonResponse({ success: true, data: categories });
   } catch (error) {
@@ -93,54 +87,10 @@ function getCategoriesWithProductCounts() {
 }
 
 /**
- * NOUVEAU: Construit le catalogue complet et le sauvegarde dans un fichier sur Google Drive.
- * C'est la fonction "lente" à exécuter manuellement.
- */
-function buildFullCatalogCache() {
-  const categories = getCategoriesWithProductCounts();
-  const allProducts = getAllProducts(categories); // Passe les catégories pour éviter de les re-fetcher
-
-  const publicData = {
-    success: true, // On inclut le statut de succès directement dans le fichier
-    data: {
-      categories: categories,
-      products: allProducts
-    }
-  };
-
-  SpreadsheetApp.getUi().alert("Le cache du catalogue a été généré avec succès !");
-}
-
-/**
- * NOUVEAU: Récupère toutes les données publiques (catégories et tous les produits)
- * pour le site web front-end en temps réel.
- */
-function getPublicData() {
-  try {
-    const categories = getCategoriesWithProductCounts();
-    const allProducts = getAllProducts(categories); // Passe les catégories pour éviter de les re-fetcher
-
-    const publicData = {
-      success: true,
-      data: {
-        categories: categories,
-        products: allProducts
-      }
-    };
-
-    return createJsonResponse(publicData);
-
-  } catch (error) {
-    return createJsonResponse({ success: false, error: error.message });
-  }
-}
-
-/**
  * Récupère TOUS les produits de TOUTES les catégories.
  * Appelée par l'UI via google.script.run.
  */
-function getAllProducts() {
-  const categories = getCategoriesWithProductCounts(); // On a besoin des URLs
+function getAllProducts(categories) {
   let allProducts = [];
 
   const requests = categories.map(category => ({
