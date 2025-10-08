@@ -97,8 +97,8 @@ async function populateCategoryMenu() {
         menuHTML = `<div class="p-4 border-b"><h3 class="font-bold text-lg">Catégories</h3></div>`;
 
         menuHTML += categories.map(cat => 
-        // Correction: Utiliser l'ID et le nom pour la page catégorie
-        `<a href="categorie.html?id=${cat.IDCategorie}&name=${encodeURIComponent(cat.Nom)}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">${cat.Nom}</a>`
+        // Utiliser NomCategorie qui est le bon nom de propriété
+        `<a href="categorie.html?id=${cat.IDCategorie}&name=${encodeURIComponent(cat.NomCategorie)}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">${cat.NomCategorie}</a>`
         ).join('');
         // Ajout du lien vers les promotions
         menuHTML += '<a href="promotion.html" class="block px-4 py-2 text-sm text-red-600 font-semibold hover:bg-gray-100">Promotions</a>';
@@ -601,15 +601,15 @@ async function renderHomepageProducts() {
 
         let homepageHTML = '';
         categoriesToShow.forEach((category, index) => {
-            const categoryProducts = allProducts.filter(p => p.Catégorie === category.Nom).slice(0, 4);
+            const categoryProducts = allProducts.filter(p => p.Catégorie === category.NomCategorie).slice(0, 4);
             const bgColor = index % 2 === 0 ? 'bg-white' : 'bg-gray-100';
 
             homepageHTML += `
                 <section class="py-12 ${bgColor}">
                     <div class="container mx-auto px-4">
                         <div class="flex items-center justify-between mb-8">
-                            <h3 class="text-3xl font-bold text-gray-800">${category.Nom}</h3>
-                            <a href="categorie.html?id=${category.IDCategorie}&name=${encodeURIComponent(category.Nom)}" class="text-gold hover:underline">Voir plus</a>
+                            <h3 class="text-3xl font-bold text-gray-800">${category.NomCategorie}</h3>
+                            <a href="categorie.html?id=${category.IDCategorie}&name=${encodeURIComponent(category.NomCategorie)}" class="text-gold hover:underline">Voir plus</a>
                         </div>
                         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                             ${categoryProducts.map(product => renderProductCard(product)).join('')}
