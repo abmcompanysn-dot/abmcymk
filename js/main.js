@@ -690,29 +690,52 @@ function loadMoreCategories() {
  * Met en cache les résultats pour améliorer les performances de navigation.
  */
 async function getFullCatalog() {
-    // Si le répertoire des catégories est déjà chargé, on ne fait rien de plus ici.
-    // Cette fonction est maintenant principalement un point d'entrée pour les pages
-    // qui ont besoin de tout le catalogue d'un coup (ex: recherche).
-    if (categoryDirectory.length > 0) {
-        return { success: true, data: { categories: categoryDirectory, products: allLoadedProducts } };
+    console.log('%c[CACHE] Vérification du catalogue en cache...', 'color: gray');
+    const cachedData = sessionStorage.getItem('fullCatalog');
+    if (cachedData) {
+        console.log('%c[CACHE] Catalogue trouvé en cache. Utilisation des données locales.', 'color: green');
+        const catalog = JSON.parse(cachedData);
+        // Mettre à jour les variables globales depuis le cache
+        categoryDirectory = catalog.data.categories;
+        allLoadedProducts = catalog.data.products;
+        return catalog;
     }
 
-    // --- Étape 1: Charger dynamiquement la liste des catégories ---
-    const categoryResponse = await fetch(CONFIG.CENTRAL_API_URL);
-    if (!categoryResponse.ok) {
-        throw new Error(`Erreur réseau lors de la récupération des catégories.`);
-    }
-    const categoryResult = await categoryResponse.json();
-    if (!categoryResult.success) {
-        throw new Error(categoryResult.error || "Impossible de charger la liste des catégories.");
-    }
-    
-    // Stocker le répertoire des catégories pour une utilisation future
-    categoryDirectory = categoryResult.data.sort((a, b) => a.Ordre - b.Ordre);
+    console.log('%c[API] Cache vide. Démarrage du chargement complet depuis le serveur.', 'color: orange');
 
-    // Pour les pages autres que l'accueil, on pourrait vouloir charger tous les produits ici.
-    // Pour l'instant, on retourne juste les catégories. Les produits seront chargés au besoin.
-    return { success: true, data: { categories: categoryDirectory, products: [] } };
+    try {
+        // --- Étape 1: Charger dynamiquement la liste des catégories ---
+        const categoryResponse = await fetch(CONFIG.CENTRAL_API_URL);
+        if (!categoryResponse.ok) {
+            throw new Error(`Erreur réseau lors de la récupération des catégories.`);
+        }
+        const categoryResult = await categoryResponse.json();
+        if (!categoryResult.success) {
+            throw new Error(categoryResult.error || "Impossible de charger la liste des catégories.");
+        }
+        
+        categoryDirectory = categoryResult.data.sort((a, b) => a.Ordre - b.Ordre);
+
+        // --- Étape 2: Charger TOUS les produits de TOUTES les catégories en parallèle ---
+        const productFetchPromises = categoryDirectory.map(category => {
+            if (category.ScriptURL) {
+                return fetch(`${category.ScriptURL}?action=getProducts`).then(res => res.json());
+            }
+            return Promise.resolve({ success: false });
+        });
+
+        const productResults = await Promise.all(productFetchPromises);
+        allLoadedProducts = productResults.flatMap(result => (result.success && result.data) ? result.data : []);
+        
+        // --- Étape 3: Assembler le catalogue final et le mettre en cache ---
+        const fullCatalog = { success: true, data: { products: allLoadedProducts, categories: categoryDirectory } };
+        console.log(`%c[CACHE] Catalogue complet assemblé (${allLoadedProducts.length} produits). Mise en cache dans sessionStorage.`, 'color: green');
+        sessionStorage.setItem('fullCatalog', JSON.stringify(fullCatalog));
+        return fullCatalog;
+    } catch (error) {
+        console.error('%c[ERREUR FATALE] Impossible de construire le catalogue.', 'color: red; font-weight: bold;', error);
+        throw error;
+    }
 }
 
 /**
