@@ -618,7 +618,7 @@ async function getFullCatalog() {
 
         // 3. Comparer les versions
         if (cachedData && serverVersion && localVersion && serverVersion == localVersion) {
-            // Les versions correspondent et les données existent, on utilise le cache
+            // Les versions correspondent et les données existent, on utilise le cache.
             return JSON.parse(cachedData);
         } else {
             // Les versions ne correspondent pas ou le cache est vide, on recharge tout
@@ -631,12 +631,12 @@ async function getFullCatalog() {
                 throw new Error(result.error || "Impossible de charger le catalogue.");
             }
 
-            const fullCatalog = result.data;
+            const fullCatalog = result; // Le résultat contient déjà { success: true, data: { ... } }
             // Mettre en cache les nouvelles données ET la nouvelle version
             sessionStorage.setItem('fullCatalog', JSON.stringify(fullCatalog));
             sessionStorage.setItem('catalogVersion', serverVersion);
             
-            return fullCatalog;
+            return fullCatalog; // On retourne l'objet complet
         }
     } catch (error) {
         console.error("Impossible de récupérer le catalogue:", error);
