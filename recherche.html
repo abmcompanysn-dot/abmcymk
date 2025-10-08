@@ -28,13 +28,14 @@
                     <svg class="w-6 h-6 text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
                 </button>
                 <div id="mobileMenu" class="hidden absolute left-0 mt-2 w-64 bg-white rounded-md shadow-lg py-1 z-50 max-h-96 overflow-y-auto"></div>
+                
                 <a href="index.html" class="flex items-center">
-                    <div class="w-9 h-9 bg-dark-color rounded-lg flex items-center justify-center mr-2"><span class="text-gold font-bold text-xl">A</span></div>
-                    <h1 class="text-xl font-bold text-gray-800 hidden sm:block">ABMCY MARKET</h1>
+                    <img src="https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png" alt="ABMCY MARKET Logo" class="h-10">
                 </a>
+
                 <div class="flex-1 mx-4">
                     <form id="search-form-page" class="relative">
-                        <input type="search" id="search-input-page" placeholder="Rechercher..." class="w-full p-2 pl-10 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-gold">
+                        <input id="search-input-page" type="search" placeholder="Rechercher..." class="w-full p-2 pl-10 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-gold">
                         <svg class="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
                     </form>
                 </div>
@@ -42,15 +43,29 @@
         </div>
     </header>
 
-    <!-- Contenu de la page -->
+    <!-- Contenu de la page Recherche -->
     <main class="container mx-auto px-4 py-12">
-        <h1 class="text-3xl font-bold text-gray-800 mb-2">Résultats pour "<span id="search-query-display"></span>"</h1>
-        <p id="search-results-count" class="text-gray-600 mb-8"></p>
-
+        <div class="mb-8">
+            <h1 class="text-3xl font-bold text-gray-800 mb-2">Résultats pour "<span id="search-query-display"></span>"</h1>
+            <p id="search-results-count" class="text-gray-600"></p>
+        </div>
         <div id="search-results-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <!-- Les résultats de la recherche seront injectés ici par JS -->
+            <!-- Les résultats de recherche seront injectés ici par JS -->
         </div>
     </main>
+
+    <!-- Footer -->
+    <footer class="bg-dark-color text-white pt-12 pb-8">
+        <div class="container mx-auto px-4">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
+                <div><h4 class="font-bold text-lg mb-4">ABMCY MARKET</h4><p class="text-gray-400 text-sm">Votre destination pour le luxe et l'élégance.</p></div>
+                <div><h4 class="font-bold text-lg mb-4">Navigation</h4><ul class="space-y-2 text-sm"><li><a href="index.html" class="text-gray-400 hover:text-white">Accueil</a></li><li><a href="promotion.html" class="text-gray-400 hover:text-white">Promotions</a></li></ul></div>
+                <div><h4 class="font-bold text-lg mb-4">Aide & Contact</h4><ul class="space-y-2 text-sm"><li><a href="#" class="text-gray-400 hover:text-white">Service Client</a></li><li><a href="suivi-commande.html" class="text-gray-400 hover:text-white">Suivre ma commande</a></li></ul></div>
+                <div><h4 class="font-bold text-lg mb-4">Suivez-nous</h4><div class="flex space-x-4"><a href="#" class="text-gray-400 hover:text-white">FB</a><a href="#" class="text-gray-400 hover:text-white">IG</a></div></div>
+            </div>
+            <div class="border-t border-gray-800 mt-8 pt-6 text-center text-gray-500 text-sm"><p>&copy; 2024 ABMCY MARKET. Tous droits réservés.</p></div>
+        </div>
+    </footer>
 
     <!-- Barre de navigation inférieure -->
     <nav class="bg-white border-t-2 border-gray-200 fixed bottom-0 left-0 right-0 z-40">
@@ -65,8 +80,5 @@
     </nav>
 
     <script src="js/main.js"></script>
-    <script src="js/categories.js"></script>
-    <script src="js/products.js"></script>
-
 </body>
 </html>

@@ -74,7 +74,11 @@ async function initializeApp() {
  */
 function toggleMobileMenu() {
     const menu = document.getElementById('mobileMenu');
-    menu.classList.toggle('hidden');
+    const overlay = document.getElementById('mobileMenuOverlay');
+    
+    menu.classList.toggle('hidden'); // Continue de gérer la visibilité
+    menu.classList.toggle('-translate-x-full'); // Gère l'animation de glissement
+    overlay.classList.toggle('hidden'); // Affiche/cache l'arrière-plan
 }
 
 /**
@@ -82,7 +86,7 @@ function toggleMobileMenu() {
  */
 async function populateCategoryMenu() {
     const menu = document.getElementById('mobileMenu');
-    if (!menu) return;
+    if (!menu) return; // S'assure que l'élément existe
     let menuHTML = ''; // Initialiser la variable ici
 
     try {
@@ -92,17 +96,20 @@ async function populateCategoryMenu() {
         }
         const data = await response.json();
         const categories = data.categories || [];
+        
+        // Ajout d'un titre et d'un bouton de fermeture
+        menuHTML = `<div class="p-4 border-b"><h3 class="font-bold text-lg">Catégories</h3></div>`;
 
-        menuHTML = categories.map(cat => 
+        menuHTML += categories.map(cat => 
         // Correction: Utiliser l'ID et le nom pour la page catégorie
         `<a href="categorie.html?id=${cat.IDCategorie}&name=${encodeURIComponent(cat.Nom)}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">${cat.Nom}</a>`
         ).join('');
         // Ajout du lien vers les promotions
         menuHTML += '<a href="promotion.html" class="block px-4 py-2 text-sm text-red-600 font-semibold hover:bg-gray-100">Promotions</a>';
-        menu.innerHTML = menuHTML;
     } catch (error) {
         console.error("Erreur lors du chargement des catégories:", error);
         menu.innerHTML = '<p class="px-4 py-2 text-sm text-red-500">Erreur de chargement des catégories.</p>';
+        return; // Sortir en cas d'erreur
     }
 
     menu.innerHTML = menuHTML;
@@ -452,6 +459,7 @@ async function loadProductPage() { // Make it async
         const descriptionEl = document.getElementById('product-description');
         const priceContainer = document.getElementById('product-price-container');
         const mainImage = document.getElementById('main-product-image');
+        const thumbnailsContainer = document.getElementById('product-thumbnails');
         const addToCartButton = document.getElementById('add-to-cart-button');
 
         // Enlever les classes de chargement
@@ -479,6 +487,31 @@ async function loadProductPage() { // Make it async
         addToCartButton.setAttribute('onclick', `addToCart(event, '${product.IDProduit}', '${product.Nom}', ${product.PrixActuel}, '${product.ImageURL || CONFIG.DEFAULT_PRODUCT_IMAGE}')`);
         addToCartButton.disabled = false;
 
+        // NOUVEAU: Construire la galerie de miniatures
+        let galleryImages = [];
+        if (product.ImageURL) galleryImages.push(product.ImageURL); // L'image principale est la première
+        if (product.Galerie) {
+            const galleryUrls = product.Galerie.split(',').map(url => url.trim()).filter(url => url);
+            galleryImages = [...galleryImages, ...galleryUrls];
+        }
+        
+        // Rendre les URLs uniques pour éviter les doublons
+        galleryImages = [...new Set(galleryImages)];
+
+        thumbnailsContainer.innerHTML = galleryImages.map((imgUrl, index) => `
+            <div class="border-2 ${index === 0 ? 'border-gold' : 'border-transparent'} rounded-lg cursor-pointer overflow-hidden thumbnail-item">
+                <img src="${imgUrl}" alt="Miniature ${index + 1}" class="h-full w-full object-cover" onclick="changeMainImage('${imgUrl}')">
+            </div>
+        `).join('');
+
+        // Ajouter les écouteurs d'événements pour la bordure active
+        document.querySelectorAll('.thumbnail-item').forEach(item => {
+            item.addEventListener('click', () => {
+                document.querySelectorAll('.thumbnail-item').forEach(i => i.classList.remove('border-gold'));
+                item.classList.add('border-gold');
+            });
+        });
+
     } catch (error) {
         console.error("Erreur de chargement du produit:", error);
         const mainContent = document.querySelector('main');
@@ -486,6 +519,13 @@ async function loadProductPage() { // Make it async
     }
 }
 
+/**
+ * NOUVEAU: Change l'image principale du produit.
+ * @param {string} newImageUrl L'URL de la nouvelle image à afficher.
+ */
+function changeMainImage(newImageUrl) {
+    document.getElementById('main-product-image').src = newImageUrl;
+}
 
 // --- LOGIQUE DE PAIEMENT (CHECKOUT) ---
 
@@ -568,11 +608,8 @@ async function processCheckout(event) {
  * Affiche dynamiquement les produits sur la page d'accueil.
  */
 async function renderHomepageProducts() {
-    const electronicsSection = document.querySelector('#electronics-products');
-    const clothingSection = document.querySelector('#clothing-products');
-    const homeSection = document.querySelector('#home-products');
-
-    if (!electronicsSection) return; // Si on n'est pas sur la page d'accueil
+    const homepageContainer = document.querySelector('#homepage-sections');
+    if (!homepageContainer) return; // Si on n'est pas sur la page d'accueil
 
     try {
         const response = await fetch(`${CONFIG.PRODUCT_API_URL}?action=getPublicData`);
@@ -580,21 +617,37 @@ async function renderHomepageProducts() {
             throw new Error(`Erreur réseau: ${response.statusText}`);
         }
         const data = await response.json();
+        const allCategories = data.categories || [];
         const allProducts = data.products || [];
 
-        const electronics = allProducts.filter(p => p.Catégorie === 'Électronique' || p.categorie === 'Électronique').slice(0, 4);
-        const clothing = allProducts.filter(p => p.Catégorie === 'Vêtements').slice(0, 4);
-        const home = allProducts.filter(p => p.Catégorie === 'Maison').slice(0, 4);
+        // Sélectionner les 3 premières catégories à afficher
+        const categoriesToShow = allCategories.sort((a, b) => a.Ordre - b.Ordre).slice(0, 3);
 
-        electronicsSection.innerHTML = electronics.map(product => renderProductCard(product)).join('');
-        clothingSection.innerHTML = clothing.map(product => renderProductCard(product)).join('');
-        homeSection.innerHTML = home.map(product => renderProductCard(product)).join('');
+        let homepageHTML = '';
+        categoriesToShow.forEach((category, index) => {
+            const categoryProducts = allProducts.filter(p => p.Catégorie === category.Nom).slice(0, 4);
+            const bgColor = index % 2 === 0 ? 'bg-white' : 'bg-gray-100';
+
+            homepageHTML += `
+                <section class="py-12 ${bgColor}">
+                    <div class="container mx-auto px-4">
+                        <div class="flex items-center justify-between mb-8">
+                            <h3 class="text-3xl font-bold text-gray-800">${category.Nom}</h3>
+                            <a href="categorie.html?id=${category.IDCategorie}&name=${encodeURIComponent(category.Nom)}" class="text-gold hover:underline">Voir plus</a>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                            ${categoryProducts.map(product => renderProductCard(product)).join('')}
+                        </div>
+                    </div>
+                </section>
+            `;
+        });
+
+        homepageContainer.innerHTML = homepageHTML;
+
     } catch (error) {
         console.error("Erreur lors du chargement des produits de la page d'accueil:", error);
-        // Afficher un message d'erreur ou des placeholders si le chargement échoue
-        if (electronicsSection) electronicsSection.innerHTML = '<p class="col-span-full text-center text-red-500">Impossible de charger les produits.</p>';
-        if (clothingSection) clothingSection.innerHTML = '<p class="col-span-full text-center text-red-500">Impossible de charger les produits.</p>';
-        if (homeSection) homeSection.innerHTML = '<p class="col-span-full text-center text-red-500">Impossible de charger les produits.</p>';
+        homepageContainer.innerHTML = '<p class="py-12 text-center text-red-500">Impossible de charger les sections de produits.</p>';
     }
 }
 

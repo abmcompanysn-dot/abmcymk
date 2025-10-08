@@ -23,6 +23,15 @@ const ALLOWED_ORIGINS = [
   "http://127.0.0.1:5500"          // URL de développement local
 ];
 
+// --- DONNÉES PERSONNELLES PAR DÉFAUT (VISIBLES ET MODIFIABLES) ---
+const PERSONAL_DATA = {
+  clients: [
+      { nom: "Moussa Diop", email: "moussa.diop@example.com", motDePasse: "password123", adresse: "123 Rue de Dakar", telephone: "771234567" },
+      { nom: "Awa Fall", email: "awa.fall@example.com", motDePasse: "password123", adresse: "456 Avenue de Thies", telephone: "781234567" },
+      { nom: "Ibrahima Sow", email: "ibrahima.sow@example.com", motDePasse: "password123", adresse: "789 Boulevard de St-Louis", telephone: "761234567" },
+  ]
+};
+
 // --- GESTIONNAIRE DE MENU ---
 function onOpen() {
   SpreadsheetApp.getUi()
@@ -30,7 +39,12 @@ function onOpen() {
       .addItem('📊 Tableau de Bord Commandes', 'showClientInterface')
       .addSeparator()
       .addSubMenu(SpreadsheetApp.getUi().createMenu('Configuration')
-          .addItem('⚙️ Initialiser les onglets Client', 'initialiserBaseDeDonnees_Client'))
+          .addItem('⚙️ Initialiser les onglets Client', 'initialiserBaseDeDonnees_Client')
+          .addItem('🔄 Mettre à jour le système', 'updateSystem_Client'))
+      .addSeparator()
+      .addSubMenu(SpreadsheetApp.getUi().createMenu('🧪 Testing')
+          .addItem('🌱 Remplir avec des clients de test', 'seedPersonalData_Client')
+          .addItem('🧹 Vider toutes les données client', 'clearAllData_Client'))
       .addToUi();
 }
 
@@ -304,4 +318,67 @@ function initialiserBaseDeDonnees_Client() {
   getOrCreateSheet(ss, "Livraisons", ["IDCommande", "Transporteur", "NuméroSuivi", "DateEstimee", "Statut", "DateLivraison", "Commentaire"]);
   getOrCreateSheet(ss, "SAV", ["IDCommande", "Client", "Motif", "Statut", "Date", "Résolution", "Commentaire"]);
   getOrCreateSheet(ss, SHEET_NAMES.LOGS, ["Date", "Script", "Action", "Détails"]);
+}
+
+function seedPersonalData_Client() {
+    const clients = PERSONAL_DATA.clients;
+    clients.forEach(client => {
+        creerCompteClient(client, createRequestContext());
+    });
+    SpreadsheetApp.getUi().alert('Remplissage terminé !', 'Les clients de test ont été ajoutés.', SpreadsheetApp.getUi().ButtonSet.OK);
+}
+
+function clearAllData_Client() {
+    const ui = SpreadsheetApp.getUi();
+    const response = ui.alert('Confirmation', 'Êtes-vous sûr de vouloir supprimer TOUTES les données clients (Utilisateurs, Commandes, Paiements) ? Cette action est irréversible.', ui.ButtonSet.YES_NO);
+
+    if (response == ui.Button.YES) {
+        const ss = SpreadsheetApp.openById(CLIENT_SPREADSHEET_ID);
+        const usersSheet = ss.getSheetByName(SHEET_NAMES.USERS);
+        const ordersSheet = ss.getSheetByName(SHEET_NAMES.ORDERS);
+        const paymentsSheet = ss.getSheetByName(SHEET_NAMES.PAYMENTS);
+
+        if (usersSheet) usersSheet.getRange("A2:Z").clearContent();
+        if (ordersSheet) ordersSheet.getRange("A2:Z").clearContent();
+        if (paymentsSheet) paymentsSheet.getRange("A2:Z").clearContent();
+
+        logAction('clearAllData_Client', { status: 'Données effacées' });
+        ui.alert('Opération terminée', 'Toutes les données client ont été effacées.', ui.ButtonSet.OK);
+    }
+}
+
+function updateSystem_Client() {
+  const ss = SpreadsheetApp.openById(CLIENT_SPREADSHEET_ID);
+  const ui = SpreadsheetApp.getUi();
+
+  try {
+    const sheetConfigs = {
+      [SHEET_NAMES.USERS]: ["IDClient", "Nom", "Email", "MotDePasseHash", "Salt", "Adresse", "Téléphone", "DateInscription", "Statut", "Rôle"],
+      [SHEET_NAMES.ORDERS]: ["IDCommande", "IDClient", "Date", "Produits", "Quantités", "Total", "Statut", "MoyenPaiement", "AdresseLivraison", "Notes"],
+      [SHEET_NAMES.PAYMENTS]: ["IDCommande", "Montant", "MoyenPaiement", "Statut", "Date", "TransactionID", "PreuvePaiement"],
+      [SHEET_NAMES.LOGS]: ["Date", "Script", "Action", "Détails"]
+    };
+
+    Object.entries(sheetConfigs).forEach(([name, expectedHeaders]) => {
+      let sheet = ss.getSheetByName(name);
+      if (!sheet) {
+        sheet = ss.insertSheet(name);
+        sheet.appendRow(expectedHeaders);
+        Logger.log(`Onglet '${name}' créé avec les en-têtes.`);
+      } else {
+        const headerRange = sheet.getRange(1, 1, 1, sheet.getLastColumn() || 1);
+        const currentHeaders = headerRange.getValues()[0];
+        const missingHeaders = expectedHeaders.filter(h => !currentHeaders.includes(h));
+
+        if (missingHeaders.length > 0) {
+          sheet.getRange(1, currentHeaders.length + 1, 1, missingHeaders.length).setValues([missingHeaders]);
+          Logger.log(`Colonnes manquantes ajoutées à '${name}': ${missingHeaders.join(', ')}`);
+        }
+      }
+    });
+    ui.alert('Mise à jour du système client terminée avec succès !');
+  } catch (e) {
+    Logger.log(e);
+    ui.alert('Erreur lors de la mise à jour', e.message, ui.ButtonSet.OK);
+  }
 }

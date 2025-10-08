@@ -24,14 +24,15 @@
     <h2 class="text-xl font-bold text-gray-800 mb-4">Ajouter un Produit</h2>
     <form id="addProductForm" class="space-y-3">
       <input type="text" id="nom" placeholder="Nom du produit" class="w-full p-2 border rounded" required>
-      <input type="text" id="marque" placeholder="Marque du produit" class="w-full p-2 border rounded">
-      <input type="text" id="categorie" placeholder="Catégorie" class="w-full p-2 border rounded" required>
       <input type="number" id="prixActuel" placeholder="Prix Actuel" class="w-full p-2 border rounded" required>
       <input type="number" id="reduction" placeholder="Réduction en % (ex: 15)" class="w-full p-2 border rounded" value="0">
       <input type="number" id="stock" placeholder="Stock" class="w-full p-2 border rounded" required>
       <input type="text" id="imageURL" placeholder="URL de l'image principale" class="w-full p-2 border rounded">
       <textarea id="description" placeholder="Description" class="w-full p-2 border rounded"></textarea>
       <input type="text" id="tags" placeholder="Tags (séparés par des virgules)" class="w-full p-2 border rounded">
+      <input type="text" id="categorie" placeholder="Catégorie" class="w-full p-2 border rounded" required>
+      <input type="text" id="marque" placeholder="Marque du produit" class="w-full p-2 border rounded">
+      <textarea id="galerie" placeholder="URLs de la galerie (séparées par des virgules)" class="w-full p-2 border rounded"></textarea>
       <button type="submit" class="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded hover:bg-blue-700">
         Ajouter le Produit
       </button>
@@ -47,18 +48,16 @@
 
         const productData = {
           nom: document.getElementById('nom').value,
-          marque: document.getElementById('marque').value,
-          categorie: document.getElementById('categorie').value,
           prixActuel: parseFloat(document.getElementById('prixActuel').value),
           reduction: parseFloat(document.getElementById('reduction').value),
           stock: parseInt(document.getElementById('stock').value),
+          imageURL: document.getElementById('imageURL').value,
           description: document.getElementById('description').value,
-          tags: document.getElementById('tags').value
+          tags: document.getElementById('tags').value,
+          categorie: document.getElementById('categorie').value,
+          marque: document.getElementById('marque').value,
+          galerie: document.getElementById('galerie').value,
         };
-
-        // Set the main image URL from the first input
-        const firstImageInput = document.querySelector('.image-url-input');
-        productData.imageURL = firstImageInput ? firstImageInput.value : '';
 
         // Call the backend function to add the product
         google.script.run
@@ -70,31 +69,8 @@
       function onProductAdded(response) {
         const statusDiv = document.getElementById('status');
         if (response.success) {
-          statusDiv.innerHTML = `<p class="text-green-600">Produit ajouté (ID: ${response.id}). Ajout des images à l'album...</p>`;
+          statusDiv.innerHTML = `<p class="text-green-600">Produit ajouté avec succès (ID: ${response.id}).</p>`;
           document.getElementById('addProductForm').reset();
-          
-          // Now, add the images to the album
-          const imageInputs = document.querySelectorAll('.image-group');
-          let imageCounter = 0;
-          imageInputs.forEach((group, index) => {
-            const imageUrl = group.querySelector('.image-url-input').value;
-            const legend = group.querySelector('.image-legend-input').value;
-
-            if (imageUrl) {
-              const imageData = {
-                idProduit: response.id,
-                imageURL: imageUrl,
-                legende: legend,
-                ordre: index + 1,
-                typeImage: (index === 0) ? 'principale' : 'secondaire'
-              };
-              google.script.run.withSuccessHandler(() => {
-                  imageCounter++;
-                  statusDiv.innerHTML = `<p class="text-green-600">Produit ajouté. Image ${imageCounter}/${imageInputs.length} ajoutée à l'album.</p>`;
-              }).ajouterImageAlbum(imageData);
-            }
-          });
-
         } else {
           onFailure(response);
         }
@@ -103,19 +79,6 @@
       function onFailure(error) {
         const statusDiv = document.getElementById('status');
         statusDiv.innerHTML = `<p class="text-red-600">Erreur: ${error.error || error.message}</p>`;
-      }
-
-      function addImageInput() {
-        const container = document.getElementById('image-gallery-inputs');
-        const imageCount = container.children.length + 1;
-        const newImageInput = document.createElement('div');
-        newImageInput.className = 'image-group p-2 border rounded bg-gray-100';
-        newImageInput.innerHTML = `
-            <label class="text-sm font-medium text-gray-600">Image ${imageCount}</label>
-            <input type="text" placeholder="URL de l'image ${imageCount}" class="image-url-input w-full p-1 border rounded mt-1" required>
-            <input type="text" placeholder="Légende (optionnel)" class="image-legend-input w-full p-1 border rounded mt-1">
-        `;
-        container.appendChild(newImageInput);
       }
     </script>
   </body>

@@ -39,16 +39,20 @@
         <div class="container mx-auto px-4 py-2">
             <div class="flex items-center justify-between">
                 <!-- Menu Hamburger pour les catégories -->
-                <button class="p-2" onclick="toggleMobileMenu()">
+                <button class="p-2 z-50" onclick="toggleMobileMenu()">
                     <svg class="w-6 h-6 text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
                 </button>
-                <!-- Menu Dropdown des catégories -->
-                <div id="mobileMenu" class="hidden absolute left-0 mt-2 w-64 bg-white rounded-md shadow-lg py-1 z-50 max-h-96 overflow-y-auto"></div>
+                <!-- NOUVEAU: Arrière-plan pour le menu mobile -->
+                <div id="mobileMenuOverlay" class="hidden fixed inset-0 bg-black bg-opacity-50 z-40" onclick="toggleMobileMenu()"></div>
+                <!-- Menu latéral (anciennement dropdown) -->
+                <div id="mobileMenu" class="hidden fixed top-0 left-0 h-full w-64 bg-white shadow-lg py-4 z-50 transform -translate-x-full transition-transform duration-300 ease-in-out">
+                    <!-- Le contenu du menu sera injecté ici -->
+                </div>
                 
                 <!-- Logo -->
                 <a href="index.html" class="flex items-center">
-                    <div class="w-9 h-9 bg-dark-color rounded-lg flex items-center justify-center mr-2"><span class="text-gold font-bold text-xl">A</span></div>
-                    <h1 class="text-xl font-bold text-gray-800 hidden sm:block">ABMCY MARKET</h1>
+                    <img src="https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png" alt="ABMCY MARKET Logo" class="h-10">
+                    <!-- <h1 class="text-xl font-bold text-gray-800 hidden sm:block">ABMCY MARKET</h1> -->
                 </a>
 
                 <!-- Barre de recherche -->
@@ -80,43 +84,47 @@
         </div>
     </section>
 
-    <div id="homepage-sections">
-        <!-- Section Électronique -->
-        <section class="py-12">
-            <div class="container mx-auto px-4">
-                <div class="flex items-center justify-between mb-8">
-                    <h3 class="text-3xl font-bold text-gray-800">Électronique</h3>
-                    <a href="categorie.html?cat=Électronique" class="text-gold hover:underline">Voir plus</a>
-                </div>
-                <div id="electronics-products" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                </div>
-            </div>
-        </section>
+    <!-- NOUVEAU: Conteneur pour les sections de produits générées dynamiquement -->
+    <div id="homepage-sections" class="space-y-12"></div>
 
-        <!-- Section Vêtements -->
-        <section class="py-12 bg-gray-100">
-            <div class="container mx-auto px-4">
-                <div class="flex items-center justify-between mb-8">
-                    <h3 class="text-3xl font-bold text-gray-800">Vêtements</h3>
-                    <a href="categorie.html?cat=Vêtements" class="text-gold hover:underline">Voir plus</a>
-                </div>
-                <div id="clothing-products" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                </div>
-            </div>
-        </section>
-
-        <!-- Section Maison -->
-        <section class="py-12">
+    <!-- Footer -->
+    <footer class="bg-dark-color text-white pt-12 pb-8">
         <div class="container mx-auto px-4">
-            <div class="flex items-center justify-between mb-8">
-                <h3 class="text-3xl font-bold text-gray-800">Maison & Décoration</h3>
-                <a href="categorie.html?cat=Maison" class="text-gold hover:underline">Voir plus</a>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
+                <div>
+                    <h4 class="font-bold text-lg mb-4">ABMCY MARKET</h4>
+                    <p class="text-gray-400 text-sm">Votre destination pour le luxe et l'élégance. Qualité et service exceptionnels.</p>
+                </div>
+                <div>
+                    <h4 class="font-bold text-lg mb-4">Navigation</h4>
+                    <ul class="space-y-2 text-sm">
+                        <li><a href="index.html" class="text-gray-400 hover:text-white">Accueil</a></li>
+                        <li><a href="promotion.html" class="text-gray-400 hover:text-white">Promotions</a></li>
+                        <li><a href="compte.html" class="text-gray-400 hover:text-white">Mon Compte</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="font-bold text-lg mb-4">Aide & Contact</h4>
+                    <ul class="space-y-2 text-sm">
+                        <li><a href="#" class="text-gray-400 hover:text-white">Service Client</a></li>
+                        <li><a href="suivi-commande.html" class="text-gray-400 hover:text-white">Suivre ma commande</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-white">Politique de retour</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="font-bold text-lg mb-4">Suivez-nous</h4>
+                    <div class="flex space-x-4">
+                        <a href="#" class="text-gray-400 hover:text-white">FB</a>
+                        <a href="#" class="text-gray-400 hover:text-white">IG</a>
+                        <a href="#" class="text-gray-400 hover:text-white">TW</a>
+                    </div>
+                </div>
             </div>
-            <div id="home-products" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div class="border-t border-gray-800 mt-8 pt-6 text-center text-gray-500 text-sm">
+                <p>&copy; 2024 ABMCY MARKET. Tous droits réservés.</p>
             </div>
         </div>
-    </section>
-    </div>
+    </footer>
 
     <!-- Barre de navigation inférieure -->
     <nav class="bg-white border-t-2 border-gray-200 fixed bottom-0 left-0 right-0 z-40">
