@@ -28,15 +28,50 @@ function showAdminInterface() {
  * Fournit la liste des catégories au front-end (AdminInterface.html).
  */
 function doGet(e) {
+  const action = e.parameter.action;
+
   try {
-    // Le rôle principal de ce script est de fournir la liste des catégories.
-    // C'est la seule action GET publique pour le site web.
-    // Le panneau d'administration utilise aussi cette fonction via google.script.run.
-    const categories = getCategoriesWithProductCounts(); // Appel à la nouvelle fonction
-    return createJsonResponse({ success: true, data: categories });
+    // Routeur pour les requêtes GET publiques
+    switch (action) {
+      case 'getProductsByCategory':
+        const categoryName = e.parameter.categorie;
+        if (!categoryName) throw new Error("Le paramètre 'categorie' est manquant.");
+        const products = getProductsForCategory(categoryName);
+        return createJsonResponse({ success: true, data: products });
+
+      case 'getAllProducts':
+        const categoriesForProducts = getCategories();
+        const allProducts = getAllProducts(categoriesForProducts);
+        return createJsonResponse({ success: true, data: { categories: categoriesForProducts, products: allProducts } });
+
+      default:
+        // Par défaut (ou sans action), on renvoie la liste des catégories pour l'admin ou le menu
+        const categoriesForAdmin = getCategoriesWithProductCounts();
+        return createJsonResponse({ success: true, data: categoriesForAdmin });
+    }
   } catch (error) {
     return createJsonResponse({ success: false, error: error.message });
   }
+}
+
+/**
+ * Récupère la liste simple des catégories.
+ */
+function getCategories() {
+  const ss = SpreadsheetApp.openById(CENTRAL_SHEET_ID);
+  const sheet = ss.getSheetByName("Catégories");
+  if (!sheet) throw new Error("La feuille 'Catégories' est introuvable.");
+
+  const data = sheet.getDataRange().getValues();
+  const headers = data.shift();
+  
+  return data.map(row => {
+    const obj = {};
+    headers.forEach((header, index) => {
+      obj[header] = row[index];
+    });
+    return obj;
+  });
 }
 
 /**
@@ -87,31 +122,43 @@ function getCategoriesWithProductCounts() {
 }
 
 /**
+ * Récupère les produits pour UNE catégorie spécifique en lisant directement son Sheet.
+ */
+function getProductsForCategory(categoryName) {
+  const categories = getCategories();
+  const targetCategory = categories.find(c => c.NomCategorie === categoryName);
+
+  if (!targetCategory || !targetCategory.SheetID) {
+    throw new Error(`Aucun SheetID trouvé pour la catégorie "${categoryName}".`);
+  }
+
+  try {
+    const productSheet = SpreadsheetApp.openById(targetCategory.SheetID).getSheets()[0];
+    return sheetToJSON(productSheet);
+  } catch (e) {
+    Logger.log(`Impossible d'ouvrir ou de lire le Sheet ID ${targetCategory.SheetID} pour la catégorie ${categoryName}. Erreur: ${e.message}`);
+    return []; // Retourne un tableau vide en cas d'erreur
+  }
+}
+
+/**
  * Récupère TOUS les produits de TOUTES les catégories.
- * Appelée par l'UI via google.script.run.
+ * Appelée par l'UI via google.script.run ou par l'API.
  */
 function getAllProducts(categories) {
+  // Si les catégories ne sont pas fournies, on les récupère.
+  if (!categories) {
+    categories = getCategories();
+  }
+
   let allProducts = [];
 
-  const requests = categories.map(category => ({
-    url: `${category.ScriptURL}?action=getProducts`,
-    method: 'get',
-    muteHttpExceptions: true,
-    headers: {
-      'Authorization': 'Bearer ' + ScriptApp.getIdentityToken()
-    }
-  }));
-
-  const responses = UrlFetchApp.fetchAll(requests);
-
-  responses.forEach((response, index) => {
-    if (response.getResponseCode() === 200) {
-      const result = JSON.parse(response.getContentText());
-      if (result.success && result.data) {
-        allProducts = allProducts.concat(result.data);
-      }
+  categories.forEach(category => {
+    if (category.SheetID) {
+      const products = getProductsForCategory(category.NomCategorie);
+      allProducts = allProducts.concat(products);
     } else {
-      Logger.log(`Erreur lors de la récupération des produits pour la catégorie ${categories[index].NomCategorie}`);
+      Logger.log(`SheetID manquant pour la catégorie ${category.NomCategorie}, produits ignorés.`);
     }
   });
 
@@ -173,6 +220,24 @@ function archiveAllOutOfStock() {
 function createJsonResponse(data) {
   return ContentService.createTextOutput(JSON.stringify(data))
     .setMimeType(ContentService.MimeType.JSON);
+}
+
+/**
+ * Utilitaire pour convertir une feuille en JSON.
+ */
+function sheetToJSON(sheet) {
+  if (!sheet || sheet.getLastRow() < 2) return [];
+  const data = sheet.getDataRange().getValues();
+  const headers = data.shift();
+  return data.map(row => {
+    const obj = {};
+    headers.forEach((header, index) => {
+      if (header) {
+        obj[header] = row[index];
+      }
+    });
+    return obj;
+  });
 }
 
 /**
