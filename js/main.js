@@ -9,6 +9,11 @@ const CONFIG = {
     DEFAULT_PRODUCT_IMAGE: "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png",
 };
 
+// Variables globales pour le chargement progressif de la page d'accueil
+let fullCatalogData = null;
+let renderedCategoriesCount = 0;
+const CATEGORIES_PER_LOAD = 3;
+
 // Attendre que le contenu de la page soit entièrement chargé
 document.addEventListener('DOMContentLoaded', () => {
     // Initialiser toutes les fonctionnalités du site
@@ -590,17 +595,68 @@ async function renderHomepageProducts() {
     if (!homepageContainer) return; // Si on n'est pas sur la page d'accueil
 
     try {
-        const catalog = await getFullCatalog();
-        const allCategories = catalog.data.categories;
-        const allProducts = catalog.data.products;
-        let homepageHTML = '';
-        // The rest of the logic to display the sections is already correct
+        fullCatalogData = await getFullCatalog();
+        renderedCategoriesCount = 0; // Réinitialiser le compteur
+        homepageContainer.innerHTML = ''; // Vider le conteneur
 
-        homepageContainer.innerHTML = homepageHTML;
+        // Charger le premier lot de catégories
+        loadMoreCategories();
 
     } catch (error) {
         console.error("Erreur lors du chargement des produits de la page d'accueil:", error);
         homepageContainer.innerHTML = '<p class="py-12 text-center text-red-500">Impossible de charger les sections de produits.</p>';
+    }
+}
+
+/**
+ * Charge un lot de catégories de produits et les affiche.
+ */
+function loadMoreCategories() {
+    if (!fullCatalogData) return;
+
+    const homepageContainer = document.querySelector('#homepage-sections');
+    const loadMoreContainer = document.querySelector('#load-more-container');
+    const allCategories = fullCatalogData.data.categories.sort((a, b) => a.Ordre - b.Ordre);
+    const allProducts = fullCatalogData.data.products;
+
+    // Afficher un état de chargement sur le bouton
+    const loadMoreButton = document.getElementById('load-more-btn');
+    if (loadMoreButton) {
+        loadMoreButton.disabled = true;
+        loadMoreButton.innerHTML = '<span class="loader inline-block w-5 h-5 border-2 border-t-transparent rounded-full animate-spin"></span> Chargement...';
+    }
+
+    // Déterminer le prochain lot de catégories à afficher
+    const categoriesToShow = allCategories.slice(renderedCategoriesCount, renderedCategoriesCount + CATEGORIES_PER_LOAD);
+
+    let newHTML = '';
+    categoriesToShow.forEach((category, index) => {
+        const categoryProducts = allProducts.filter(p => p.Catégorie === category.NomCategorie).slice(0, 4);
+        const bgColor = (renderedCategoriesCount + index) % 2 === 0 ? 'bg-white' : 'bg-gray-100';
+
+        newHTML += `
+            <section class="py-12 ${bgColor}">
+                <div class="container mx-auto px-4">
+                    <div class="flex items-center justify-between mb-8">
+                        <h3 class="text-3xl font-bold text-gray-800">${category.NomCategorie}</h3>
+                        <a href="categorie.html?id=${category.IDCategorie}&name=${encodeURIComponent(category.NomCategorie)}" class="text-gold hover:underline">Voir plus</a>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                        ${categoryProducts.map(product => renderProductCard(product)).join('')}
+                    </div>
+                </div>
+            </section>
+        `;
+    });
+
+    homepageContainer.insertAdjacentHTML('beforeend', newHTML);
+    renderedCategoriesCount += categoriesToShow.length;
+
+    // Mettre à jour ou supprimer le bouton "Charger plus"
+    if (renderedCategoriesCount >= allCategories.length) {
+        loadMoreContainer.innerHTML = ''; // Toutes les catégories sont chargées
+    } else {
+        loadMoreContainer.innerHTML = `<button id="load-more-btn" onclick="loadMoreCategories()" class="bg-black text-white px-8 py-3 rounded-lg font-semibold hover:bg-gray-800 transition">Charger plus de catégories</button>`;
     }
 }
 

@@ -181,26 +181,11 @@ function seedDefaultProducts() {
 }
 
 /**
- * Remplit la feuille avec 10 produits de test.
- */
-function seedDefaultProducts() {
-  const categoryName = getCategoryName();
-  const products = PERSONAL_DATA.getProducts(categoryName);
-
-  products.forEach(productData => {
-    addProduct(productData);
-  });
-
-  SpreadsheetApp.getUi().alert('10 produits de test ont été ajoutés avec succès !');
-}
-
-/**
  * Crée une réponse JSON standard.
  */
 function createJsonResponse(data) {
   const jsonResponse = ContentService.createTextOutput(JSON.stringify(data))
-    .setMimeType(ContentService.MimeType.JSON)
-    .setHeader('Access-Control-Allow-Origin', '*'); // Autorise les appels de n'importe quel site
+    .setMimeType(ContentService.MimeType.JSON);
     
   return jsonResponse;
 }
