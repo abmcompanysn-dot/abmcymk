@@ -204,20 +204,20 @@ function saveCart(cart) {
  * @param {string} imageUrl - L'URL de l'image du produit.
  */
 function addToCart(event, productId, name, price, imageUrl) {
-    event.preventDefault(); // Empêche la navigation si on clique sur le bouton dans un lien
+    event.preventDefault();
     event.stopPropagation();
 
     const cart = getCart();
-    const quantityInput = document.getElementById('quantity'); // Pour la page produit
+    const quantityInput = document.getElementById('quantity');
     const quantity = quantityInput ? parseInt(quantityInput.value) : 1;
-    const existingProductIndex = cart.findIndex(item => item.id === productId);
+    const existingProductIndex = cart.findIndex(item => item.id === finalProductId);
 
     if (existingProductIndex > -1) {
         // Le produit existe déjà, on augmente la quantité
         cart[existingProductIndex].quantity += quantity;
     } else {
         // Nouveau produit
-        cart.push({ id: productId, name, price, imageUrl, quantity });
+        cart.push({ id: finalProductId, productId: productId, name, price, imageUrl, quantity, variants: selectedVariants });
     }
 
     saveCart(cart);
@@ -252,10 +252,16 @@ function renderCartPage() {
     
     if (cart.length === 0) {
         cartContainer.innerHTML = '<p class="p-6 text-center text-gray-500">Votre panier est vide.</p>';
-        document.getElementById('cart-summary').style.display = 'none'; // Cache le résumé si le panier est vide
+        const summary = document.getElementById('cart-summary');
+        if (summary) summary.style.display = 'none';
         return;
     }
 
+    // NOUVEAU: Affichage des variantes dans le panier
+    const variantHTML = (variants) => {
+        if (!variants || Object.keys(variants).length === 0) return '';
+        return `<p class="text-xs text-gray-500">${Object.entries(variants).map(([key, value]) => `${key}: ${value}`).join(', ')}</p>`;
+    };
     const cartHTML = cart.map((item, index) => `
         <div class="flex items-center p-4 border-b">
             <div class="w-16 h-16 bg-gray-200 rounded mr-4 overflow-hidden">
@@ -264,6 +270,7 @@ function renderCartPage() {
             <div class="flex-grow">
                 <h4 class="font-semibold">${item.name}</h4>
                 <p class="text-sm text-gold">${item.price.toLocaleString('fr-FR')} F CFA</p>
+                ${variantHTML(item.variants)}
             </div>
             <div class="flex items-center">
                 <input type="number" value="${item.quantity}" min="1" onchange="changeQuantity(${index}, this.value)" class="w-16 text-center border rounded p-1 mx-4">
@@ -427,35 +434,36 @@ async function displayCategoryProducts() {
         </div>`;
     resultsContainer.innerHTML = Array(8).fill(skeletonCard).join('');
 
-    try {
-        const catalog = await getFullCatalog();
-        const allProducts = catalog.data.products;
-        const allCategories = catalog.data.categories;
+    // NOUVEAU: Utiliser setTimeout pour garantir l'affichage du squelette
+    setTimeout(async () => {
+        try {
+            const catalog = await getFullCatalog();
+            const allProducts = catalog.data.products;
+            const allCategories = catalog.data.categories;
 
-        // CORRECTION: Le produit n'a pas d'IDCategorie, mais un nom de catégorie.
-        // On trouve la catégorie correspondante à l'ID de l'URL pour obtenir son nom.
-        const targetCategory = allCategories.find(cat => cat.IDCategorie == categoryId);
-        if (!targetCategory) throw new Error("Catégorie introuvable.");
+            const targetCategory = allCategories.find(cat => cat.IDCategorie == categoryId);
+            if (!targetCategory) throw new Error("Catégorie introuvable.");
 
-        const filteredProducts = allProducts.filter(product => {
-            return product.Catégorie === targetCategory.NomCategorie;
-        });
+            const filteredProducts = allProducts.filter(product => {
+                return product.Catégorie === targetCategory.NomCategorie;
+            });
 
-        resultsCount.textContent = `${filteredProducts.length} produit(s) dans cette catégorie.`;
+            resultsCount.textContent = `${filteredProducts.length} produit(s) dans cette catégorie.`;
 
-        if (filteredProducts.length === 0) {
-            resultsContainer.innerHTML = `<p class="col-span-full text-center text-gray-500">Aucun produit dans cette catégorie pour le moment.</p>`;
-            return;
+            if (filteredProducts.length === 0) {
+                resultsContainer.innerHTML = `<p class="col-span-full text-center text-gray-500">Aucun produit dans cette catégorie pour le moment.</p>`;
+                return;
+            }
+
+            const resultsHTML = filteredProducts.map(product => renderProductCard(product)).join('');
+            resultsContainer.innerHTML = resultsHTML;
+
+        } catch (error) {
+            console.error("Erreur lors de l'affichage des produits de la catégorie:", error);
+            resultsCount.textContent = `Erreur lors du chargement des produits.`;
+            resultsContainer.innerHTML = `<p class="col-span-full text-center text-red-500">Impossible de charger les produits.</p>`;
         }
-
-        const resultsHTML = filteredProducts.map(product => renderProductCard(product)).join('');
-        resultsContainer.innerHTML = resultsHTML;
-
-    } catch (error) {
-        console.error("Erreur lors de l'affichage des produits de la catégorie:", error);
-        resultsCount.textContent = `Erreur lors du chargement des produits.`;
-        resultsContainer.innerHTML = `<p class="col-span-full text-center text-red-500">Impossible de charger les produits.</p>`;
-    }
+    }, 0);
 }
 
 /**
@@ -475,27 +483,30 @@ async function displayPromotionProducts() {
         </div>`;
     resultsContainer.innerHTML = Array(8).fill(skeletonCard).join('');
 
-    try {
-        const catalog = await getFullCatalog();
-        const allProducts = catalog.data.products;
-        // Filtrer les produits qui ont une réduction
-        const discountedProducts = allProducts.filter(product => product['Réduction%'] && parseFloat(product['Réduction%']) > 0);
+    // NOUVEAU: Utiliser setTimeout pour garantir l'affichage du squelette
+    setTimeout(async () => {
+        try {
+            const catalog = await getFullCatalog();
+            const allProducts = catalog.data.products;
+            // Filtrer les produits qui ont une réduction
+            const discountedProducts = allProducts.filter(product => product['Réduction%'] && parseFloat(product['Réduction%']) > 0);
 
-        resultsCount.textContent = `${discountedProducts.length} produit(s) en promotion.`;
+            resultsCount.textContent = `${discountedProducts.length} produit(s) en promotion.`;
 
-        if (discountedProducts.length === 0) {
-            resultsContainer.innerHTML = `<p class="col-span-full text-center text-gray-500">Aucun produit en promotion pour le moment.</p>`;
-            return;
+            if (discountedProducts.length === 0) {
+                resultsContainer.innerHTML = `<p class="col-span-full text-center text-gray-500">Aucun produit en promotion pour le moment.</p>`;
+                return;
+            }
+
+            const resultsHTML = discountedProducts.map(product => renderProductCard(product)).join('');
+            resultsContainer.innerHTML = resultsHTML;
+
+        } catch (error) {
+            console.error("Erreur lors de l'affichage des promotions:", error);
+            resultsCount.textContent = `Erreur lors du chargement des promotions.`;
+            resultsContainer.innerHTML = `<p class="col-span-full text-center text-red-500">Impossible de charger les promotions.</p>`;
         }
-
-        const resultsHTML = discountedProducts.map(product => renderProductCard(product)).join('');
-        resultsContainer.innerHTML = resultsHTML;
-
-    } catch (error) {
-        console.error("Erreur lors de l'affichage des promotions:", error);
-        resultsCount.textContent = `Erreur lors du chargement des promotions.`;
-        resultsContainer.innerHTML = `<p class="col-span-full text-center text-red-500">Impossible de charger les promotions.</p>`;
-    }
+    }, 0);
 }
 
 // --- LOGIQUE DE LA PAGE PRODUIT ---
@@ -584,8 +595,8 @@ async function loadProductPage() { // Make it async
         // Mettre à jour le bouton "Ajouter au panier"
         addToCartButton.setAttribute('onclick', `addToCart(event, '${product.IDProduit}', '${product.Nom}', ${product.PrixActuel}, '${product.ImageURL || CONFIG.DEFAULT_PRODUCT_IMAGE}')`);
         const hasVariants = variantsContainer.innerHTML.trim() !== '';
-        // Le bouton est désactivé si le produit est en rupture de stock.
-        addToCartButton.disabled = (product.Stock <= 0);
+        // Le bouton est désactivé si le produit est en rupture de stock ET qu'il n'y a pas de variantes.
+        addToCartButton.disabled = (product.Stock <= 0 && !hasVariants);
 
         // NOUVEAU: Activer le zoom sur l'image principale
         activateInternalZoom("image-zoom-wrapper");
@@ -714,11 +725,11 @@ function renderClothingDetails(product, variantsContainer, specsContainer) {
 
     // Spécifications
     let specsHTML = '<ul>';
-    if (product.Coupe) specsHTML += `<li class="flex justify-between py-2 border-b"><span>Coupe:</span> <span class="font-semibold text-gray-800">${product.Coupe}</span></li>`;
-    if (product.Matière) specsHTML += `<li class="flex justify-between py-2 border-b"><span>Matière:</span> <span class="font-semibold text-gray-800">${product.Matière}</span></li>`;
-    if (product.Saison) specsHTML += `<li class="flex justify-between py-2 border-b"><span>Saison:</span> <span class="font-semibold text-gray-800">${product.Saison}</span></li>`;
-    if (product.Style) specsHTML += `<li class="flex justify-between py-2 border-b"><span>Style:</span> <span class="font-semibold text-gray-800">${product.Style}</span></li>`;
-    if (product.Genre) specsHTML += `<li class="flex justify-between py-2"><span>Genre:</span> <span class="font-semibold text-gray-800">${product.Genre}</span></li>`;
+    if (product.Coupe) specsHTML += `<li class="flex justify-between py-2 border-b"><span>Coupe</span> <span class="font-semibold text-gray-800">${product.Coupe}</span></li>`;
+    if (product.Matière) specsHTML += `<li class="flex justify-between py-2 border-b"><span>Matière</span> <span class="font-semibold text-gray-800">${product.Matière}</span></li>`;
+    if (product.Saison) specsHTML += `<li class="flex justify-between py-2 border-b"><span>Saison</span> <span class="font-semibold text-gray-800">${product.Saison}</span></li>`;
+    if (product.Style) specsHTML += `<li class="flex justify-between py-2 border-b"><span>Style</span> <span class="font-semibold text-gray-800">${product.Style}</span></li>`;
+    if (product.Genre) specsHTML += `<li class="flex justify-between py-2"><span>Genre</span> <span class="font-semibold text-gray-800">${product.Genre}</span></li>`;
     specsHTML += '</ul>';
     specsContainer.innerHTML = specsHTML;
 }
@@ -733,11 +744,11 @@ function renderShoesDetails(product, variantsContainer, specsContainer) {
     }
     // Spécifications
     let specsHTML = '<ul>';
-    if (product.Matière) specsHTML += `<li class="flex justify-between py-2 border-b"><span>Matière:</span> <span class="font-semibold text-gray-800">${product.Matière}</span></li>`;
-    if (product.Type) specsHTML += `<li class="flex justify-between py-2 border-b"><span>Type:</span> <span class="font-semibold text-gray-800">${product.Type}</span></li>`;
-    if (product.Genre) specsHTML += `<li class="flex justify-between py-2 border-b"><span>Genre:</span> <span class="font-semibold text-gray-800">${product.Genre}</span></li>`;
-    if (product.Semelle) specsHTML += `<li class="flex justify-between py-2 border-b"><span>Semelle:</span> <span class="font-semibold text-gray-800">${product.Semelle}</span></li>`;
-    if (product.Usage) specsHTML += `<li class="flex justify-between py-2"><span>Usage:</span> <span class="font-semibold text-gray-800">${product.Usage}</span></li>`;
+    if (product.Matière) specsHTML += `<li class="flex justify-between py-2 border-b"><span>Matière</span> <span class="font-semibold text-gray-800">${product.Matière}</span></li>`;
+    if (product.Type) specsHTML += `<li class="flex justify-between py-2 border-b"><span>Type</span> <span class="font-semibold text-gray-800">${product.Type}</span></li>`;
+    if (product.Genre) specsHTML += `<li class="flex justify-between py-2 border-b"><span>Genre</span> <span class="font-semibold text-gray-800">${product.Genre}</span></li>`;
+    if (product.Semelle) specsHTML += `<li class="flex justify-between py-2 border-b"><span>Semelle</span> <span class="font-semibold text-gray-800">${product.Semelle}</span></li>`;
+    if (product.Usage) specsHTML += `<li class="flex justify-between py-2"><span>Usage</span> <span class="font-semibold text-gray-800">${product.Usage}</span></li>`;
     specsHTML += '</ul>';
     specsContainer.innerHTML = specsHTML;
 }
@@ -749,11 +760,11 @@ function renderElectronicsDetails(product, variantsContainer, specsContainer) {
     }
     // Spécifications
     let specsHTML = '<ul>';
-    if (product.Marque) specsHTML += `<li class="flex justify-between py-2 border-b"><span>Marque:</span> <span class="font-semibold text-gray-800">${product.Marque}</span></li>`;
-    if (product.Modèle) specsHTML += `<li class="flex justify-between py-2 border-b"><span>Modèle:</span> <span class="font-semibold text-gray-800">${product.Modèle}</span></li>`;
-    if (product.Connectivité) specsHTML += `<li class="flex justify-between py-2 border-b"><span>Connectivité:</span> <span class="font-semibold text-gray-800">${product.Connectivité}</span></li>`;
-    if (product.Compatibilité) specsHTML += `<li class="flex justify-between py-2 border-b"><span>Compatibilité:</span> <span class="font-semibold text-gray-800">${product.Compatibilité}</span></li>`;
-    if (product.Garantie) specsHTML += `<li class="flex justify-between py-2"><span>Garantie:</span> <span class="font-semibold text-gray-800">${product.Garantie}</span></li>`;
+    if (product.Marque) specsHTML += `<li class="flex justify-between py-2 border-b"><span>Marque</span> <span class="font-semibold text-gray-800">${product.Marque}</span></li>`;
+    if (product.Modèle) specsHTML += `<li class="flex justify-between py-2 border-b"><span>Modèle</span> <span class="font-semibold text-gray-800">${product.Modèle}</span></li>`;
+    if (product.Connectivité) specsHTML += `<li class="flex justify-between py-2 border-b"><span>Connectivité</span> <span class="font-semibold text-gray-800">${product.Connectivité}</span></li>`;
+    if (product.Compatibilité) specsHTML += `<li class="flex justify-between py-2 border-b"><span>Compatibilité</span> <span class="font-semibold text-gray-800">${product.Compatibilité}</span></li>`;
+    if (product.Garantie) specsHTML += `<li class="flex justify-between py-2"><span>Garantie</span> <span class="font-semibold text-gray-800">${product.Garantie}</span></li>`;
     specsHTML += '</ul>';
     specsContainer.innerHTML = specsHTML;
 }
@@ -1025,91 +1036,60 @@ function startCountdown() {
  * NEW: Central function to retrieve all public data (products and categories).
  * Met en cache les résultats pour améliorer les performances de navigation.
  */
+async function checkCacheVersion() {
+    const response = await fetch(CONFIG.CENTRAL_API_URL + "?action=getPublicData");
+    if (!response.ok) throw new Error(`Erreur réseau lors de la récupération des catégories.`);
+    const result = await response.json();
+    if (!result.success) throw new Error(result.error || "Impossible de charger la liste des catégories.");
+
+    const serverVersion = result.cacheVersion;
+    const localVersion = sessionStorage.getItem('cacheVersion');
+
+    if (serverVersion !== localVersion) {
+        console.log(`Nouvelle version du cache détectée (${serverVersion}). Vidage du cache local.`);
+        sessionStorage.removeItem('fullCatalog');
+        sessionStorage.setItem('cacheVersion', serverVersion);
+    }
+    return result; // On retourne les données déjà récupérées pour éviter un 2ème appel
+}
+
+/**
+ * NEW: Central function to retrieve all public data (products and categories).
+ * Met en cache les résultats pour améliorer les performances de navigation.
+ */
 async function getFullCatalog() {
+    // Étape 1: Vérifier la version du cache. Cette fonction vide le cache si nécessaire.
+    const publicData = await checkCacheVersion();
+
+    // Étape 2: Vérifier si les données sont maintenant dans le cache.
     const cachedItem = sessionStorage.getItem('fullCatalog');
     if (cachedItem) {
         const { data, timestamp } = JSON.parse(cachedItem);
         const now = new Date().getTime();
-        const fiveMinutes = 10 * 60 * 1000; // 10 minutes en millisecondes
+        const fiveMinutes = 5 * 60 * 1000; // 5 minutes en millisecondes
 
         if (now - timestamp < fiveMinutes) {
             console.log("Utilisation du catalogue complet depuis le cache (valide).");
             return data;
-        } else {
-            console.log("Cache du catalogue complet expiré. Rechargement...");
-            sessionStorage.removeItem('fullCatalog'); // On nettoie l'ancien cache
         }
     }
 
-    // Si non, charger les deux en parallèle
-    console.log("Assemblage du catalogue complet pour la première fois...");
-    const [categories, products] = await Promise.all([
-        getCategories(),
-        getAllProducts()
-    ]);
-
-    const catalogData = { success: true, data: { categories, products } };
-    const itemToCache = { data: catalogData, timestamp: new Date().getTime() };
-    
-    console.log(`Catalogue complet assemblé (${products.length} produits). Mise en cache pour 5 minutes.`);
-    sessionStorage.setItem('fullCatalog', JSON.stringify(itemToCache));
-    return catalogData;
-}
-
-/**
- * NOUVEAU: Récupère uniquement la liste des catégories.
- */
-async function getCategories() {
-    const cachedItem = sessionStorage.getItem('categories');
-    if (cachedItem) {
-        const { data, timestamp } = JSON.parse(cachedItem);
-        const now = new Date().getTime();
-        const fiveMinutes = 2 * 60 * 1000;
-
-        if (now - timestamp < fiveMinutes) {
-            console.log("Utilisation des catégories depuis le cache (valide).");
-            return data;
-        }
-    }
-
-    console.log("Appel API pour les catégories...");
-    const response = await fetch(CONFIG.CENTRAL_API_URL);
-    if (!response.ok) throw new Error(`Erreur réseau lors de la récupération des catégories.`);
-    const result = await response.json();
-    if (!result.success) throw new Error(result.error || "Impossible de charger la liste des catégories.");
-    
-    const categories = result.data.sort((a, b) => a.Ordre - b.Ordre);
-    const itemToCache = { data: categories, timestamp: new Date().getTime() };
-    sessionStorage.setItem('categories', JSON.stringify(itemToCache));
-    return categories;
-}
-
-/**
- * NOUVEAU: Récupère tous les produits de toutes les catégories.
- */
-async function getAllProducts() {
-    const cachedItem = sessionStorage.getItem('allProducts');
-    if (cachedItem) {
-        const { data, timestamp } = JSON.parse(cachedItem);
-        const now = new Date().getTime();
-        const fiveMinutes = 2 * 60 * 1000;
-
-        if (now - timestamp < fiveMinutes) {
-            console.log("Utilisation des produits depuis le cache (valide).");
-            return data;
-        }
-    }
-
-    const categories = await getCategories(); // S'assure d'avoir les URLs
+    // Étape 3: Si le cache est vide ou expiré, on charge les données.
+    // On utilise les données déjà récupérées par checkCacheVersion()
+    const categories = publicData.data;
     console.log("Appels API parallèles pour tous les produits...");
     const productFetchPromises = categories.map(cat => 
         fetch(`${cat.ScriptURL}?action=getProducts`).then(res => res.json())
     );
     const productResults = await Promise.all(productFetchPromises);
     const allProducts = productResults.flatMap(res => (res.success && res.data) ? res.data : []);
-    const itemToCache = { data: allProducts, timestamp: new Date().getTime() };
-    sessionStorage.setItem('allProducts', JSON.stringify(itemToCache));
-    return allProducts;
+
+    const catalogData = { success: true, data: { categories, products: allProducts } };
+    const itemToCache = { data: catalogData, timestamp: new Date().getTime() };
+    
+    console.log(`Catalogue complet assemblé (${allProducts.length} produits). Mise en cache pour 5 minutes.`);
+    sessionStorage.setItem('fullCatalog', JSON.stringify(itemToCache));
+    return catalogData;
 }
 
 /**
