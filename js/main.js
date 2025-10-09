@@ -427,35 +427,36 @@ async function displayCategoryProducts() {
         </div>`;
     resultsContainer.innerHTML = Array(8).fill(skeletonCard).join('');
 
-    try {
-        const catalog = await getFullCatalog();
-        const allProducts = catalog.data.products;
-        const allCategories = catalog.data.categories;
+    // NOUVEAU: Utiliser setTimeout pour garantir l'affichage du squelette
+    setTimeout(async () => {
+        try {
+            const catalog = await getFullCatalog();
+            const allProducts = catalog.data.products;
+            const allCategories = catalog.data.categories;
 
-        // CORRECTION: Le produit n'a pas d'IDCategorie, mais un nom de catégorie.
-        // On trouve la catégorie correspondante à l'ID de l'URL pour obtenir son nom.
-        const targetCategory = allCategories.find(cat => cat.IDCategorie == categoryId);
-        if (!targetCategory) throw new Error("Catégorie introuvable.");
+            const targetCategory = allCategories.find(cat => cat.IDCategorie == categoryId);
+            if (!targetCategory) throw new Error("Catégorie introuvable.");
 
-        const filteredProducts = allProducts.filter(product => {
-            return product.Catégorie === targetCategory.NomCategorie;
-        });
+            const filteredProducts = allProducts.filter(product => {
+                return product.Catégorie === targetCategory.NomCategorie;
+            });
 
-        resultsCount.textContent = `${filteredProducts.length} produit(s) dans cette catégorie.`;
+            resultsCount.textContent = `${filteredProducts.length} produit(s) dans cette catégorie.`;
 
-        if (filteredProducts.length === 0) {
-            resultsContainer.innerHTML = `<p class="col-span-full text-center text-gray-500">Aucun produit dans cette catégorie pour le moment.</p>`;
-            return;
+            if (filteredProducts.length === 0) {
+                resultsContainer.innerHTML = `<p class="col-span-full text-center text-gray-500">Aucun produit dans cette catégorie pour le moment.</p>`;
+                return;
+            }
+
+            const resultsHTML = filteredProducts.map(product => renderProductCard(product)).join('');
+            resultsContainer.innerHTML = resultsHTML;
+
+        } catch (error) {
+            console.error("Erreur lors de l'affichage des produits de la catégorie:", error);
+            resultsCount.textContent = `Erreur lors du chargement des produits.`;
+            resultsContainer.innerHTML = `<p class="col-span-full text-center text-red-500">Impossible de charger les produits.</p>`;
         }
-
-        const resultsHTML = filteredProducts.map(product => renderProductCard(product)).join('');
-        resultsContainer.innerHTML = resultsHTML;
-
-    } catch (error) {
-        console.error("Erreur lors de l'affichage des produits de la catégorie:", error);
-        resultsCount.textContent = `Erreur lors du chargement des produits.`;
-        resultsContainer.innerHTML = `<p class="col-span-full text-center text-red-500">Impossible de charger les produits.</p>`;
-    }
+    }, 0);
 }
 
 /**
@@ -475,27 +476,30 @@ async function displayPromotionProducts() {
         </div>`;
     resultsContainer.innerHTML = Array(8).fill(skeletonCard).join('');
 
-    try {
-        const catalog = await getFullCatalog();
-        const allProducts = catalog.data.products;
-        // Filtrer les produits qui ont une réduction
-        const discountedProducts = allProducts.filter(product => product['Réduction%'] && parseFloat(product['Réduction%']) > 0);
+    // NOUVEAU: Utiliser setTimeout pour garantir l'affichage du squelette
+    setTimeout(async () => {
+        try {
+            const catalog = await getFullCatalog();
+            const allProducts = catalog.data.products;
+            // Filtrer les produits qui ont une réduction
+            const discountedProducts = allProducts.filter(product => product['Réduction%'] && parseFloat(product['Réduction%']) > 0);
 
-        resultsCount.textContent = `${discountedProducts.length} produit(s) en promotion.`;
+            resultsCount.textContent = `${discountedProducts.length} produit(s) en promotion.`;
 
-        if (discountedProducts.length === 0) {
-            resultsContainer.innerHTML = `<p class="col-span-full text-center text-gray-500">Aucun produit en promotion pour le moment.</p>`;
-            return;
+            if (discountedProducts.length === 0) {
+                resultsContainer.innerHTML = `<p class="col-span-full text-center text-gray-500">Aucun produit en promotion pour le moment.</p>`;
+                return;
+            }
+
+            const resultsHTML = discountedProducts.map(product => renderProductCard(product)).join('');
+            resultsContainer.innerHTML = resultsHTML;
+
+        } catch (error) {
+            console.error("Erreur lors de l'affichage des promotions:", error);
+            resultsCount.textContent = `Erreur lors du chargement des promotions.`;
+            resultsContainer.innerHTML = `<p class="col-span-full text-center text-red-500">Impossible de charger les promotions.</p>`;
         }
-
-        const resultsHTML = discountedProducts.map(product => renderProductCard(product)).join('');
-        resultsContainer.innerHTML = resultsHTML;
-
-    } catch (error) {
-        console.error("Erreur lors de l'affichage des promotions:", error);
-        resultsCount.textContent = `Erreur lors du chargement des promotions.`;
-        resultsContainer.innerHTML = `<p class="col-span-full text-center text-red-500">Impossible de charger les promotions.</p>`;
-    }
+    }, 0);
 }
 
 // --- LOGIQUE DE LA PAGE PRODUIT ---
