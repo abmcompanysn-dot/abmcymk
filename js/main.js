@@ -1073,7 +1073,7 @@ async function getFullCatalog() {
 
     // Étape 3: Si le cache est vide ou expiré, on charge les données.
     // On utilise les données déjà récupérées par checkCacheVersion()
-    const categories = publicData.data.categories;
+    const categories = publicData.data;
     console.log("Appels API parallèles pour tous les produits...");
     const productFetchPromises = categories.map(cat => 
         fetch(`${cat.ScriptURL}?action=getProducts`).then(res => res.json())
