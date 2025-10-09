@@ -947,11 +947,10 @@ async function renderDailyDealsHomepage() {
     // setTimeout avec 0ms est une astuce pour laisser le thread principal se libérer un instant.
     setTimeout(async () => {
         try {
-            // --- Étape 3: Charger les données en parallèle ---
-            const [categories, products] = await Promise.all([
-                getCategories(),
-                getAllProducts()
-            ]);
+            // --- Étape 3: Charger le catalogue complet ---
+            const catalog = await getFullCatalog();
+            const categories = catalog.data.categories;
+            const products = catalog.data.products;
 
             // --- Étape 4: Remplir la section "Nos Boutiques" dès que les catégories sont prêtes ---
             if (categories.length > 0) {
