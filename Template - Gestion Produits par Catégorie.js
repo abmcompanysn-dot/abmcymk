@@ -317,7 +317,8 @@ function createJsonResponse(data) {
  */
 function sheetToJSON(sheet) {
   if (!sheet || sheet.getLastRow() < 2) return [];
-  const data = sheet.getDataRange().getValues();
+  // CORRECTION: Utiliser getRange avec getLastColumn pour s'assurer que toutes les colonnes sont lues.
+  const data = sheet.getRange(1, 1, sheet.getLastRow(), sheet.getLastColumn()).getValues();
   const headers = data.shift();
   return data.map(row => {
     const obj = {};
