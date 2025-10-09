@@ -135,8 +135,8 @@ async function populateNavLinks() {
     const mainLinksContainer = document.getElementById('main-nav-links');
     const bannerLinksContainer = document.getElementById('banner-nav-links');
 
-    // Ne fait rien si on n'est pas sur la page d'accueil
-    if (!mainLinksContainer || !bannerLinksContainer) return;
+    // Ne fait rien si le conteneur principal n'existe pas
+    if (!mainLinksContainer) return;
 
     try {
         const categories = await getCategories();
@@ -145,7 +145,8 @@ async function populateNavLinks() {
         let mainNavCategories = [];
         let bannerNavCategories = [];
 
-        if (categories.length > MANY_CATEGORIES_THRESHOLD) {
+        // La logique de division s'applique seulement si on est sur la page d'accueil (où bannerLinksContainer existe)
+        if (bannerLinksContainer && categories.length > MANY_CATEGORIES_THRESHOLD) {
             // S'il y a beaucoup de catégories, on les divise
             mainNavCategories = categories.slice(0, 4); // Les 4 premières pour le haut
             bannerNavCategories = categories.slice(4, 10); // Les 6 suivantes pour la bannière
@@ -163,11 +164,13 @@ async function populateNavLinks() {
         mainLinksContainer.innerHTML = mainNavHTML;
 
         // Générer le HTML pour la navigation de la bannière
-        bannerLinksContainer.innerHTML = bannerNavCategories.map((cat, index) => {
-            // Logique pour cacher des liens sur mobile si nécessaire
-            const responsiveClasses = index > 2 ? 'hidden sm:block' : '';
-            return `<a href="categorie.html?id=${cat.IDCategorie}&name=${encodeURIComponent(cat.NomCategorie)}" class="px-4 py-1 hover:bg-white/20 rounded-full transition ${responsiveClasses}">${cat.NomCategorie}</a>`;
-        }).join('');
+        if (bannerLinksContainer) {
+            bannerLinksContainer.innerHTML = bannerNavCategories.map((cat, index) => {
+                // Logique pour cacher des liens sur mobile si nécessaire
+                const responsiveClasses = index > 2 ? 'hidden sm:block' : '';
+                return `<a href="categorie.html?id=${cat.IDCategorie}&name=${encodeURIComponent(cat.NomCategorie)}" class="px-4 py-1 hover:bg-white/20 rounded-full transition ${responsiveClasses}">${cat.NomCategorie}</a>`;
+            }).join('');
+        }
 
     } catch (error) {
         console.error("Erreur lors du remplissage des liens de navigation:", error);
