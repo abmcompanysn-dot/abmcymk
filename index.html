@@ -46,6 +46,40 @@
         </div>
     </section>
 
+    <!-- Contenu principal -->
+    <main class="container mx-auto px-4 py-8">
+        <h2 class="text-3xl font-bold text-gray-800 mb-6">Offres du jour</h2>
+
+        <!-- Section SuperDeals -->
+        <section class="mb-12">
+            <div class="bg-white p-4 rounded-lg shadow-md flex items-center justify-between mb-4">
+                <h3 class="text-2xl font-bold text-red-600">SuperDeals</h3>
+                <div class="flex items-center space-x-2 text-gray-700">
+                    <span>Se termine dans :</span>
+                    <div id="countdown" class="flex space-x-1 font-mono text-lg">
+                        <span id="hours" class="bg-gray-200 px-2 py-1 rounded">00</span>:
+                        <span id="minutes" class="bg-gray-200 px-2 py-1 rounded">00</span>:
+                        <span id="seconds" class="bg-gray-200 px-2 py-1 rounded">00</span>
+                    </div>
+                </div>
+            </div>
+            <div id="superdeals-products" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                <!-- Les produits en SuperDeal seront injectés ici par JS -->
+            </div>
+        </section>
+
+        <!-- Section Nos Boutiques -->
+        <section>
+            <div class="bg-white p-4 rounded-lg shadow-md flex items-center justify-between mb-4">
+                <h3 class="text-2xl font-bold text-blue-600">Nos Boutiques</h3>
+            </div>
+            <div id="boutiques-container" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                <!-- Les boutiques (catégories) seront injectées ici par JS -->
+            </div>
+        </section>
+
+    </main>
+
     <!-- Footer -->
     <footer class="bg-dark-color text-white pt-12 pb-8">
         <div class="container mx-auto px-4">
