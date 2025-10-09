@@ -1061,14 +1061,9 @@ async function getFullCatalog() {
     // Étape 2: Vérifier si les données sont maintenant dans le cache.
     const cachedItem = sessionStorage.getItem('fullCatalog');
     if (cachedItem) {
-        const { data, timestamp } = JSON.parse(cachedItem);
-        const now = new Date().getTime();
-        const fiveMinutes = 5 * 60 * 1000; // 5 minutes en millisecondes
-
-        if (now - timestamp < fiveMinutes) {
-            console.log("Utilisation du catalogue complet depuis le cache (valide).");
-            return data;
-        }
+        const { data } = JSON.parse(cachedItem);
+        console.log("Utilisation du catalogue complet depuis le cache de session.");
+        return data;
     }
 
     // Étape 3: Si le cache est vide ou expiré, on charge les données.
@@ -1082,9 +1077,9 @@ async function getFullCatalog() {
     const allProducts = productResults.flatMap(res => (res.success && res.data) ? res.data : []);
 
     const catalogData = { success: true, data: { categories, products: allProducts } };
-    const itemToCache = { data: catalogData, timestamp: new Date().getTime() };
+    const itemToCache = { data: catalogData }; // On ne stocke plus le timestamp
     
-    console.log(`Catalogue complet assemblé (${allProducts.length} produits). Mise en cache pour 5 minutes.`);
+    console.log(`Catalogue complet assemblé (${allProducts.length} produits). Mise en cache pour la session.`);
     sessionStorage.setItem('fullCatalog', JSON.stringify(itemToCache));
     return catalogData;
 }
