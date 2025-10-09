@@ -141,31 +141,6 @@ Object.keys(CATEGORY_CONFIG).forEach(catName => {
   };
 });
 
-function doPost(e) {
-  try {
-    // La logique de sécurité CORS n'est généralement pas nécessaire pour POST si l'appel vient d'un autre script Google.
-    const request = JSON.parse(e.postData.contents);
-    const action = request.action;
-
-    switch(action) {
-      case 'ajouterProduit':
-        invalidateCategoryCache();
-        return addProduct(request.data);
-      case 'updateProduct':
-        invalidateCategoryCache();
-        return updateProduct(request.data);
-      case 'archiveOutOfStock':
-        invalidateCategoryCache();
-        return archiveOutOfStock();
-      default:
-        return createJsonResponse({ success: false, error: "Action POST non reconnue." });
-    }
-
-  } catch (error) {
-    return createJsonResponse({ success: false, error: error.message });
-  }
-}
-
 /**
  * NOUVEAU: Se déclenche automatiquement à chaque modification de la feuille.
  */
