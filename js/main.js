@@ -1100,7 +1100,7 @@ async function getAllProducts() {
     if (cachedItem) {
         const { data, timestamp } = JSON.parse(cachedItem);
         const now = new Date().getTime();
-        const fiveMinutes = 5 * 60 * 1000;
+        const fiveMinutes = 2 * 60 * 1000;
 
         if (now - timestamp < fiveMinutes) {
             console.log("Utilisation des produits depuis le cache (valide).");

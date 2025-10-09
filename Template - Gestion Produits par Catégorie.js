@@ -113,18 +113,16 @@ function onOpen() {
   const ui = SpreadsheetApp.getUi();
   const menu = ui.createMenu('Gestion Catégorie');
   
-  // NOUVEAU: Menu de mise à jour intelligent
-  const updateMenu = ui.createMenu('Mettre à jour pour la catégorie...');
+  // Crée un sous-menu dynamique pour l'initialisation
+  const initMenu = ui.createMenu('Initialiser la feuille comme...');
   Object.keys(CATEGORY_CONFIG).sort().forEach(categoryName => {
     // Crée une fonction unique pour chaque item de menu
-    const functionName = `updateFor_${categoryName.replace(/[^a-zA-Z0-9]/g, '')}`;
-    this[functionName] = () => updateSheetForCategory(categoryName);
-    updateMenu.addItem(categoryName, functionName);
+    const functionName = `initAs_${categoryName.replace(/[^a-zA-Z0-9]/g, '')}`;
+    this[functionName] = () => setupSheet(categoryName);
+    initMenu.addItem(categoryName, functionName);
   });
   
-  menu.addItem('1. Initialiser la feuille (Base)', 'setupBaseSheet')
-      .addSeparator()
-      .addSubMenu(updateMenu)
+  menu.addSubMenu(initMenu)
       .addSeparator()
       .addItem('Vider le cache de cette catégorie', 'invalidateCategoryCache')
       .addItem('Remplir avec des données de test', 'seedDefaultProducts')
@@ -249,39 +247,16 @@ function showProductAddUI() {
 }
 
 /**
- * NOUVEAU: Prépare la feuille avec les en-têtes de BASE uniquement.
+ * Prépare la feuille de calcul avec les en-têtes corrects pour une catégorie donnée.
  */
-function setupBaseSheet() {
+function setupSheet(categoryName) {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheets()[0];
+  const headers = getCategorySpecificHeaders(categoryName);
   sheet.clear();
-  sheet.appendRow(BASE_HEADERS);
+  sheet.appendRow(headers);
   sheet.setFrozenRows(1);
-  sheet.getRange(1, 1, 1, BASE_HEADERS.length).setFontWeight("bold");
-  SpreadsheetApp.getUi().alert("Feuille de base initialisée ! Vous pouvez maintenant la mettre à jour pour une catégorie spécifique.");
-}
-
-/**
- * NOUVEAU: Met à jour la feuille en ajoutant les colonnes manquantes pour une catégorie.
- */
-function updateSheetForCategory(categoryName) {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheets()[0];
-  if (sheet.getLastRow() === 0) {
-    SpreadsheetApp.getUi().alert("Veuillez d'abord initialiser la feuille avec le menu 'Initialiser la feuille (Base)'.");
-    return;
-  }
-
-  const currentHeaders = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-  const specificHeaders = CATEGORY_CONFIG[categoryName] || [];
-  
-  const missingHeaders = specificHeaders.filter(h => !currentHeaders.includes(h));
-
-  if (missingHeaders.length > 0) {
-    const lastColumn = sheet.getLastColumn();
-    sheet.getRange(1, lastColumn + 1, 1, missingHeaders.length).setValues([missingHeaders]).setFontWeight("bold");
-    SpreadsheetApp.getUi().alert(`Mise à jour terminée pour "${categoryName}". ${missingHeaders.length} colonne(s) ajoutée(s).`);
-  } else {
-    SpreadsheetApp.getUi().alert(`La feuille est déjà à jour pour la catégorie "${categoryName}". Aucune colonne ajoutée.`);
-  }
+  sheet.getRange(1, 1, 1, headers.length).setFontWeight("bold");
+  SpreadsheetApp.getUi().alert(`Feuille initialisée comme "${categoryName}" avec succès !`);
 }
 
 /**
