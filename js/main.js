@@ -58,9 +58,9 @@ async function initializeApp() {
         loadProductPage();
     }
 
-    // Si nous sommes sur la page d'accueil, afficher les produits
-    if (document.querySelector('#homepage-sections')) {
-        renderHomepageProducts();
+    // Si nous sommes sur la page d'accueil (avec les nouvelles sections), on les remplit.
+    if (document.getElementById('superdeals-products')) {
+        renderDailyDealsHomepage();
     }
 
     // Si nous sommes sur la page compte, on l'initialise
@@ -79,12 +79,14 @@ async function initializeApp() {
  * Gère l'ouverture et la fermeture du menu des catégories (menu hamburger).
  */
 function toggleMobileMenu() {
-    const menu = document.getElementById('mobileMenu');
-    const overlay = document.getElementById('mobileMenuOverlay');
-    
-    menu.classList.toggle('hidden'); // Continue de gérer la visibilité
-    menu.classList.toggle('-translate-x-full'); // Gère l'animation de glissement
-    overlay.classList.toggle('hidden'); // Affiche/cache l'arrière-plan
+    // Cette fonction est maintenant utilisée pour le menu déroulant sur desktop
+    // et pourrait être réutilisée pour un menu mobile si besoin.
+    // La logique actuelle de l'index.html gère l'affichage avec :hover,
+    // mais une fonction JS peut être utile pour la compatibilité tactile.
+    const menu = document.querySelector('.dropdown-menu');
+    if (menu) {
+        // Pour une gestion par clic, on pourrait faire : menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+    }
 }
 
 /**
@@ -100,11 +102,11 @@ async function populateCategoryMenu() {
         const catalog = await getFullCatalog();
         const categories = catalog.data.categories;
         
-        // Ajout d'un titre et d'un bouton de fermeture
-        menuHTML = `<div class="p-4 border-b"><h3 class="font-bold text-lg">Catégories</h3></div>`;
+        // Ajout d'un titre pour le menu déroulant
+        menuHTML = `<div class="p-2 border-b"><h3 class="font-semibold text-sm text-gray-500 px-2">Toutes les catégories</h3></div>`;
 
         menuHTML += categories.map(cat => 
-        // Utiliser NomCategorie qui est le bon nom de propriété
+        // Lien vers la page de catégorie
         `<a href="categorie.html?id=${cat.IDCategorie}&name=${encodeURIComponent(cat.NomCategorie)}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">${cat.NomCategorie}</a>`
         ).join('');
         // Ajout du lien vers les promotions
@@ -594,95 +596,48 @@ async function processCheckout(event) {
 }
 
 /**
- * Affiche dynamiquement les produits sur la page d'accueil.
+ * NOUVEAU: Affiche les produits dans les sections "SuperDeals" et "Big Save" de la page d'accueil.
  */
-async function renderHomepageProducts() {
-    const homepageContainer = document.querySelector('#homepage-sections');
-    if (!homepageContainer) return; // Si on n'est pas sur la page d'accueil
+async function renderDailyDealsHomepage() {
+    const superdealsContainer = document.getElementById('superdeals-products');
+    const bigsaveContainer = document.getElementById('bigsave-products');
+
+    if (!superdealsContainer || !bigsaveContainer) return;
+
+    // Affiche un état de chargement simple
+    const loadingHTML = Array(5).fill('<div class="bg-white rounded-lg shadow h-64 animate-pulse"></div>').join('');
+    superdealsContainer.innerHTML = loadingHTML;
+    bigsaveContainer.innerHTML = loadingHTML;
 
     try {
-        fullCatalogData = await getFullCatalog();
-        renderedCategoriesCount = 0; // Réinitialiser le compteur
-        homepageContainer.innerHTML = ''; // Vider le conteneur
+        const catalog = await getFullCatalog();
+        const allProducts = catalog.data.products;
 
-        // Charger le premier lot de catégories
-        loadMoreCategories();
+        // 1. Filtrer les produits pour "SuperDeals" (ceux avec une réduction)
+        const superDealsProducts = allProducts
+            .filter(p => p['Réduction%'] && parseFloat(p['Réduction%']) > 0)
+            .slice(0, 5); // On prend les 5 premiers
+
+        // 2. Filtrer les produits pour "Big Save" (ceux qui ne sont PAS en réduction)
+        const bigSaveProducts = allProducts
+            .filter(p => !p['Réduction%'] || parseFloat(p['Réduction%']) === 0)
+            .slice(0, 5); // On prend les 5 premiers
+
+        // 3. Afficher les produits
+        superdealsContainer.innerHTML = superDealsProducts.length > 0 
+            ? superDealsProducts.map(product => renderProductCard(product)).join('')
+            : '<p class="col-span-full text-center text-gray-500">Aucune offre spéciale pour le moment.</p>';
+
+        bigsaveContainer.innerHTML = bigSaveProducts.length > 0
+            ? bigSaveProducts.map(product => renderProductCard(product)).join('')
+            : '<p class="col-span-full text-center text-gray-500">Aucun produit à afficher.</p>';
 
     } catch (error) {
-        console.error("Erreur lors du chargement des produits de la page d'accueil:", error);
-        homepageContainer.innerHTML = '<p class="py-12 text-center text-red-500">Impossible de charger les sections de produits.</p>';
+        console.error("Erreur lors du chargement des offres du jour:", error);
+        const errorMsg = '<p class="col-span-full text-center text-red-500">Impossible de charger les produits.</p>';
+        superdealsContainer.innerHTML = errorMsg;
+        bigsaveContainer.innerHTML = errorMsg;
     }
-}
-
-/**
- * Charge un lot de catégories de produits et les affiche.
- */
-function loadMoreCategories() {
-    const homepageContainer = document.querySelector('#homepage-sections');
-    const loadMoreContainer = document.querySelector('#load-more-container');
-
-    // Afficher un état de chargement sur le bouton
-    const loadMoreButton = document.getElementById('load-more-btn');
-    if (loadMoreButton) {
-        loadMoreButton.disabled = true;
-        loadMoreButton.innerHTML = '<div class="loader mx-auto"></div>';
-    }
-
-    // Déterminer le prochain lot de catégories à afficher
-    const categoriesToLoad = categoryDirectory.slice(renderedCategoriesCount, renderedCategoriesCount + CATEGORIES_PER_LOAD);
-
-    // Créer les promesses de fetch pour les produits des catégories à charger
-    const productFetchPromises = categoriesToLoad.map(category => {
-        if (category.ScriptURL) {
-            return fetch(`${category.ScriptURL}?action=getProducts`).then(res => res.json());
-        }
-        return Promise.resolve({ success: false });
-    });
-
-    // Exécuter les appels en parallèle
-    Promise.all(productFetchPromises).then(results => {
-        let newHTML = '';
-        results.forEach((productResult, index) => {
-            const category = categoriesToLoad[index];
-            let productsForCategory = [];
-            if (productResult.success && productResult.data) {
-                productsForCategory = productResult.data;
-                allLoadedProducts = allLoadedProducts.concat(productsForCategory); // Ajouter les nouveaux produits à la liste globale
-            }
-
-            const bgColor = (renderedCategoriesCount + index) % 2 === 0 ? 'bg-white' : 'bg-gray-100';
-
-            newHTML += `
-                <section class="py-12 ${bgColor}">
-                    <div class="container mx-auto px-4">
-                        <div class="flex items-center justify-between mb-8">
-                            <h3 class="text-3xl font-bold text-gray-800">${category.NomCategorie}</h3>
-                            <a href="categorie.html?id=${category.IDCategorie}&name=${encodeURIComponent(category.NomCategorie)}" class="text-gold hover:underline">Voir plus</a>
-                        </div>
-                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                            ${productsForCategory.slice(0, 4).map(product => renderProductCard(product)).join('')}
-                        </div>
-                    </div>
-                </section>
-            `;
-        });
-
-        homepageContainer.insertAdjacentHTML('beforeend', newHTML);
-        renderedCategoriesCount += categoriesToLoad.length;
-
-        // Mettre à jour ou supprimer le bouton "Charger plus"
-        if (renderedCategoriesCount >= categoryDirectory.length) {
-            loadMoreContainer.innerHTML = ''; // Toutes les catégories sont chargées
-        } else {
-            loadMoreContainer.innerHTML = `<button id="load-more-btn" onclick="loadMoreCategories()" class="bg-black text-white px-8 py-3 rounded-lg font-semibold hover:bg-gray-800 transition">Charger plus de catégories</button>`;
-        }
-    }).catch(error => {
-        console.error("Erreur lors du chargement de produits supplémentaires:", error);
-        if (loadMoreButton) {
-            loadMoreButton.disabled = false;
-            loadMoreButton.textContent = 'Erreur, réessayer';
-        }
-    });
 }
 
 /**
@@ -739,61 +694,27 @@ async function getFullCatalog() {
  * @returns {string} Le HTML de la carte.
  */
 function renderProductCard(product) { // This function remains synchronous as it only formats data
-  const price = product.PrixActuel || 0;
-  const oldPrice = product.PrixAncien || 0;
-  const discount = product['Réduction%'] || 0;
-  const stock = product.Stock || 0;
-  const brand = product.Marque || 'Marque Inconnue'; // Placeholder for brand
-  const description = product.Description || '';
-  const rating = product.NoteMoyenne || 0;
-  const reviewsCount = product.NombreAvis || 0;
+    const price = product.PrixActuel || 0;
+    const oldPrice = product.PrixAncien || 0;
+    const discount = product['Réduction%'] || 0;
+    const stock = product.Stock || 0;
 
-  let stockInfo;
-  if (stock > 10) {
-    stockInfo = `<span class="text-xs font-semibold text-green-600">En stock</span>`;
-  } else if (stock > 0) {
-    stockInfo = `<span class="text-xs font-semibold text-orange-500">Stock faible (${stock} restants)</span>`;
-  } else {
-    stockInfo = `<span class="text-xs font-semibold text-red-600">Épuisé</span>`;
-  }
-
-  return `
-    <div class="product-card bg-white rounded-lg shadow-md overflow-hidden flex flex-col justify-between">
-      <a href="produit.html?id=${product.IDProduit}" class="block">
+    // Pour la nouvelle carte de type AliExpress, on simplifie l'affichage
+    return `
+    <a href="produit.html?id=${product.IDProduit}" class="product-card bg-white rounded-lg shadow overflow-hidden block">
         <div class="relative">
-          <div class="h-48 bg-gray-200 flex items-center justify-center">
+            <div class="h-40 bg-gray-200 flex items-center justify-center">
             <img src="${product.ImageURL || CONFIG.DEFAULT_PRODUCT_IMAGE}" alt="${product.Nom}" class="h-full w-full object-cover" onerror="this.onerror=null;this.src='${CONFIG.DEFAULT_PRODUCT_IMAGE}';">
-          </div>
-          ${discount > 0 ? `<span class="discount-badge absolute top-2 left-2 bg-red-500 text-white px-2 py-1 rounded-full text-xs font-bold">-${discount}%</span>` : ''}
-        </div>
-        <div class="p-4">
-          <span class="text-xs text-gray-500">${brand}</span>
-          <h4 class="font-semibold text-gray-800 mt-1 truncate" title="${product.Nom}">${product.Nom}</h4>
-          <p class="text-sm text-gray-600 mt-1 h-10 overflow-hidden [display:-webkit-box] [-webkit-line-clamp:2] [-webkit-box-orient:vertical]" title="${description}">${description}</p>
-          
-          <div class="flex items-center justify-between mt-2">
-            <div class="flex items-center text-yellow-500">
-              <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path></svg>
-              <span class="text-xs text-gray-600 ml-1">${rating > 0 ? `${rating.toFixed(1)} (${reviewsCount} avis)` : 'Pas encore d\'avis'}</span>
             </div>
-            ${stockInfo}
-          </div>
-
-          <div class="flex items-baseline space-x-2 mt-3">
-            <span class="text-xl font-bold text-gold">${price.toLocaleString('fr-FR')} F CFA</span>
-            ${oldPrice > price ? `<span class="text-sm text-gray-500 line-through">${oldPrice.toLocaleString('fr-FR')} F CFA</span>` : ''}
-          </div>
+            ${discount > 0 ? `<span class="discount-badge absolute top-2 left-2 bg-red-500 text-white px-2 py-1 rounded-full text-xs font-bold">-${Math.round(discount)}%</span>` : ''}
         </div>
-      </a>
-      <div class="p-4 pt-0 flex items-center space-x-2">
-        <button class="w-full bg-black text-white py-2 rounded hover:bg-gray-800 transition text-sm font-semibold" ${stock === 0 ? 'disabled' : ''} onclick="addToCart(event, '${product.IDProduit}', '${product.Nom}', ${price}, '${product.ImageURL || CONFIG.DEFAULT_PRODUCT_IMAGE}')">
-          ${stock > 0 ? 'Ajouter au panier' : 'Épuisé'}
-        </button>
-        <button class="p-2 border rounded text-gray-500 hover:bg-gray-100 hover:text-red-500" title="Ajouter aux favoris"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 016.364 0L12 7.636l1.318-1.318a4.5 4.5 0 016.364 6.364L12 20.364l-7.682-7.682a4.5 4.5 0 010-6.364z"></path></svg></button>
-        <button class="p-2 border rounded text-gray-500 hover:bg-gray-100" title="Comparer"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path></svg></button>
-      </div>
-    </div>
-  `;
+        <div class="p-3">
+            <p class="text-sm text-gray-700 truncate" title="${product.Nom}">${product.Nom}</p>
+            <p class="font-bold text-lg mt-1">${price.toLocaleString('fr-FR')} F CFA</p>
+            ${oldPrice > price ? `<p class="text-xs text-gray-400 line-through">${oldPrice.toLocaleString('fr-FR')} F CFA</p>` : ''}
+        </div>
+    </a>
+    `;
 }
 
 // --- LOGIQUE D'AUTHENTIFICATION ---
