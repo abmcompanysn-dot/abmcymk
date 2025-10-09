@@ -61,6 +61,7 @@ async function initializeApp() {
     // Si nous sommes sur la page d'accueil (avec les nouvelles sections), on les remplit.
     if (document.getElementById('superdeals-products')) {
         renderDailyDealsHomepage();
+        startCountdown(); // Lancer le compte à rebours
     }
 
     // Si nous sommes sur la page compte, on l'initialise
@@ -95,6 +96,7 @@ function toggleMobileMenu() {
 async function populateCategoryMenu() {
     const menu = document.getElementById('mobileMenu');
     if (!menu) return; // S'assure que l'élément existe
+    const boutiquesMenu = document.getElementById('boutiques-menu');
     let menuHTML = ''; // Initialiser la variable ici
 
     try {
@@ -112,12 +114,17 @@ async function populateCategoryMenu() {
         // Ajout du lien vers les promotions
         menuHTML += '<a href="promotion.html" class="block px-4 py-2 text-sm text-red-600 font-semibold hover:bg-gray-100">Promotions</a>';
     } catch (error) {
-        console.error("Erreur lors du chargement des catégories:", error);
-        menu.innerHTML = '<p class="px-4 py-2 text-sm text-red-500">Erreur de chargement des catégories.</p>';
+        const errorHTML = '<p class="px-4 py-2 text-sm text-red-500">Erreur de chargement.</p>';
+        console.error("Erreur lors du chargement des menus de catégories:", error);
+        menu.innerHTML = errorHTML;
+        if (boutiquesMenu) boutiquesMenu.innerHTML = errorHTML;
         return; // Sortir en cas d'erreur
     }
 
     menu.innerHTML = menuHTML;
+    if (boutiquesMenu) {
+        boutiquesMenu.innerHTML = menuHTML; // On utilise le même contenu pour les deux menus
+    }
 }
 
 // --- LOGIQUE DU PANIER ---
@@ -599,45 +606,91 @@ async function processCheckout(event) {
  * NOUVEAU: Affiche les produits dans les sections "SuperDeals" et "Big Save" de la page d'accueil.
  */
 async function renderDailyDealsHomepage() {
-    const superdealsContainer = document.getElementById('superdeals-products');
-    const bigsaveContainer = document.getElementById('bigsave-products');
+    const superdealsContainer = document.getElementById('superdeals-products'); // Section SuperDeals
+    const boutiquesContainer = document.getElementById('boutiques-container'); // NOUVELLE Section Boutiques
 
-    if (!superdealsContainer || !bigsaveContainer) return;
+    if (!superdealsContainer || !boutiquesContainer) return;
 
     // Affiche un état de chargement simple
     const loadingHTML = Array(5).fill('<div class="bg-white rounded-lg shadow h-64 animate-pulse"></div>').join('');
     superdealsContainer.innerHTML = loadingHTML;
-    bigsaveContainer.innerHTML = loadingHTML;
+    boutiquesContainer.innerHTML = Array(6).fill('<div class="bg-white rounded-lg shadow h-48 animate-pulse"></div>').join('');
 
     try {
         const catalog = await getFullCatalog();
         const allProducts = catalog.data.products;
+        const allCategories = catalog.data.categories;
 
         // 1. Filtrer les produits pour "SuperDeals" (ceux avec une réduction)
         const superDealsProducts = allProducts
             .filter(p => p['Réduction%'] && parseFloat(p['Réduction%']) > 0)
             .slice(0, 5); // On prend les 5 premiers
 
-        // 2. Filtrer les produits pour "Big Save" (ceux qui ne sont PAS en réduction)
-        const bigSaveProducts = allProducts
-            .filter(p => !p['Réduction%'] || parseFloat(p['Réduction%']) === 0)
-            .slice(0, 5); // On prend les 5 premiers
-
-        // 3. Afficher les produits
+        // 2. Afficher les produits SuperDeals
         superdealsContainer.innerHTML = superDealsProducts.length > 0 
             ? superDealsProducts.map(product => renderProductCard(product)).join('')
             : '<p class="col-span-full text-center text-gray-500">Aucune offre spéciale pour le moment.</p>';
 
-        bigsaveContainer.innerHTML = bigSaveProducts.length > 0
-            ? bigSaveProducts.map(product => renderProductCard(product)).join('')
-            : '<p class="col-span-full text-center text-gray-500">Aucun produit à afficher.</p>';
+        // 3. Afficher les catégories dans la section "Nos Boutiques"
+        boutiquesContainer.innerHTML = allCategories.length > 0
+            ? allCategories.map(cat => `
+                <a href="categorie.html?id=${cat.IDCategorie}&name=${encodeURIComponent(cat.NomCategorie)}" class="product-card bg-white rounded-lg shadow overflow-hidden block text-center">
+                    <div class="h-32 bg-gray-100 flex items-center justify-center p-2">
+                        <img src="${cat.ImageURL || CONFIG.DEFAULT_PRODUCT_IMAGE}" alt="${cat.NomCategorie}" class="max-h-full max-w-full object-contain">
+                    </div>
+                    <div class="p-2">
+                        <p class="font-semibold text-sm text-gray-800 truncate">${cat.NomCategorie}</p>
+                    </div>
+                </a>
+            `).join('')
+            : '<p class="col-span-full text-center text-gray-500">Aucune boutique à afficher.</p>';
 
     } catch (error) {
         console.error("Erreur lors du chargement des offres du jour:", error);
         const errorMsg = '<p class="col-span-full text-center text-red-500">Impossible de charger les produits.</p>';
         superdealsContainer.innerHTML = errorMsg;
-        bigsaveContainer.innerHTML = errorMsg;
+        boutiquesContainer.innerHTML = errorMsg;
     }
+}
+
+/**
+ * NOUVEAU: Gère le compte à rebours pour la section "SuperDeals".
+ */
+function startCountdown() {
+    const countdownElement = document.getElementById('countdown');
+    if (!countdownElement) return;
+
+    const hoursEl = document.getElementById('hours');
+    const minutesEl = document.getElementById('minutes');
+    const secondsEl = document.getElementById('seconds');
+
+    // Définir la date de fin de la promotion. 
+    // Pour cet exemple, nous la fixons à 8 heures à partir du moment où la page est chargée.
+    // Dans une vraie application, cette date viendrait de votre backend.
+    const promotionEndDate = new Date();
+    promotionEndDate.setHours(promotionEndDate.getHours() + 8);
+
+    const timer = setInterval(() => {
+        const now = new Date().getTime();
+        const distance = promotionEndDate - now;
+
+        // Calculs pour les jours, heures, minutes et secondes
+        const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+        // Afficher le résultat dans les éléments
+        // `padStart(2, '0')` assure qu'il y a toujours deux chiffres (ex: 09 au lieu de 9)
+        hoursEl.textContent = String(hours).padStart(2, '0');
+        minutesEl.textContent = String(minutes).padStart(2, '0');
+        secondsEl.textContent = String(seconds).padStart(2, '0');
+
+        // Si le compte à rebours est terminé, afficher un message
+        if (distance < 0) {
+            clearInterval(timer);
+            countdownElement.innerHTML = '<span class="text-red-500 font-semibold">Offres terminées !</span>';
+        }
+    }, 1000); // Mettre à jour toutes les secondes
 }
 
 /**
