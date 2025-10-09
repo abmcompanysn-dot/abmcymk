@@ -737,8 +737,8 @@ function renderClothingDetails(product, variantsContainer, specsContainer) {
 
 function renderShoesDetails(product, variantsContainer, specsContainer) {
     // Options de variantes (ex: Pointures)
-    if (product.Pointures) {
-        variantsContainer.innerHTML += createVariantSelector('Pointure', product.Pointures.split(','));
+    if (product.Pointure) {
+        variantsContainer.innerHTML += createVariantSelector('Pointure', product.Pointure.split(','));
     }
     // Spécifications
     let specsHTML = '<ul>';
