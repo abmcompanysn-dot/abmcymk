@@ -718,9 +718,9 @@ async function getFullCatalog() {
     if (cachedItem) {
         const { data, timestamp } = JSON.parse(cachedItem);
         const now = new Date().getTime();
-        const oneMinute = 60 * 1000; // 1 minute en millisecondes
+        const fiveMinutes = 10 * 60 * 1000; // 10 minutes en millisecondes
 
-        if (now - timestamp < oneMinute) {
+        if (now - timestamp < fiveMinutes) {
             console.log("Utilisation du catalogue complet depuis le cache (valide).");
             return data;
         } else {
@@ -739,7 +739,7 @@ async function getFullCatalog() {
     const catalogData = { success: true, data: { categories, products } };
     const itemToCache = { data: catalogData, timestamp: new Date().getTime() };
     
-    console.log(`Catalogue complet assemblé (${products.length} produits). Mise en cache pour 1 minute.`);
+    console.log(`Catalogue complet assemblé (${products.length} produits). Mise en cache pour 5 minutes.`);
     sessionStorage.setItem('fullCatalog', JSON.stringify(itemToCache));
     return catalogData;
 }
@@ -752,9 +752,9 @@ async function getCategories() {
     if (cachedItem) {
         const { data, timestamp } = JSON.parse(cachedItem);
         const now = new Date().getTime();
-        const oneMinute = 60 * 1000;
+        const fiveMinutes = 5 * 60 * 1000;
 
-        if (now - timestamp < oneMinute) {
+        if (now - timestamp < fiveMinutes) {
             console.log("Utilisation des catégories depuis le cache (valide).");
             return data;
         }
@@ -780,9 +780,9 @@ async function getAllProducts() {
     if (cachedItem) {
         const { data, timestamp } = JSON.parse(cachedItem);
         const now = new Date().getTime();
-        const oneMinute = 60 * 1000;
+        const fiveMinutes = 5 * 60 * 1000;
 
-        if (now - timestamp < oneMinute) {
+        if (now - timestamp < fiveMinutes) {
             console.log("Utilisation des produits depuis le cache (valide).");
             return data;
         }
