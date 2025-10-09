@@ -710,11 +710,19 @@ function startCountdown() {
  * Met en cache les résultats pour améliorer les performances de navigation.
  */
 async function getFullCatalog() {
-    // Vérifier si le catalogue complet est déjà en cache
-    const cachedData = sessionStorage.getItem('fullCatalog');
-    if (cachedData) {
-        console.log("Utilisation du catalogue depuis sessionStorage.");
-        return JSON.parse(cachedData);
+    const cachedItem = sessionStorage.getItem('fullCatalog');
+    if (cachedItem) {
+        const { data, timestamp } = JSON.parse(cachedItem);
+        const now = new Date().getTime();
+        const oneMinute = 60 * 1000; // 1 minute en millisecondes
+
+        if (now - timestamp < oneMinute) {
+            console.log("Utilisation du catalogue complet depuis le cache (valide).");
+            return data;
+        } else {
+            console.log("Cache du catalogue complet expiré. Rechargement...");
+            sessionStorage.removeItem('fullCatalog'); // On nettoie l'ancien cache
+        }
     }
 
     // Si non, charger les deux en parallèle
@@ -724,20 +732,28 @@ async function getFullCatalog() {
         getAllProducts()
     ]);
 
-    const fullCatalog = { success: true, data: { categories, products } };
-    console.log(`Catalogue complet assemblé (${allLoadedProducts.length} produits). Mise en cache.`);
-    sessionStorage.setItem('fullCatalog', JSON.stringify(fullCatalog));
-    return fullCatalog;
+    const catalogData = { success: true, data: { categories, products } };
+    const itemToCache = { data: catalogData, timestamp: new Date().getTime() };
+    
+    console.log(`Catalogue complet assemblé (${products.length} produits). Mise en cache pour 1 minute.`);
+    sessionStorage.setItem('fullCatalog', JSON.stringify(itemToCache));
+    return catalogData;
 }
 
 /**
  * NOUVEAU: Récupère uniquement la liste des catégories.
  */
 async function getCategories() {
-    const cachedCategories = sessionStorage.getItem('categories');
-    if (cachedCategories) {
-        console.log("Utilisation des catégories depuis sessionStorage.");
-        return JSON.parse(cachedCategories);
+    const cachedItem = sessionStorage.getItem('categories');
+    if (cachedItem) {
+        const { data, timestamp } = JSON.parse(cachedItem);
+        const now = new Date().getTime();
+        const oneMinute = 60 * 1000;
+
+        if (now - timestamp < oneMinute) {
+            console.log("Utilisation des catégories depuis le cache (valide).");
+            return data;
+        }
     }
 
     console.log("Appel API pour les catégories...");
@@ -747,7 +763,8 @@ async function getCategories() {
     if (!result.success) throw new Error(result.error || "Impossible de charger la liste des catégories.");
     
     const categories = result.data.sort((a, b) => a.Ordre - b.Ordre);
-    sessionStorage.setItem('categories', JSON.stringify(categories));
+    const itemToCache = { data: categories, timestamp: new Date().getTime() };
+    sessionStorage.setItem('categories', JSON.stringify(itemToCache));
     return categories;
 }
 
@@ -755,10 +772,16 @@ async function getCategories() {
  * NOUVEAU: Récupère tous les produits de toutes les catégories.
  */
 async function getAllProducts() {
-    const cachedProducts = sessionStorage.getItem('allProducts');
-    if (cachedProducts) {
-        console.log("Utilisation des produits depuis sessionStorage.");
-        return JSON.parse(cachedProducts);
+    const cachedItem = sessionStorage.getItem('allProducts');
+    if (cachedItem) {
+        const { data, timestamp } = JSON.parse(cachedItem);
+        const now = new Date().getTime();
+        const oneMinute = 60 * 1000;
+
+        if (now - timestamp < oneMinute) {
+            console.log("Utilisation des produits depuis le cache (valide).");
+            return data;
+        }
     }
 
     const categories = await getCategories(); // S'assure d'avoir les URLs
@@ -768,7 +791,8 @@ async function getAllProducts() {
     );
     const productResults = await Promise.all(productFetchPromises);
     const allProducts = productResults.flatMap(res => (res.success && res.data) ? res.data : []);
-    sessionStorage.setItem('allProducts', JSON.stringify(allProducts));
+    const itemToCache = { data: allProducts, timestamp: new Date().getTime() };
+    sessionStorage.setItem('allProducts', JSON.stringify(itemToCache));
     return allProducts;
 }
 
