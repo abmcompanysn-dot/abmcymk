@@ -416,6 +416,14 @@ async function displayCategoryProducts() {
 
     nameDisplay.textContent = categoryName || "Catégorie";
 
+    // NOUVEAU: Afficher le squelette de chargement
+    const skeletonCard = `
+        <div class="bg-white rounded-lg shadow overflow-hidden animate-pulse">
+            <div class="bg-gray-200 h-40"></div>
+            <div class="p-3 space-y-2"><div class="bg-gray-200 h-4 rounded"></div><div class="bg-gray-200 h-6 w-1/2 rounded"></div></div>
+        </div>`;
+    resultsContainer.innerHTML = Array(8).fill(skeletonCard).join('');
+
     try {
         const catalog = await getFullCatalog();
         const allProducts = catalog.data.products;
@@ -455,6 +463,14 @@ async function displayPromotionProducts() {
     const resultsCount = document.getElementById('promotion-results-count');
 
     if (!resultsContainer) return;
+
+    // NOUVEAU: Afficher le squelette de chargement
+    const skeletonCard = `
+        <div class="bg-white rounded-lg shadow overflow-hidden animate-pulse">
+            <div class="bg-gray-200 h-40"></div>
+            <div class="p-3 space-y-2"><div class="bg-gray-200 h-4 rounded"></div><div class="bg-gray-200 h-6 w-1/2 rounded"></div></div>
+        </div>`;
+    resultsContainer.innerHTML = Array(8).fill(skeletonCard).join('');
 
     try {
         const catalog = await getFullCatalog();
@@ -728,7 +744,7 @@ function renderClothingDetails(product, variantsContainer, specsContainer) {
 
     // Spécifications
     let specsHTML = '<ul>';
-    if (product.Coupe) specsHTML += `<li class="py-2 border-b"><strong>Coupe:</strong> ${product.Coupe}</li>`;
+    if (product.Coupe) specsHTML += `<li class="flex justify-between py-2 border-b"><strong>Coupe:</strong> <span>${product.Coupe}</span></li>`;
     if (product.Matière) specsHTML += `<li class="py-2 border-b"><strong>Matière:</strong> ${product.Matière}</li>`;
     if (product.Saison) specsHTML += `<li class="py-2 border-b"><strong>Saison:</strong> ${product.Saison}</li>`;
     if (product.Style) specsHTML += `<li class="py-2 border-b"><strong>Style:</strong> ${product.Style}</li>`;
