@@ -615,6 +615,25 @@ function renderCategorySpecificDetails(product, variantsContainer, specsContaine
         case 'beauté & soins':
             renderBeautyDetails(product, variantsContainer, specsContainer);
             break;
+        // NOUVEAU: Ajout des nouvelles catégories
+        case 'literie':
+            renderBeddingDetails(product, variantsContainer, specsContainer);
+            break;
+        case 'luminaires':
+            renderLightingDetails(product, variantsContainer, specsContainer);
+            break;
+        case 'vêtements bébé':
+            renderBabyClothesDetails(product, variantsContainer, specsContainer);
+            break;
+        case 'bagages':
+            renderLuggageDetails(product, variantsContainer, specsContainer);
+            break;
+        case 'photographie':
+            renderPhotographyDetails(product, variantsContainer, specsContainer);
+            break;
+        case 'fournitures scolaires':
+            renderSchoolSuppliesDetails(product, variantsContainer, specsContainer);
+            break;
         // Ajoutez d'autres 'case' pour chaque catégorie que vous voulez personnaliser
         // case 'livres':
         //     renderBooksDetails(product, specsContainer);
