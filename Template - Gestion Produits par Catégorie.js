@@ -115,11 +115,12 @@ function onOpen() {
   
   // Crée un sous-menu dynamique pour l'initialisation
   const initMenu = ui.createMenu('Initialiser la feuille comme...');
-  Object.keys(CATEGORY_CONFIG).sort().forEach(categoryName => {
-    // Crée une fonction unique pour chaque item de menu
-    const functionName = `initAs_${categoryName.replace(/[^a-zA-Z0-9]/g, '')}`;
-    this[functionName] = () => setupSheet(categoryName);
-    initMenu.addItem(categoryName, functionName);
+  // NOUVELLE APPROCHE: Utiliser une seule fonction générique
+  // On crée un item de menu pour chaque catégorie, mais tous appellent la même fonction `setupSheet`.
+  // Malheureusement, les menus ne peuvent pas passer de paramètres directement.
+  // La solution est de créer une fonction "wrapper" pour chaque catégorie.
+  Object.keys(CATEGORY_CONFIG).sort().forEach(catName => {
+    initMenu.addItem(catName, `initSheetFor_${catName.replace(/[^a-zA-Z0-9]/g, '')}`);
   });
   
   menu.addSubMenu(initMenu)
@@ -130,6 +131,15 @@ function onOpen() {
       .addItem('Ajouter un produit', 'showProductAddUI')
       .addToUi();
 }
+
+// NOUVEAU: Créer dynamiquement les fonctions "wrapper" qui appellent setupSheet
+// avec le bon nom de catégorie. C'est la méthode la plus robuste pour Google Apps Script.
+Object.keys(CATEGORY_CONFIG).forEach(catName => {
+  const functionName = `initSheetFor_${catName.replace(/[^a-zA-Z0-9]/g, '')}`;
+  this[functionName] = function() {
+    setupSheet(catName);
+  };
+});
 
 function doPost(e) {
   try {
