@@ -175,11 +175,13 @@ function doGet(e) {
     }
     if (action === 'getProducts') {
       const products = sheetToJSON(SpreadsheetApp.getActiveSpreadsheet().getSheets()[0]);
+      Logger.log("Données des produits à envoyer : " + JSON.stringify(products, null, 2)); // Log pour vérifier les données
       const responseData = { success: true, data: products };
       return createJsonResponse(responseData);
     }
     return createJsonResponse({ success: false, error: "Action GET non reconnue." });
   } catch (error) {
+    Logger.log("ERREUR dans la fonction doGet : " + error.toString()); // Log en cas d'erreur
     return createJsonResponse({ success: false, error: error.message });
   }
 }
