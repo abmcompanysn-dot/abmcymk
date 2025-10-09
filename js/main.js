@@ -373,11 +373,15 @@ async function displayCategoryProducts() {
     try {
         const catalog = await getFullCatalog();
         const allProducts = catalog.data.products;
-        // CORRECTION: Filtrer les produits par l'ID de la catégorie, qui est plus fiable que le nom.
+        const allCategories = catalog.data.categories;
+
+        // CORRECTION: Le produit n'a pas d'IDCategorie, mais un nom de catégorie.
+        // On trouve la catégorie correspondante à l'ID de l'URL pour obtenir son nom.
+        const targetCategory = allCategories.find(cat => cat.IDCategorie == categoryId);
+        if (!targetCategory) throw new Error("Catégorie introuvable.");
+
         const filteredProducts = allProducts.filter(product => {
-            // La propriété IDCategorie doit exister sur vos objets produits.
-            // Si elle a un autre nom (ex: 'ID_Categorie'), il faut l'ajuster ici.
-            return product.IDCategorie == categoryId;
+            return product.Catégorie === targetCategory.NomCategorie;
         });
 
         resultsCount.textContent = `${filteredProducts.length} produit(s) dans cette catégorie.`;
