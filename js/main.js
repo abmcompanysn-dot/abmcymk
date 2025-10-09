@@ -76,9 +76,6 @@ async function initializeApp() {
         document.getElementById('login-form').addEventListener('submit', (e) => handleAuthForm(e, 'login'));
         document.getElementById('register-form').addEventListener('submit', (e) => handleAuthForm(e, 'register'));
     }
-
-    // NOUVEAU: Activer le chargement progressif des images sur tout le site
-    initializeLazyLoading();
 }
 
 /**
@@ -550,8 +547,8 @@ async function loadProductPage() { // Make it async
         // Remplir les données
         nameEl.textContent = product.Nom;
         descriptionEl.textContent = product.Description;
-        // NOUVEAU: Préparer pour le lazy loading
-        mainImage.dataset.src = product.ImageURL || CONFIG.DEFAULT_PRODUCT_IMAGE;
+        // CORRECTION: Charger l'image immédiatement
+        mainImage.src = product.ImageURL || CONFIG.DEFAULT_PRODUCT_IMAGE;
         mainImage.alt = product.Nom;
 
         // Gérer l'affichage du prix
@@ -578,7 +575,7 @@ async function loadProductPage() { // Make it async
 
         thumbnailsContainer.innerHTML = galleryImages.map((imgUrl, index) => `
             <div class="border-2 ${index === 0 ? 'border-gold' : 'border-transparent'} rounded-lg cursor-pointer overflow-hidden thumbnail-item">
-                <img data-src="${imgUrl}" alt="Miniature ${index + 1}" class="lazy-load h-full w-full object-cover" onclick="changeMainImage('${imgUrl}')">
+                <img src="${imgUrl}" alt="Miniature ${index + 1}" class="h-full w-full object-cover" onclick="changeMainImage('${imgUrl}')">
             </div>
         `).join('');
 
@@ -1108,7 +1105,7 @@ function renderProductCard(product) { // This function remains synchronous as it
     <a href="produit.html?id=${product.IDProduit}" class="product-card bg-white rounded-lg shadow overflow-hidden block">
         <div class="relative">
             <div class="h-40 bg-gray-200 flex items-center justify-center">
-            <img data-src="${product.ImageURL || CONFIG.DEFAULT_PRODUCT_IMAGE}" alt="${product.Nom}" class="lazy-load h-full w-full object-cover" onerror="this.onerror=null;this.src='${CONFIG.DEFAULT_PRODUCT_IMAGE}';">
+            <img src="${product.ImageURL || CONFIG.DEFAULT_PRODUCT_IMAGE}" alt="${product.Nom}" class="h-full w-full object-cover" onerror="this.onerror=null;this.src='${CONFIG.DEFAULT_PRODUCT_IMAGE}';">
             </div>
             ${discount > 0 ? `<span class="discount-badge absolute top-2 left-2 bg-red-500 text-white px-2 py-1 rounded-full text-xs font-bold">-${Math.round(discount)}%</span>` : ''}
         </div>
@@ -1138,65 +1135,35 @@ async function renderHomepageCategorySections() {
         </div>`;
     container.innerHTML = skeletonSection;
 
-    // NOUVEAU: Utiliser setTimeout pour garantir l'affichage du squelette
-    setTimeout(async () => {
-        try {
-            const catalog = await getFullCatalog();
-            const categories = catalog.data.categories;
-            const products = catalog.data.products;
+    try {
+        const catalog = await getFullCatalog();
+        const categories = catalog.data.categories;
+        const products = catalog.data.products;
 
-            let allSectionsHTML = '';
+        let allSectionsHTML = '';
 
-            categories.forEach(category => {
-                const categoryProducts = products.filter(p => p.Catégorie === category.NomCategorie).slice(0, 12); // Limite à 12 produits par section
-                if (categoryProducts.length === 0) return;
+        categories.forEach(category => {
+            const categoryProducts = products.filter(p => p.Catégorie === category.NomCategorie).slice(0, 12); // Limite à 12 produits par section
+            if (categoryProducts.length === 0) return;
 
-                allSectionsHTML += `
-                    <section>
-                        <div class="flex justify-between items-center mb-4">
-                            <h3 class="text-2xl font-bold text-gray-800">${category.NomCategorie}</h3>
-                            <a href="categorie.html?id=${category.IDCategorie}&name=${encodeURIComponent(category.NomCategorie)}" class="text-sm font-semibold text-blue-600 hover:underline">Voir plus</a>
-                        </div>
-                        <div class="horizontal-scroll-container flex space-x-4 overflow-x-auto pb-4">
-                            ${categoryProducts.map(p => `<div class="flex-shrink-0 w-1/2 md:w-1/3 lg:w-1/6">${renderProductCard(p)}</div>`).join('')}
-                        </div>
-                    </section>
-                `;
-            });
-
-            container.innerHTML = allSectionsHTML;
-
-        } catch (error) {
-            console.error("Erreur lors de l'affichage des sections par catégorie:", error);
-            container.innerHTML = '<p class="text-center text-red-500">Impossible de charger les sections de produits.</p>';
-        }
-    }, 0);
-}
-
-/**
- * NOUVEAU: Initialise le chargement progressif (lazy loading) des images.
- */
-function initializeLazyLoading() {
-    const lazyImages = document.querySelectorAll('img.lazy-load');
-
-    if ("IntersectionObserver" in window) {
-        const imageObserver = new IntersectionObserver((entries, observer) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    const image = entry.target;
-                    image.src = image.dataset.src;
-                    image.classList.remove('lazy-load');
-                    imageObserver.unobserve(image);
-                }
-            });
+            allSectionsHTML += `
+                <section>
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-2xl font-bold text-gray-800">${category.NomCategorie}</h3>
+                        <a href="categorie.html?id=${category.IDCategorie}&name=${encodeURIComponent(category.NomCategorie)}" class="text-sm font-semibold text-blue-600 hover:underline">Voir plus</a>
+                    </div>
+                    <div class="horizontal-scroll-container flex space-x-4 overflow-x-auto pb-4">
+                        ${categoryProducts.map(p => `<div class="flex-shrink-0 w-1/2 md:w-1/3 lg:w-1/6">${renderProductCard(p)}</div>`).join('')}
+                    </div>
+                </section>
+            `;
         });
 
-        lazyImages.forEach(image => {
-            imageObserver.observe(image);
-        });
-    } else {
-        // Fallback pour les très vieux navigateurs
-        lazyImages.forEach(image => image.src = image.dataset.src);
+        container.innerHTML = allSectionsHTML;
+
+    } catch (error) {
+        console.error("Erreur lors de l'affichage des sections par catégorie:", error);
+        container.innerHTML = '<p class="text-center text-red-500">Impossible de charger les sections de produits.</p>';
     }
 }
 // --- LOGIQUE D'AUTHENTIFICATION ---
