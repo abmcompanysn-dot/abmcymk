@@ -373,12 +373,11 @@ async function displayCategoryProducts() {
     try {
         const catalog = await getFullCatalog();
         const allProducts = catalog.data.products;
-        // Filtrer les produits par l'ID de la catégorie
-        const normalizedCategoryName = categoryName.trim().toLowerCase();
+        // CORRECTION: Filtrer les produits par l'ID de la catégorie, qui est plus fiable que le nom.
         const filteredProducts = allProducts.filter(product => {
-            // Rendre la comparaison insensible à la casse et aux espaces
-            const productCategory = product.Catégorie || '';
-            return productCategory.trim().toLowerCase() === normalizedCategoryName;
+            // La propriété IDCategorie doit exister sur vos objets produits.
+            // Si elle a un autre nom (ex: 'ID_Categorie'), il faut l'ajuster ici.
+            return product.IDCategorie == categoryId;
         });
 
         resultsCount.textContent = `${filteredProducts.length} produit(s) dans cette catégorie.`;
