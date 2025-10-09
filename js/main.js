@@ -723,14 +723,16 @@ function renderCategorySpecificDetails(product, variantsContainer, specsContaine
 
 function renderClothingDetails(product, variantsContainer, specsContainer) {
     // Options de variantes (ex: Tailles)
-    if (product.Tailles) {
-        variantsContainer.innerHTML += createVariantSelector('Taille', product.Tailles.split(','));
-    }
+    if (product.Taille) variantsContainer.innerHTML += createVariantSelector('Taille', product.Taille.split(','));
+    if (product.Couleur) variantsContainer.innerHTML += createVariantSelector('Couleur', product.Couleur.split(','));
+
     // Spécifications
     let specsHTML = '<ul>';
-    if (product.Coupes) specsHTML += `<li class="py-2 border-b"><strong>Coupe :</strong> ${product.Coupes}</li>`;
-    if (product.Matières) specsHTML += `<li class="py-2 border-b"><strong>Matière :</strong> ${product.Matières}</li>`;
-    if (product.Saisons) specsHTML += `<li class="py-2"><strong>Saison :</strong> ${product.Saisons}</li>`;
+    if (product.Coupe) specsHTML += `<li class="py-2 border-b"><strong>Coupe:</strong> ${product.Coupe}</li>`;
+    if (product.Matière) specsHTML += `<li class="py-2 border-b"><strong>Matière:</strong> ${product.Matière}</li>`;
+    if (product.Saison) specsHTML += `<li class="py-2 border-b"><strong>Saison:</strong> ${product.Saison}</li>`;
+    if (product.Style) specsHTML += `<li class="py-2 border-b"><strong>Style:</strong> ${product.Style}</li>`;
+    if (product.Genre) specsHTML += `<li class="py-2"><strong>Genre:</strong> ${product.Genre}</li>`;
     specsHTML += '</ul>';
     specsContainer.innerHTML = specsHTML;
 }
@@ -740,22 +742,32 @@ function renderShoesDetails(product, variantsContainer, specsContainer) {
     if (product.Pointure) {
         variantsContainer.innerHTML += createVariantSelector('Pointure', product.Pointure.split(','));
     }
+    if (product.Couleur) {
+        variantsContainer.innerHTML += createVariantSelector('Couleur', product.Couleur.split(','));
+    }
     // Spécifications
     let specsHTML = '<ul>';
-    if (product.Usages) specsHTML += `<li class="py-2"><strong>Usage recommandé :</strong> ${product.Usages}</li>`;
+    if (product.Matière) specsHTML += `<li class="py-2 border-b"><strong>Matière:</strong> ${product.Matière}</li>`;
+    if (product.Type) specsHTML += `<li class="py-2 border-b"><strong>Type:</strong> ${product.Type}</li>`;
+    if (product.Genre) specsHTML += `<li class="py-2 border-b"><strong>Genre:</strong> ${product.Genre}</li>`;
+    if (product.Semelle) specsHTML += `<li class="py-2 border-b"><strong>Semelle:</strong> ${product.Semelle}</li>`;
+    if (product.Usage) specsHTML += `<li class="py-2"><strong>Usage:</strong> ${product.Usage}</li>`;
     specsHTML += '</ul>';
     specsContainer.innerHTML = specsHTML;
 }
 
 function renderElectronicsDetails(product, variantsContainer, specsContainer) {
     // Options de variantes (ex: Capacités)
-    if (product.Capacités) {
-        variantsContainer.innerHTML += createVariantSelector('Capacité', product.Capacités.split(','));
+    if (product.Capacité) {
+        variantsContainer.innerHTML += createVariantSelector('Capacité', product.Capacité.split(','));
     }
     // Spécifications
     let specsHTML = '<ul>';
-    if (product.Connectivités) specsHTML += `<li class="py-2 border-b"><strong>Connectivité :</strong> ${product.Connectivités}</li>`;
-    if (product.Garanties) specsHTML += `<li class="py-2"><strong>Garantie :</strong> ${product.Garanties}</li>`;
+    if (product.Marque) specsHTML += `<li class="py-2 border-b"><strong>Marque:</strong> ${product.Marque}</li>`;
+    if (product.Modèle) specsHTML += `<li class="py-2 border-b"><strong>Modèle:</strong> ${product.Modèle}</li>`;
+    if (product.Connectivité) specsHTML += `<li class="py-2 border-b"><strong>Connectivité:</strong> ${product.Connectivité}</li>`;
+    if (product.Compatibilité) specsHTML += `<li class="py-2 border-b"><strong>Compatibilité:</strong> ${product.Compatibilité}</li>`;
+    if (product.Garantie) specsHTML += `<li class="py-2"><strong>Garantie:</strong> ${product.Garantie}</li>`;
     specsHTML += '</ul>';
     specsContainer.innerHTML = specsHTML;
 }
