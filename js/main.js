@@ -588,7 +588,7 @@ async function loadProductPage() { // Make it async
         addToCartButton.disabled = (product.Stock <= 0 && !hasVariants);
 
         // NOUVEAU: Activer le zoom sur l'image principale
-        activateImageZoom("main-product-image", "zoom-result");
+        activateInternalZoom("image-zoom-wrapper");
 
     } catch (error) {
         console.error("Erreur de chargement du produit:", error);
@@ -603,72 +603,39 @@ async function loadProductPage() { // Make it async
  */
 function changeMainImage(newImageUrl) {
     document.getElementById('main-product-image').src = newImageUrl;
-    // Réactiver le zoom sur la nouvelle image
-    activateImageZoom("main-product-image", "zoom-result");
+    // Le zoom est attaché au conteneur, il fonctionnera automatiquement avec la nouvelle image.
 }
 
 /**
- * NOUVEAU: Active l'effet de zoom sur une image.
- * @param {string} imgID L'ID de l'image sur laquelle zoomer.
- * @param {string} resultID L'ID du conteneur pour afficher le résultat.
+ * NOUVEAU: Active l'effet de zoom interne sur une image.
+ * @param {string} wrapperId L'ID du conteneur qui englobe l'image.
  */
-function activateImageZoom(imgID, resultID) {
-  const img = document.getElementById(imgID);
-  const result = document.getElementById(resultID);
-  const container = img.parentElement;
+function activateInternalZoom(wrapperId) {
+    const wrapper = document.getElementById(wrapperId);
+    if (!wrapper) return;
 
-  // Supprimer l'ancienne loupe si elle existe
-  const oldLens = container.querySelector(".img-zoom-lens");
-  if (oldLens) {
-    container.removeChild(oldLens);
-  }
+    const img = wrapper.querySelector('img');
+    if (!img) return;
 
-  // Créer la loupe
-  const lens = document.createElement("DIV");
-  lens.setAttribute("class", "img-zoom-lens");
-  container.insertBefore(lens, img);
+    function handleMouseMove(e) {
+        const { left, top, width, height } = wrapper.getBoundingClientRect();
+        const x = ((e.clientX - left) / width) * 100;
+        const y = ((e.clientY - top) / height) * 100;
+        img.style.transformOrigin = `${x}% ${y}%`;
+    }
 
-  // Calculer le ratio entre le résultat et la loupe
-  const cx = result.offsetWidth / lens.offsetWidth;
-  const cy = result.offsetHeight / lens.offsetHeight;
+    function handleMouseEnter() {
+        img.style.transform = 'scale(2)'; // Ou 1.5, 2.5, etc. selon l'intensité de zoom souhaitée
+    }
 
-  // Définir l'image de fond pour le résultat et sa taille
-  result.style.backgroundImage = "url('" + img.src + "')";
-  result.style.backgroundSize = (img.width * cx) + "px " + (img.height * cy) + "px";
+    function handleMouseLeave() {
+        img.style.transform = 'scale(1)';
+        img.style.transformOrigin = 'center center';
+    }
 
-  // Ajouter les écouteurs d'événements
-  lens.addEventListener("mousemove", moveLens);
-  img.addEventListener("mousemove", moveLens);
-  container.addEventListener("mouseenter", () => { result.style.display = "block"; });
-  container.addEventListener("mouseleave", () => { result.style.display = "none"; });
-
-  function moveLens(e) {
-    e.preventDefault();
-    // Obtenir la position du curseur
-    const pos = getCursorPos(e);
-    // Calculer la position de la loupe
-    let x = pos.x - (lens.offsetWidth / 2);
-    let y = pos.y - (lens.offsetHeight / 2);
-    // Empêcher la loupe de sortir des bords de l'image
-    if (x > img.width - lens.offsetWidth) {x = img.width - lens.offsetWidth;}
-    if (x < 0) {x = 0;}
-    if (y > img.height - lens.offsetHeight) {y = img.height - lens.offsetHeight;}
-    if (y < 0) {y = 0;}
-    // Appliquer la position à la loupe
-    lens.style.left = x + "px";
-    lens.style.top = y + "px";
-    // Afficher ce que la loupe "voit"
-    result.style.backgroundPosition = "-" + (x * cx) + "px -" + (y * cy) + "px";
-  }
-
-  function getCursorPos(e) {
-    let a, x = 0, y = 0;
-    e = e || window.event;
-    a = img.getBoundingClientRect();
-    x = e.pageX - a.left - window.pageXOffset;
-    y = e.pageY - a.top - window.pageYOffset;
-    return {x : x, y : y};
-  }
+    wrapper.addEventListener('mousemove', handleMouseMove);
+    wrapper.addEventListener('mouseenter', handleMouseEnter);
+    wrapper.addEventListener('mouseleave', handleMouseLeave);
 }
 
 /**

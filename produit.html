@@ -19,10 +19,11 @@
         body { padding-bottom: 80px; }
         .variant-btn { transition: all 0.2s ease; }
         .variant-btn.selected { border-color: var(--gold-color); background-color: #fefce8; }
-        /* NOUVEAU: Styles pour le zoom sur l'image */
-        .img-zoom-container { position: relative; }
-        .img-zoom-lens { position: absolute; border: 1px solid #d4d4d4; width: 100px; height: 100px; background-color: rgba(255,255,255,0.4); cursor: crosshair; z-index: 10; }
-        .img-zoom-result { position: absolute; border: 1px solid #d4d4d4; width: 450px; height: 450px; z-index: 30; display: none; background-repeat: no-repeat; left: 100%; top: 0; margin-left: 1rem; }
+        /* NOUVEAU: Styles pour le zoom interne */
+        #image-zoom-wrapper { cursor: crosshair; }
+        #image-zoom-wrapper > img {
+            transition: transform 0.2s ease-out;
+        }
     </style>
 </head>
 <body class="bg-gray-50 font-montserrat">
@@ -61,12 +62,10 @@
     <main class="container mx-auto px-4 py-12">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-12 items-start">
             <!-- Galerie d'images -->
-            <div id="product-gallery" class="relative">
-                <div class="img-zoom-container bg-gray-200 rounded-lg h-96 flex items-center justify-center mb-4 animate-pulse">
-                    <img id="main-product-image" src="https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png" alt="Image principale du produit" class="max-h-full max-w-full object-contain">
+            <div id="product-gallery">
+                <div id="image-zoom-wrapper" class="relative w-full h-96 bg-gray-200 rounded-lg overflow-hidden shadow-inner mb-4 animate-pulse">
+                    <img id="main-product-image" src="https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png" alt="Image principale du produit" class="absolute top-0 left-0 w-full h-full object-contain">
                 </div>
-                <!-- NOUVEAU: Conteneur pour le résultat du zoom -->
-                <div id="zoom-result" class="img-zoom-result hidden lg:block shadow-lg rounded-md"></div>
                 <div id="product-thumbnails" class="grid grid-cols-5 gap-2">
                     <!-- Les miniatures seront injectées ici par JS -->
                 </div>
