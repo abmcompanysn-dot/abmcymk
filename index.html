@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="fr">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,10 +8,12 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
-        body {
-            box-sizing: border-box;
-        }
-        .product-card:hover {
+        body { box-sizing: border-box; }
+        .dropdown:hover .dropdown-menu { display: block; }
+        .dropdown-menu { display: none; }
+        .product-card:hover { transform: translateY(-4px); transition: transform 0.3s ease; }
+        .discount-badge { animation: pulse 2s infinite; }
+        /* .product-card:hover {
             transform: translateY(-4px);
             transition: transform 0.3s ease;
         }
@@ -20,7 +23,7 @@
         @keyframes pulse {
             0%, 100% { opacity: 1; }
             50% { opacity: 0.8; }
-        }
+        } */
         :root {
             --gold-color: #D4AF37; /* Or */
             --dark-color: #1a1a1a; /* Noir doux */
@@ -149,7 +152,7 @@
                 </a>
                 <a href="panier.html" class="flex flex-col items-center text-gray-600 hover:text-gold transition relative">
                     <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L4.5 8M7 13h10l4-8H5.4M7 13L4.5 8M12 13h8.5l-4 8H8l-4-8h8.5z"></path></svg>
-                    <span id="bottomNavCartBadge" class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center hidden">0</span>
+                    <span id="bottomNavCartBadge" class="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center hidden">0</span>
                     <span class="text-xs">Panier</span>
                 </a>
             </div>
@@ -164,4 +167,5 @@
     </script>
 
 </body>
+
 </html>
