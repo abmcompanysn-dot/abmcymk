@@ -427,36 +427,35 @@ async function displayCategoryProducts() {
         </div>`;
     resultsContainer.innerHTML = Array(8).fill(skeletonCard).join('');
 
-    // NOUVEAU: Utiliser setTimeout pour garantir l'affichage du squelette
-    setTimeout(async () => {
-        try {
-            const catalog = await getFullCatalog();
-            const allProducts = catalog.data.products;
-            const allCategories = catalog.data.categories;
+    try {
+        const catalog = await getFullCatalog();
+        const allProducts = catalog.data.products;
+        const allCategories = catalog.data.categories;
 
-            const targetCategory = allCategories.find(cat => cat.IDCategorie == categoryId);
-            if (!targetCategory) throw new Error("Catégorie introuvable.");
+        // CORRECTION: Le produit n'a pas d'IDCategorie, mais un nom de catégorie.
+        // On trouve la catégorie correspondante à l'ID de l'URL pour obtenir son nom.
+        const targetCategory = allCategories.find(cat => cat.IDCategorie == categoryId);
+        if (!targetCategory) throw new Error("Catégorie introuvable.");
 
-            const filteredProducts = allProducts.filter(product => {
-                return product.Catégorie === targetCategory.NomCategorie;
-            });
+        const filteredProducts = allProducts.filter(product => {
+            return product.Catégorie === targetCategory.NomCategorie;
+        });
 
-            resultsCount.textContent = `${filteredProducts.length} produit(s) dans cette catégorie.`;
+        resultsCount.textContent = `${filteredProducts.length} produit(s) dans cette catégorie.`;
 
-            if (filteredProducts.length === 0) {
-                resultsContainer.innerHTML = `<p class="col-span-full text-center text-gray-500">Aucun produit dans cette catégorie pour le moment.</p>`;
-                return;
-            }
-
-            const resultsHTML = filteredProducts.map(product => renderProductCard(product)).join('');
-            resultsContainer.innerHTML = resultsHTML;
-
-        } catch (error) {
-            console.error("Erreur lors de l'affichage des produits de la catégorie:", error);
-            resultsCount.textContent = `Erreur lors du chargement des produits.`;
-            resultsContainer.innerHTML = `<p class="col-span-full text-center text-red-500">Impossible de charger les produits.</p>`;
+        if (filteredProducts.length === 0) {
+            resultsContainer.innerHTML = `<p class="col-span-full text-center text-gray-500">Aucun produit dans cette catégorie pour le moment.</p>`;
+            return;
         }
-    }, 0);
+
+        const resultsHTML = filteredProducts.map(product => renderProductCard(product)).join('');
+        resultsContainer.innerHTML = resultsHTML;
+
+    } catch (error) {
+        console.error("Erreur lors de l'affichage des produits de la catégorie:", error);
+        resultsCount.textContent = `Erreur lors du chargement des produits.`;
+        resultsContainer.innerHTML = `<p class="col-span-full text-center text-red-500">Impossible de charger les produits.</p>`;
+    }
 }
 
 /**
@@ -476,30 +475,27 @@ async function displayPromotionProducts() {
         </div>`;
     resultsContainer.innerHTML = Array(8).fill(skeletonCard).join('');
 
-    // NOUVEAU: Utiliser setTimeout pour garantir l'affichage du squelette
-    setTimeout(async () => {
-        try {
-            const catalog = await getFullCatalog();
-            const allProducts = catalog.data.products;
-            // Filtrer les produits qui ont une réduction
-            const discountedProducts = allProducts.filter(product => product['Réduction%'] && parseFloat(product['Réduction%']) > 0);
+    try {
+        const catalog = await getFullCatalog();
+        const allProducts = catalog.data.products;
+        // Filtrer les produits qui ont une réduction
+        const discountedProducts = allProducts.filter(product => product['Réduction%'] && parseFloat(product['Réduction%']) > 0);
 
-            resultsCount.textContent = `${discountedProducts.length} produit(s) en promotion.`;
+        resultsCount.textContent = `${discountedProducts.length} produit(s) en promotion.`;
 
-            if (discountedProducts.length === 0) {
-                resultsContainer.innerHTML = `<p class="col-span-full text-center text-gray-500">Aucun produit en promotion pour le moment.</p>`;
-                return;
-            }
-
-            const resultsHTML = discountedProducts.map(product => renderProductCard(product)).join('');
-            resultsContainer.innerHTML = resultsHTML;
-
-        } catch (error) {
-            console.error("Erreur lors de l'affichage des promotions:", error);
-            resultsCount.textContent = `Erreur lors du chargement des promotions.`;
-            resultsContainer.innerHTML = `<p class="col-span-full text-center text-red-500">Impossible de charger les promotions.</p>`;
+        if (discountedProducts.length === 0) {
+            resultsContainer.innerHTML = `<p class="col-span-full text-center text-gray-500">Aucun produit en promotion pour le moment.</p>`;
+            return;
         }
-    }, 0);
+
+        const resultsHTML = discountedProducts.map(product => renderProductCard(product)).join('');
+        resultsContainer.innerHTML = resultsHTML;
+
+    } catch (error) {
+        console.error("Erreur lors de l'affichage des promotions:", error);
+        resultsCount.textContent = `Erreur lors du chargement des promotions.`;
+        resultsContainer.innerHTML = `<p class="col-span-full text-center text-red-500">Impossible de charger les promotions.</p>`;
+    }
 }
 
 // --- LOGIQUE DE LA PAGE PRODUIT ---
@@ -718,11 +714,11 @@ function renderClothingDetails(product, variantsContainer, specsContainer) {
 
     // Spécifications
     let specsHTML = '<ul>';
-    if (product.Coupe) specsHTML += `<li class="flex justify-between py-2 border-b"><span>Coupe</span> <span class="font-semibold text-gray-800">${product.Coupe}</span></li>`;
-    if (product.Matière) specsHTML += `<li class="flex justify-between py-2 border-b"><span>Matière</span> <span class="font-semibold text-gray-800">${product.Matière}</span></li>`;
-    if (product.Saison) specsHTML += `<li class="flex justify-between py-2 border-b"><span>Saison</span> <span class="font-semibold text-gray-800">${product.Saison}</span></li>`;
-    if (product.Style) specsHTML += `<li class="flex justify-between py-2 border-b"><span>Style</span> <span class="font-semibold text-gray-800">${product.Style}</span></li>`;
-    if (product.Genre) specsHTML += `<li class="flex justify-between py-2"><span>Genre</span> <span class="font-semibold text-gray-800">${product.Genre}</span></li>`;
+    if (product.Coupe) specsHTML += `<li class="flex justify-between py-2 border-b"><span>Coupe:</span> <span class="font-semibold text-gray-800">${product.Coupe}</span></li>`;
+    if (product.Matière) specsHTML += `<li class="flex justify-between py-2 border-b"><span>Matière:</span> <span class="font-semibold text-gray-800">${product.Matière}</span></li>`;
+    if (product.Saison) specsHTML += `<li class="flex justify-between py-2 border-b"><span>Saison:</span> <span class="font-semibold text-gray-800">${product.Saison}</span></li>`;
+    if (product.Style) specsHTML += `<li class="flex justify-between py-2 border-b"><span>Style:</span> <span class="font-semibold text-gray-800">${product.Style}</span></li>`;
+    if (product.Genre) specsHTML += `<li class="flex justify-between py-2"><span>Genre:</span> <span class="font-semibold text-gray-800">${product.Genre}</span></li>`;
     specsHTML += '</ul>';
     specsContainer.innerHTML = specsHTML;
 }
@@ -737,11 +733,11 @@ function renderShoesDetails(product, variantsContainer, specsContainer) {
     }
     // Spécifications
     let specsHTML = '<ul>';
-    if (product.Matière) specsHTML += `<li class="flex justify-between py-2 border-b"><span>Matière</span> <span class="font-semibold text-gray-800">${product.Matière}</span></li>`;
-    if (product.Type) specsHTML += `<li class="flex justify-between py-2 border-b"><span>Type</span> <span class="font-semibold text-gray-800">${product.Type}</span></li>`;
-    if (product.Genre) specsHTML += `<li class="flex justify-between py-2 border-b"><span>Genre</span> <span class="font-semibold text-gray-800">${product.Genre}</span></li>`;
-    if (product.Semelle) specsHTML += `<li class="flex justify-between py-2 border-b"><span>Semelle</span> <span class="font-semibold text-gray-800">${product.Semelle}</span></li>`;
-    if (product.Usage) specsHTML += `<li class="flex justify-between py-2"><span>Usage</span> <span class="font-semibold text-gray-800">${product.Usage}</span></li>`;
+    if (product.Matière) specsHTML += `<li class="flex justify-between py-2 border-b"><span>Matière:</span> <span class="font-semibold text-gray-800">${product.Matière}</span></li>`;
+    if (product.Type) specsHTML += `<li class="flex justify-between py-2 border-b"><span>Type:</span> <span class="font-semibold text-gray-800">${product.Type}</span></li>`;
+    if (product.Genre) specsHTML += `<li class="flex justify-between py-2 border-b"><span>Genre:</span> <span class="font-semibold text-gray-800">${product.Genre}</span></li>`;
+    if (product.Semelle) specsHTML += `<li class="flex justify-between py-2 border-b"><span>Semelle:</span> <span class="font-semibold text-gray-800">${product.Semelle}</span></li>`;
+    if (product.Usage) specsHTML += `<li class="flex justify-between py-2"><span>Usage:</span> <span class="font-semibold text-gray-800">${product.Usage}</span></li>`;
     specsHTML += '</ul>';
     specsContainer.innerHTML = specsHTML;
 }
@@ -753,11 +749,11 @@ function renderElectronicsDetails(product, variantsContainer, specsContainer) {
     }
     // Spécifications
     let specsHTML = '<ul>';
-    if (product.Marque) specsHTML += `<li class="flex justify-between py-2 border-b"><span>Marque</span> <span class="font-semibold text-gray-800">${product.Marque}</span></li>`;
-    if (product.Modèle) specsHTML += `<li class="flex justify-between py-2 border-b"><span>Modèle</span> <span class="font-semibold text-gray-800">${product.Modèle}</span></li>`;
-    if (product.Connectivité) specsHTML += `<li class="flex justify-between py-2 border-b"><span>Connectivité</span> <span class="font-semibold text-gray-800">${product.Connectivité}</span></li>`;
-    if (product.Compatibilité) specsHTML += `<li class="flex justify-between py-2 border-b"><span>Compatibilité</span> <span class="font-semibold text-gray-800">${product.Compatibilité}</span></li>`;
-    if (product.Garantie) specsHTML += `<li class="flex justify-between py-2"><span>Garantie</span> <span class="font-semibold text-gray-800">${product.Garantie}</span></li>`;
+    if (product.Marque) specsHTML += `<li class="flex justify-between py-2 border-b"><span>Marque:</span> <span class="font-semibold text-gray-800">${product.Marque}</span></li>`;
+    if (product.Modèle) specsHTML += `<li class="flex justify-between py-2 border-b"><span>Modèle:</span> <span class="font-semibold text-gray-800">${product.Modèle}</span></li>`;
+    if (product.Connectivité) specsHTML += `<li class="flex justify-between py-2 border-b"><span>Connectivité:</span> <span class="font-semibold text-gray-800">${product.Connectivité}</span></li>`;
+    if (product.Compatibilité) specsHTML += `<li class="flex justify-between py-2 border-b"><span>Compatibilité:</span> <span class="font-semibold text-gray-800">${product.Compatibilité}</span></li>`;
+    if (product.Garantie) specsHTML += `<li class="flex justify-between py-2"><span>Garantie:</span> <span class="font-semibold text-gray-800">${product.Garantie}</span></li>`;
     specsHTML += '</ul>';
     specsContainer.innerHTML = specsHTML;
 }
