@@ -76,6 +76,9 @@ async function initializeApp() {
         document.getElementById('login-form').addEventListener('submit', (e) => handleAuthForm(e, 'login'));
         document.getElementById('register-form').addEventListener('submit', (e) => handleAuthForm(e, 'register'));
     }
+
+    // NOUVEAU: Activer le chargement progressif des images sur tout le site
+    initializeLazyLoading();
 }
 
 /**
@@ -547,7 +550,8 @@ async function loadProductPage() { // Make it async
         // Remplir les données
         nameEl.textContent = product.Nom;
         descriptionEl.textContent = product.Description;
-        mainImage.src = product.ImageURL || CONFIG.DEFAULT_PRODUCT_IMAGE;
+        // NOUVEAU: Préparer pour le lazy loading
+        mainImage.dataset.src = product.ImageURL || CONFIG.DEFAULT_PRODUCT_IMAGE;
         mainImage.alt = product.Nom;
 
         // Gérer l'affichage du prix
@@ -574,7 +578,7 @@ async function loadProductPage() { // Make it async
 
         thumbnailsContainer.innerHTML = galleryImages.map((imgUrl, index) => `
             <div class="border-2 ${index === 0 ? 'border-gold' : 'border-transparent'} rounded-lg cursor-pointer overflow-hidden thumbnail-item">
-                <img src="${imgUrl}" alt="Miniature ${index + 1}" class="h-full w-full object-cover" onclick="changeMainImage('${imgUrl}')">
+                <img data-src="${imgUrl}" alt="Miniature ${index + 1}" class="lazy-load h-full w-full object-cover" onclick="changeMainImage('${imgUrl}')">
             </div>
         `).join('');
 
@@ -1104,7 +1108,7 @@ function renderProductCard(product) { // This function remains synchronous as it
     <a href="produit.html?id=${product.IDProduit}" class="product-card bg-white rounded-lg shadow overflow-hidden block">
         <div class="relative">
             <div class="h-40 bg-gray-200 flex items-center justify-center">
-            <img src="${product.ImageURL || CONFIG.DEFAULT_PRODUCT_IMAGE}" alt="${product.Nom}" class="h-full w-full object-cover" onerror="this.onerror=null;this.src='${CONFIG.DEFAULT_PRODUCT_IMAGE}';">
+            <img data-src="${product.ImageURL || CONFIG.DEFAULT_PRODUCT_IMAGE}" alt="${product.Nom}" class="lazy-load h-full w-full object-cover" onerror="this.onerror=null;this.src='${CONFIG.DEFAULT_PRODUCT_IMAGE}';">
             </div>
             ${discount > 0 ? `<span class="discount-badge absolute top-2 left-2 bg-red-500 text-white px-2 py-1 rounded-full text-xs font-bold">-${Math.round(discount)}%</span>` : ''}
         </div>
@@ -1163,6 +1167,33 @@ async function renderHomepageCategorySections() {
     } catch (error) {
         console.error("Erreur lors de l'affichage des sections par catégorie:", error);
         container.innerHTML = '<p class="text-center text-red-500">Impossible de charger les sections de produits.</p>';
+    }
+}
+
+/**
+ * NOUVEAU: Initialise le chargement progressif (lazy loading) des images.
+ */
+function initializeLazyLoading() {
+    const lazyImages = document.querySelectorAll('img.lazy-load');
+
+    if ("IntersectionObserver" in window) {
+        const imageObserver = new IntersectionObserver((entries, observer) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const image = entry.target;
+                    image.src = image.dataset.src;
+                    image.classList.remove('lazy-load');
+                    imageObserver.unobserve(image);
+                }
+            });
+        });
+
+        lazyImages.forEach(image => {
+            imageObserver.observe(image);
+        });
+    } else {
+        // Fallback pour les très vieux navigateurs
+        lazyImages.forEach(image => image.src = image.dataset.src);
     }
 }
 // --- LOGIQUE D'AUTHENTIFICATION ---
