@@ -747,11 +747,11 @@ function renderClothingDetails(product, variantsContainer, specsContainer) {
 
     // Spécifications
     let specsHTML = '<ul>';
-    if (product.Coupe) specsHTML += `<li class="flex justify-between py-2 border-b"><strong>Coupe:</strong> <span>${product.Coupe}</span></li>`;
-    if (product.Matière) specsHTML += `<li class="py-2 border-b"><strong>Matière:</strong> ${product.Matière}</li>`;
-    if (product.Saison) specsHTML += `<li class="py-2 border-b"><strong>Saison:</strong> ${product.Saison}</li>`;
-    if (product.Style) specsHTML += `<li class="py-2 border-b"><strong>Style:</strong> ${product.Style}</li>`;
-    if (product.Genre) specsHTML += `<li class="py-2"><strong>Genre:</strong> ${product.Genre}</li>`;
+    if (product.Coupe) specsHTML += `<li class="flex justify-between py-2 border-b"><span>Coupe</span> <span class="font-semibold text-gray-800">${product.Coupe}</span></li>`;
+    if (product.Matière) specsHTML += `<li class="flex justify-between py-2 border-b"><span>Matière</span> <span class="font-semibold text-gray-800">${product.Matière}</span></li>`;
+    if (product.Saison) specsHTML += `<li class="flex justify-between py-2 border-b"><span>Saison</span> <span class="font-semibold text-gray-800">${product.Saison}</span></li>`;
+    if (product.Style) specsHTML += `<li class="flex justify-between py-2 border-b"><span>Style</span> <span class="font-semibold text-gray-800">${product.Style}</span></li>`;
+    if (product.Genre) specsHTML += `<li class="flex justify-between py-2"><span>Genre</span> <span class="font-semibold text-gray-800">${product.Genre}</span></li>`;
     specsHTML += '</ul>';
     specsContainer.innerHTML = specsHTML;
 }
@@ -766,11 +766,11 @@ function renderShoesDetails(product, variantsContainer, specsContainer) {
     }
     // Spécifications
     let specsHTML = '<ul>';
-    if (product.Matière) specsHTML += `<li class="py-2 border-b"><strong>Matière:</strong> ${product.Matière}</li>`;
-    if (product.Type) specsHTML += `<li class="py-2 border-b"><strong>Type:</strong> ${product.Type}</li>`;
-    if (product.Genre) specsHTML += `<li class="py-2 border-b"><strong>Genre:</strong> ${product.Genre}</li>`;
-    if (product.Semelle) specsHTML += `<li class="py-2 border-b"><strong>Semelle:</strong> ${product.Semelle}</li>`;
-    if (product.Usage) specsHTML += `<li class="py-2"><strong>Usage:</strong> ${product.Usage}</li>`;
+    if (product.Matière) specsHTML += `<li class="flex justify-between py-2 border-b"><span>Matière</span> <span class="font-semibold text-gray-800">${product.Matière}</span></li>`;
+    if (product.Type) specsHTML += `<li class="flex justify-between py-2 border-b"><span>Type</span> <span class="font-semibold text-gray-800">${product.Type}</span></li>`;
+    if (product.Genre) specsHTML += `<li class="flex justify-between py-2 border-b"><span>Genre</span> <span class="font-semibold text-gray-800">${product.Genre}</span></li>`;
+    if (product.Semelle) specsHTML += `<li class="flex justify-between py-2 border-b"><span>Semelle</span> <span class="font-semibold text-gray-800">${product.Semelle}</span></li>`;
+    if (product.Usage) specsHTML += `<li class="flex justify-between py-2"><span>Usage</span> <span class="font-semibold text-gray-800">${product.Usage}</span></li>`;
     specsHTML += '</ul>';
     specsContainer.innerHTML = specsHTML;
 }
@@ -782,11 +782,11 @@ function renderElectronicsDetails(product, variantsContainer, specsContainer) {
     }
     // Spécifications
     let specsHTML = '<ul>';
-    if (product.Marque) specsHTML += `<li class="py-2 border-b"><strong>Marque:</strong> ${product.Marque}</li>`;
-    if (product.Modèle) specsHTML += `<li class="py-2 border-b"><strong>Modèle:</strong> ${product.Modèle}</li>`;
-    if (product.Connectivité) specsHTML += `<li class="py-2 border-b"><strong>Connectivité:</strong> ${product.Connectivité}</li>`;
-    if (product.Compatibilité) specsHTML += `<li class="py-2 border-b"><strong>Compatibilité:</strong> ${product.Compatibilité}</li>`;
-    if (product.Garantie) specsHTML += `<li class="py-2"><strong>Garantie:</strong> ${product.Garantie}</li>`;
+    if (product.Marque) specsHTML += `<li class="flex justify-between py-2 border-b"><span>Marque</span> <span class="font-semibold text-gray-800">${product.Marque}</span></li>`;
+    if (product.Modèle) specsHTML += `<li class="flex justify-between py-2 border-b"><span>Modèle</span> <span class="font-semibold text-gray-800">${product.Modèle}</span></li>`;
+    if (product.Connectivité) specsHTML += `<li class="flex justify-between py-2 border-b"><span>Connectivité</span> <span class="font-semibold text-gray-800">${product.Connectivité}</span></li>`;
+    if (product.Compatibilité) specsHTML += `<li class="flex justify-between py-2 border-b"><span>Compatibilité</span> <span class="font-semibold text-gray-800">${product.Compatibilité}</span></li>`;
+    if (product.Garantie) specsHTML += `<li class="flex justify-between py-2"><span>Garantie</span> <span class="font-semibold text-gray-800">${product.Garantie}</span></li>`;
     specsHTML += '</ul>';
     specsContainer.innerHTML = specsHTML;
 }
