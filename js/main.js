@@ -588,8 +588,8 @@ async function loadProductPage() { // Make it async
         // Mettre à jour le bouton "Ajouter au panier"
         addToCartButton.setAttribute('onclick', `addToCart(event, '${product.IDProduit}', '${product.Nom}', ${product.PrixActuel}, '${product.ImageURL || CONFIG.DEFAULT_PRODUCT_IMAGE}')`);
         const hasVariants = variantsContainer.innerHTML.trim() !== '';
-        // Le bouton est désactivé si le produit est en rupture de stock ET qu'il n'y a pas de variantes.
-        addToCartButton.disabled = (product.Stock <= 0 && !hasVariants);
+        // Le bouton est désactivé si le produit est en rupture de stock.
+        addToCartButton.disabled = (product.Stock <= 0);
 
         // NOUVEAU: Activer le zoom sur l'image principale
         activateInternalZoom("image-zoom-wrapper");
@@ -713,8 +713,8 @@ function renderCategorySpecificDetails(product, variantsContainer, specsContaine
 
 function renderClothingDetails(product, variantsContainer, specsContainer) {
     // Options de variantes (ex: Tailles)
-    if (product.Taille) variantsContainer.innerHTML += createVariantSelector('Taille', product.Taille.split(','));
-    if (product.Couleur) variantsContainer.innerHTML += createVariantSelector('Couleur', product.Couleur.split(','));
+    if (product.Taille && product.Taille.includes(',')) variantsContainer.innerHTML += createVariantSelector('Taille', product.Taille.split(','));
+    if (product.Couleur && product.Couleur.includes(',')) variantsContainer.innerHTML += createVariantSelector('Couleur', product.Couleur.split(','));
 
     // Spécifications
     let specsHTML = '<ul>';
@@ -729,10 +729,10 @@ function renderClothingDetails(product, variantsContainer, specsContainer) {
 
 function renderShoesDetails(product, variantsContainer, specsContainer) {
     // Options de variantes (ex: Pointures)
-    if (product.Pointure) {
+    if (product.Pointure && product.Pointure.includes(',')) {
         variantsContainer.innerHTML += createVariantSelector('Pointure', product.Pointure.split(','));
     }
-    if (product.Couleur) {
+    if (product.Couleur && product.Couleur.includes(',')) {
         variantsContainer.innerHTML += createVariantSelector('Couleur', product.Couleur.split(','));
     }
     // Spécifications
@@ -748,7 +748,7 @@ function renderShoesDetails(product, variantsContainer, specsContainer) {
 
 function renderElectronicsDetails(product, variantsContainer, specsContainer) {
     // Options de variantes (ex: Capacités)
-    if (product.Capacité) {
+    if (product.Capacité && product.Capacité.includes(',')) {
         variantsContainer.innerHTML += createVariantSelector('Capacité', product.Capacité.split(','));
     }
     // Spécifications
@@ -842,12 +842,6 @@ function selectVariant(selectedButton, groupName) {
     // Sélectionne le bouton cliqué
     selectedButton.classList.add('selected');
 
-    // Activer le bouton "Ajouter au panier" si toutes les variantes sont sélectionnées
-    const variantGroups = document.querySelectorAll('#product-variants-container > div');
-    const allSelected = Array.from(variantGroups).every(group => group.querySelector('.variant-btn.selected'));
-
-    const addToCartButton = document.getElementById('add-to-cart-button');
-    addToCartButton.disabled = !allSelected;
 }
 
 // --- LOGIQUE DE PAIEMENT (CHECKOUT) ---
