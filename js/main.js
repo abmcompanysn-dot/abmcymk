@@ -606,12 +606,12 @@ async function processCheckout(event) {
  * NOUVEAU: Affiche les produits dans les sections "SuperDeals" et "Big Save" de la page d'accueil.
  */
 async function renderDailyDealsHomepage() {
-    const superdealsContainer = document.getElementById('superdeals-products'); // Section SuperDeals
-    const boutiquesContainer = document.getElementById('boutiques-container'); // NOUVELLE Section Boutiques
+    const superdealsContainer = document.getElementById('superdeals-products');
+    const boutiquesContainer = document.getElementById('boutiques-container');
 
     if (!superdealsContainer || !boutiquesContainer) return;
-    
-    // NOUVEAU: Affichage des squelettes de chargement (placeholders)
+
+    // --- Étape 1: Afficher IMMÉDIATEMENT les squelettes de chargement ---
     const skeletonCard = `
         <div class="bg-white rounded-lg shadow overflow-hidden animate-pulse">
             <div class="bg-gray-200 h-40"></div>
@@ -619,24 +619,20 @@ async function renderDailyDealsHomepage() {
         </div>`;
     superdealsContainer.innerHTML = Array(6).fill(skeletonCard).join('');
     boutiquesContainer.innerHTML = Array(6).fill(skeletonCard).join('');
-    try {
-        const catalog = await getFullCatalog();
-        const allProducts = catalog.data.products;
-        const allCategories = catalog.data.categories;
 
-        // 1. Filtrer les produits pour "SuperDeals" (ceux avec une réduction)
-        const superDealsProducts = allProducts
-            .filter(p => p['Réduction%'] && parseFloat(p['Réduction%']) > 0)
-            .slice(0, 6); // On prend les 6 premiers
+    // --- Étape 2: Donner au navigateur le temps de dessiner les squelettes ---
+    // setTimeout avec 0ms est une astuce pour laisser le thread principal se libérer un instant.
+    setTimeout(async () => {
+        try {
+            // --- Étape 3: Charger les données en parallèle ---
+            const [categories, products] = await Promise.all([
+                getCategories(),
+                getAllProducts()
+            ]);
 
-        // 2. Afficher les produits SuperDeals
-        superdealsContainer.innerHTML = superDealsProducts.length > 0 
-            ? superDealsProducts.map(product => renderProductCard(product)).join('')
-            : '<p class="col-span-full text-center text-gray-500">Aucune offre spéciale pour le moment.</p>';
-
-        // 3. Afficher les catégories dans la section "Nos Boutiques"
-        boutiquesContainer.innerHTML = allCategories.length > 0
-            ? allCategories.map(cat => `
+            // --- Étape 4: Remplir la section "Nos Boutiques" dès que les catégories sont prêtes ---
+            if (categories.length > 0) {
+                boutiquesContainer.innerHTML = categories.map(cat => `
                 <a href="categorie.html?id=${cat.IDCategorie}&name=${encodeURIComponent(cat.NomCategorie)}" class="product-card bg-white rounded-lg shadow overflow-hidden block text-center">
                     <div class="h-32 bg-gray-100 flex items-center justify-center p-2">
                         <img src="${cat.ImageURL || CONFIG.DEFAULT_PRODUCT_IMAGE}" alt="${cat.NomCategorie}" class="max-h-full max-w-full object-contain">
@@ -645,15 +641,29 @@ async function renderDailyDealsHomepage() {
                         <p class="font-semibold text-sm text-gray-800 truncate">${cat.NomCategorie}</p>
                     </div>
                 </a>
-            `).join('')
-            : '<p class="col-span-full text-center text-gray-500">Aucune boutique à afficher.</p>';
+            `).join('');
+            } else {
+                boutiquesContainer.innerHTML = '<p class="col-span-full text-center text-gray-500">Aucune boutique à afficher.</p>';
+            }
 
-    } catch (error) {
-        console.error("Erreur lors du chargement des offres du jour:", error);
-        const errorMsg = '<p class="col-span-full text-center text-red-500">Impossible de charger les produits.</p>';
-        superdealsContainer.innerHTML = errorMsg;
-        boutiquesContainer.innerHTML = errorMsg;
-    }
+            // --- Étape 5: Remplir la section "SuperDeals" avec les produits ---
+            const superDealsProducts = products
+                .filter(p => p['Réduction%'] && parseFloat(p['Réduction%']) > 0)
+                .slice(0, 6);
+
+            if (superDealsProducts.length > 0) {
+                superdealsContainer.innerHTML = superDealsProducts.map(product => renderProductCard(product)).join('');
+            } else {
+                superdealsContainer.innerHTML = '<p class="col-span-full text-center text-gray-500">Aucune offre spéciale pour le moment.</p>';
+            }
+
+        } catch (error) {
+            console.error("Erreur lors du chargement des données de la page d'accueil:", error);
+            const errorMsg = '<p class="col-span-full text-center text-red-500">Impossible de charger le contenu.</p>';
+            superdealsContainer.innerHTML = errorMsg;
+            boutiquesContainer.innerHTML = errorMsg;
+        }
+    }, 0);
 }
 
 /**
@@ -701,47 +711,66 @@ function startCountdown() {
  * Met en cache les résultats pour améliorer les performances de navigation.
  */
 async function getFullCatalog() {
-    // Si le répertoire des catégories est déjà chargé, on ne fait rien de plus ici.
-    // Cette fonction est maintenant principalement un point d'entrée pour les pages
-    // qui ont besoin de tout le catalogue d'un coup (ex: recherche).
-    if (categoryDirectory.length > 0) {
-        return { success: true, data: { categories: categoryDirectory, products: allLoadedProducts } };
-    }
-
-    // --- NOUVELLE LOGIQUE DE CACHE ---
+    // Vérifier si le catalogue complet est déjà en cache
     const cachedData = sessionStorage.getItem('fullCatalog');
     if (cachedData) {
         console.log("Utilisation du catalogue depuis sessionStorage.");
-        const parsedData = JSON.parse(cachedData);
-        categoryDirectory = parsedData.data.categories;
-        allLoadedProducts = parsedData.data.products;
-        return parsedData;
+        return JSON.parse(cachedData);
     }
 
-    // --- Étape 1: Charger dynamiquement la liste des catégories (l'annuaire) ---
-    console.log("Appel au script central pour l'annuaire des catégories...");
-    const categoryResponse = await fetch(CONFIG.CENTRAL_API_URL);
-    if (!categoryResponse.ok) throw new Error(`Erreur réseau lors de la récupération des catégories.`);
-    const categoryResult = await categoryResponse.json();
-    if (!categoryResult.success) throw new Error(categoryResult.error || "Impossible de charger la liste des catégories.");
-    
-    categoryDirectory = categoryResult.data.sort((a, b) => a.Ordre - b.Ordre);
+    // Si non, charger les deux en parallèle
+    console.log("Assemblage du catalogue complet pour la première fois...");
+    const [categories, products] = await Promise.all([
+        getCategories(),
+        getAllProducts()
+    ]);
 
-    // --- Étape 2: Charger TOUS les produits pour le cache initial ---
-    console.log("Appels parallèles pour charger tous les produits...");
-    const productFetchPromises = categoryDirectory.map(category => {
-        if (category.ScriptURL) return fetch(`${category.ScriptURL}?action=getProducts`).then(res => res.json());
-        return Promise.resolve({ success: false });
-    });
-
-    const productResults = await Promise.all(productFetchPromises);
-    allLoadedProducts = productResults.flatMap(result => (result.success && result.data) ? result.data : []);
-    
-    // --- Étape 3: Assembler le catalogue final et le mettre en cache ---
-    const fullCatalog = { success: true, data: { products: allLoadedProducts, categories: categoryDirectory } };
+    const fullCatalog = { success: true, data: { categories, products } };
     console.log(`Catalogue complet assemblé (${allLoadedProducts.length} produits). Mise en cache.`);
     sessionStorage.setItem('fullCatalog', JSON.stringify(fullCatalog));
     return fullCatalog;
+}
+
+/**
+ * NOUVEAU: Récupère uniquement la liste des catégories.
+ */
+async function getCategories() {
+    const cachedCategories = sessionStorage.getItem('categories');
+    if (cachedCategories) {
+        console.log("Utilisation des catégories depuis sessionStorage.");
+        return JSON.parse(cachedCategories);
+    }
+
+    console.log("Appel API pour les catégories...");
+    const response = await fetch(CONFIG.CENTRAL_API_URL);
+    if (!response.ok) throw new Error(`Erreur réseau lors de la récupération des catégories.`);
+    const result = await response.json();
+    if (!result.success) throw new Error(result.error || "Impossible de charger la liste des catégories.");
+    
+    const categories = result.data.sort((a, b) => a.Ordre - b.Ordre);
+    sessionStorage.setItem('categories', JSON.stringify(categories));
+    return categories;
+}
+
+/**
+ * NOUVEAU: Récupère tous les produits de toutes les catégories.
+ */
+async function getAllProducts() {
+    const cachedProducts = sessionStorage.getItem('allProducts');
+    if (cachedProducts) {
+        console.log("Utilisation des produits depuis sessionStorage.");
+        return JSON.parse(cachedProducts);
+    }
+
+    const categories = await getCategories(); // S'assure d'avoir les URLs
+    console.log("Appels API parallèles pour tous les produits...");
+    const productFetchPromises = categories.map(cat => 
+        fetch(`${cat.ScriptURL}?action=getProducts`).then(res => res.json())
+    );
+    const productResults = await Promise.all(productFetchPromises);
+    const allProducts = productResults.flatMap(res => (res.success && res.data) ? res.data : []);
+    sessionStorage.setItem('allProducts', JSON.stringify(allProducts));
+    return allProducts;
 }
 
 /**
