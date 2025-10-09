@@ -1138,36 +1138,39 @@ async function renderHomepageCategorySections() {
         </div>`;
     container.innerHTML = skeletonSection;
 
-    try {
-        const catalog = await getFullCatalog();
-        const categories = catalog.data.categories;
-        const products = catalog.data.products;
+    // NOUVEAU: Utiliser setTimeout pour garantir l'affichage du squelette
+    setTimeout(async () => {
+        try {
+            const catalog = await getFullCatalog();
+            const categories = catalog.data.categories;
+            const products = catalog.data.products;
 
-        let allSectionsHTML = '';
+            let allSectionsHTML = '';
 
-        categories.forEach(category => {
-            const categoryProducts = products.filter(p => p.Catégorie === category.NomCategorie).slice(0, 12); // Limite à 12 produits par section
-            if (categoryProducts.length === 0) return;
+            categories.forEach(category => {
+                const categoryProducts = products.filter(p => p.Catégorie === category.NomCategorie).slice(0, 12); // Limite à 12 produits par section
+                if (categoryProducts.length === 0) return;
 
-            allSectionsHTML += `
-                <section>
-                    <div class="flex justify-between items-center mb-4">
-                        <h3 class="text-2xl font-bold text-gray-800">${category.NomCategorie}</h3>
-                        <a href="categorie.html?id=${category.IDCategorie}&name=${encodeURIComponent(category.NomCategorie)}" class="text-sm font-semibold text-blue-600 hover:underline">Voir plus</a>
-                    </div>
-                    <div class="horizontal-scroll-container flex space-x-4 overflow-x-auto pb-4">
-                        ${categoryProducts.map(p => `<div class="flex-shrink-0 w-1/2 md:w-1/3 lg:w-1/6">${renderProductCard(p)}</div>`).join('')}
-                    </div>
-                </section>
-            `;
-        });
+                allSectionsHTML += `
+                    <section>
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-2xl font-bold text-gray-800">${category.NomCategorie}</h3>
+                            <a href="categorie.html?id=${category.IDCategorie}&name=${encodeURIComponent(category.NomCategorie)}" class="text-sm font-semibold text-blue-600 hover:underline">Voir plus</a>
+                        </div>
+                        <div class="horizontal-scroll-container flex space-x-4 overflow-x-auto pb-4">
+                            ${categoryProducts.map(p => `<div class="flex-shrink-0 w-1/2 md:w-1/3 lg:w-1/6">${renderProductCard(p)}</div>`).join('')}
+                        </div>
+                    </section>
+                `;
+            });
 
-        container.innerHTML = allSectionsHTML;
+            container.innerHTML = allSectionsHTML;
 
-    } catch (error) {
-        console.error("Erreur lors de l'affichage des sections par catégorie:", error);
-        container.innerHTML = '<p class="text-center text-red-500">Impossible de charger les sections de produits.</p>';
-    }
+        } catch (error) {
+            console.error("Erreur lors de l'affichage des sections par catégorie:", error);
+            container.innerHTML = '<p class="text-center text-red-500">Impossible de charger les sections de produits.</p>';
+        }
+    }, 0);
 }
 
 /**
