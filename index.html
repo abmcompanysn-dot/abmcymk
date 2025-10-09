@@ -28,6 +28,14 @@
             body { padding-bottom: 0; }
             .mobile-nav { display: none; }
         }
+        /* NOUVEAU: Styles pour le défilement horizontal */
+        .horizontal-scroll-container {
+            -ms-overflow-style: none;  /* IE and Edge */
+            scrollbar-width: none;  /* Firefox */
+        }
+        .horizontal-scroll-container::-webkit-scrollbar {
+            display: none; /* Chrome, Safari and Opera */
+        }
     </style>
 </head>
 <body class="bg-gray-50 font-montserrat">
@@ -127,6 +135,11 @@
             <div id="boutiques-container" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                 <!-- Les boutiques (catégories) seront injectées ici par JS -->
             </div>
+        </section>
+
+        <!-- NOUVEAU: Sections de produits par catégorie -->
+        <section id="category-products-sections" class="space-y-12">
+            <!-- Le contenu sera injecté ici par JS -->
         </section>
 
     </main>

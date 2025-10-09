@@ -62,6 +62,7 @@ async function initializeApp() {
     // Si nous sommes sur la page d'accueil (avec les nouvelles sections), on les remplit.
     if (document.getElementById('superdeals-products')) {
         renderDailyDealsHomepage();
+        renderHomepageCategorySections(); // NOUVEAU: Affiche les sections par catégorie
         startCountdown(); // Lancer le compte à rebours
     }
 
@@ -1121,6 +1122,54 @@ function renderProductCard(product) { // This function remains synchronous as it
     `;
 }
 
+/**
+ * NOUVEAU: Affiche des sections de produits pour chaque catégorie sur la page d'accueil.
+ */
+async function renderHomepageCategorySections() {
+    const container = document.getElementById('category-products-sections');
+    if (!container) return;
+
+    // Afficher un squelette de chargement
+    const skeletonSection = `
+        <div class="animate-pulse">
+            <div class="h-8 bg-gray-200 rounded w-1/4 mb-4"></div>
+            <div class="flex space-x-4 overflow-hidden">
+                ${Array(6).fill('<div class="flex-shrink-0 w-1/2 md:w-1/3 lg:w-1/6"><div class="bg-gray-200 h-64 rounded-lg"></div></div>').join('')}
+            </div>
+        </div>`;
+    container.innerHTML = skeletonSection;
+
+    try {
+        const catalog = await getFullCatalog();
+        const categories = catalog.data.categories;
+        const products = catalog.data.products;
+
+        let allSectionsHTML = '';
+
+        categories.forEach(category => {
+            const categoryProducts = products.filter(p => p.Catégorie === category.NomCategorie).slice(0, 12); // Limite à 12 produits par section
+            if (categoryProducts.length === 0) return;
+
+            allSectionsHTML += `
+                <section>
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-2xl font-bold text-gray-800">${category.NomCategorie}</h3>
+                        <a href="categorie.html?id=${category.IDCategorie}&name=${encodeURIComponent(category.NomCategorie)}" class="text-sm font-semibold text-blue-600 hover:underline">Voir plus</a>
+                    </div>
+                    <div class="horizontal-scroll-container flex space-x-4 overflow-x-auto pb-4">
+                        ${categoryProducts.map(p => `<div class="flex-shrink-0 w-1/2 md:w-1/3 lg:w-1/6">${renderProductCard(p)}</div>`).join('')}
+                    </div>
+                </section>
+            `;
+        });
+
+        container.innerHTML = allSectionsHTML;
+
+    } catch (error) {
+        console.error("Erreur lors de l'affichage des sections par catégorie:", error);
+        container.innerHTML = '<p class="text-center text-red-500">Impossible de charger les sections de produits.</p>';
+    }
+}
 // --- LOGIQUE D'AUTHENTIFICATION ---
 
 /**
