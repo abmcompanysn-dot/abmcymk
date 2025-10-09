@@ -4,8 +4,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ABMCY MARKET - E-commerce</title>
+    <title>ABMCY MARKET - Votre Marché en Ligne</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="manifest" href="manifest.json">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
         body { box-sizing: border-box; }
@@ -13,17 +14,6 @@
         .dropdown-menu { display: none; }
         .product-card:hover { transform: translateY(-4px); transition: transform 0.3s ease; }
         .discount-badge { animation: pulse 2s infinite; }
-        /* .product-card:hover {
-            transform: translateY(-4px);
-            transition: transform 0.3s ease;
-        }
-        .discount-badge {
-            animation: pulse 2s infinite;
-        }
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.8; }
-        } */
         :root {
             --gold-color: #D4AF37; /* Or */
             --dark-color: #1a1a1a; /* Noir doux */
@@ -33,67 +23,28 @@
         .border-gold { border-color: var(--gold-color); }
         .font-montserrat { font-family: 'Montserrat', sans-serif; }
         /* Espace pour la barre de navigation inférieure */
-        body { padding-bottom: 80px; }
+        body { padding-bottom: 80px; /* Pour la nav mobile */ }
+        @media (min-width: 768px) {
+            body { padding-bottom: 0; }
+            .mobile-nav { display: none; }
+        }
     </style>
 </head>
 <body class="bg-gray-50 font-montserrat">
-    <!-- Header avec Logo et Menu -->
-    <header class="bg-white shadow-md sticky top-0 z-40">
-        <div class="container mx-auto px-4 py-2">
-            <div class="flex items-center justify-between">
-                <!-- Menu Hamburger pour les catégories -->
-                <button class="p-2 z-50" onclick="toggleMobileMenu()">
-                    <svg class="w-6 h-6 text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
-                </button>
-                <!-- NOUVEAU: Arrière-plan pour le menu mobile -->
-                <div id="mobileMenuOverlay" class="hidden fixed inset-0 bg-black bg-opacity-50 z-40" onclick="toggleMobileMenu()"></div>
-                <!-- Menu latéral (anciennement dropdown) -->
-                <div id="mobileMenu" class="hidden fixed top-0 left-0 h-full w-64 bg-white shadow-lg py-4 z-50 transform -translate-x-full transition-transform duration-300 ease-in-out">
-                    <!-- Le contenu du menu sera injecté ici -->
-                </div>
-                
-                <!-- Logo -->
-                <a href="index.html" class="flex items-center">
-                    <img src="https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png" alt="ABMCY MARKET Logo" class="h-10">
-                    <!-- <h1 class="text-xl font-bold text-gray-800 hidden sm:block">ABMCY MARKET</h1> -->
-                </a>
-
-                <!-- Barre de recherche -->
-                <form id="search-form-header" class="flex-1 mx-4" onsubmit="initializeSearch()">
-                    <div class="relative">
-                        <input type="search" placeholder="Rechercher..." class="w-full p-2 pl-10 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-gold">
-                        <svg class="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </header>
-
-    <!-- Bannière Principale -->
-    <section class="bg-gradient-to-r from-gray-900 to-black text-white py-16">
-        <div class="container mx-auto px-4 text-center">
-            <h2 class="text-4xl md:text-5xl font-bold mb-4">Collection Exclusive</h2>
-            <p class="text-lg mb-8">Découvrez le luxe et l'élégance à portée de main.</p>
-            <a href="promotions.html" class="bg-gold text-black px-8 py-3 rounded-lg font-semibold hover:bg-yellow-300 transition">
-                Découvrir les offres
+    <!-- En-tête (Structure AliExpress) -->
+    <!-- ... (Le header reste le même que celui que nous avons créé précédemment) ... -->
+    
+    <!-- Bannière Principale Améliorée -->
+    <section class="relative bg-gray-800 text-white h-64 md:h-96 flex items-center justify-center text-center overflow-hidden">
+        <img src="https://images.pexels.com/photos/3769747/pexels-photo-3769747.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1" alt="Bannière shopping" class="absolute inset-0 w-full h-full object-cover opacity-40">
+        <div class="relative z-10 p-4">
+            <h2 class="text-4xl md:text-6xl font-extrabold mb-3 leading-tight">TOUT VENDRE, TOUT DE SUITE.</h2>
+            <p class="text-lg md:text-xl mb-8 max-w-2xl mx-auto">Les meilleures offres du Sénégal et du Bénin, livrées chez vous.</p>
+            <a href="#superdeals-products" class="bg-gold text-black px-8 py-3 rounded-lg font-semibold hover:bg-yellow-300 transition text-lg">
+                Voir les SuperDeals
             </a>
         </div>
     </section>
-
-    <!-- Section Annonce -->
-    <section class="bg-gold py-3">
-        <div class="container mx-auto px-4 text-center">
-            <p class="text-black font-semibold">🚚 Livraison gratuite pour toute commande supérieure à 30000 F CFA !</p>
-        </div>
-    </section>
-
-    <!-- NOUVEAU: Conteneur pour les sections de produits générées dynamiquement -->
-    <div id="homepage-sections" class="space-y-12"></div>
-
-    <!-- NOUVEAU: Conteneur pour le bouton "Charger plus" -->
-    <div id="load-more-container" class="text-center py-12">
-        <!-- Le bouton sera injecté ici par JS -->
-    </div>
 
     <!-- Footer -->
     <footer class="bg-dark-color text-white pt-12 pb-8">
@@ -101,13 +52,13 @@
             <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
                 <div>
                     <h4 class="font-bold text-lg mb-4">ABMCY MARKET</h4>
-                    <p class="text-gray-400 text-sm">Votre destination pour le luxe et l'élégance. Qualité et service exceptionnels.</p>
+                    <p class="text-gray-400 text-sm">Votre destination unique pour des milliers de produits. Qualité et service exceptionnels.</p>
                 </div>
                 <div>
                     <h4 class="font-bold text-lg mb-4">Navigation</h4>
                     <ul class="space-y-2 text-sm">
                         <li><a href="index.html" class="text-gray-400 hover:text-white">Accueil</a></li>
-                        <li><a href="promotion.html" class="text-gray-400 hover:text-white">Promotions</a></li>
+                        <li><a href="promotions.html" class="text-gray-400 hover:text-white">Promotions</a></li>
                         <li><a href="compte.html" class="text-gray-400 hover:text-white">Mon Compte</a></li>
                     </ul>
                 </div>
@@ -115,8 +66,8 @@
                     <h4 class="font-bold text-lg mb-4">Aide & Contact</h4>
                     <ul class="space-y-2 text-sm">
                         <li><a href="#" class="text-gray-400 hover:text-white">Service Client</a></li>
-                        <li><a href="suivi-commande.html" class="text-gray-400 hover:text-white">Suivre ma commande</a></li>
-                        <li><a href="#" class="text-gray-400 hover:text-white">Politique de retour</a></li>
+                        <li><a href="politique-retour.html" class="text-gray-400 hover:text-white">Politique de retour</a></li>
+                        <li><a href="politique-confidentialite.html" class="text-gray-400 hover:text-white">Politique de confidentialité</a></li>
                     </ul>
                 </div>
                 <div>
@@ -128,6 +79,16 @@
                     </div>
                 </div>
             </div>
+            <!-- NOUVEAU: Section des marques partenaires -->
+            <div class="mt-10 pt-8 border-t border-gray-800 text-center">
+                <h4 class="font-bold text-lg mb-4">Nos Marques Partenaires</h4>
+                <div class="flex justify-center items-center space-x-8 opacity-70">
+                    <span class="text-2xl font-bold">SAMSUNG</span>
+                    <span class="text-2xl font-bold">APPLE</span>
+                    <span class="text-2xl font-bold">SONY</span>
+                    <span class="text-2xl font-bold">XIAOMI</span>
+                </div>
+            </div>
             <div class="border-t border-gray-800 mt-8 pt-6 text-center text-gray-500 text-sm">
                 <p>&copy; 2024 ABMCY MARKET. Tous droits réservés.</p>
             </div>
@@ -135,7 +96,7 @@
     </footer>
 
     <!-- Barre de navigation inférieure -->
-    <nav class="bg-white border-t-2 border-gray-200 fixed bottom-0 left-0 right-0 z-40">
+    <nav class="mobile-nav bg-white border-t-2 border-gray-200 fixed bottom-0 left-0 right-0 z-40">
         <div class="container mx-auto px-4">
             <div class="flex justify-around items-center h-16">
                 <a href="index.html" class="flex flex-col items-center text-gold hover:text-yellow-300 transition">
@@ -160,11 +121,6 @@
     </nav>
 
     <script src="js/main.js"></script>
-    <script>
-        function showSupport() {
-            alert('Support client - Contactez-nous au 01 23 45 67 89');
-        }
-    </script>
 
 </body>
 

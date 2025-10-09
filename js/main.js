@@ -610,12 +610,15 @@ async function renderDailyDealsHomepage() {
     const boutiquesContainer = document.getElementById('boutiques-container'); // NOUVELLE Section Boutiques
 
     if (!superdealsContainer || !boutiquesContainer) return;
-
-    // Affiche un état de chargement simple
-    const loadingHTML = Array(5).fill('<div class="bg-white rounded-lg shadow h-64 animate-pulse"></div>').join('');
-    superdealsContainer.innerHTML = loadingHTML;
-    boutiquesContainer.innerHTML = Array(6).fill('<div class="bg-white rounded-lg shadow h-48 animate-pulse"></div>').join('');
-
+    
+    // NOUVEAU: Affichage des squelettes de chargement (placeholders)
+    const skeletonCard = `
+        <div class="bg-white rounded-lg shadow overflow-hidden animate-pulse">
+            <div class="bg-gray-200 h-40"></div>
+            <div class="p-3 space-y-2"><div class="bg-gray-200 h-4 rounded"></div><div class="bg-gray-200 h-6 w-1/2 rounded"></div></div>
+        </div>`;
+    superdealsContainer.innerHTML = Array(6).fill(skeletonCard).join('');
+    boutiquesContainer.innerHTML = Array(6).fill(skeletonCard).join('');
     try {
         const catalog = await getFullCatalog();
         const allProducts = catalog.data.products;
@@ -624,7 +627,7 @@ async function renderDailyDealsHomepage() {
         // 1. Filtrer les produits pour "SuperDeals" (ceux avec une réduction)
         const superDealsProducts = allProducts
             .filter(p => p['Réduction%'] && parseFloat(p['Réduction%']) > 0)
-            .slice(0, 5); // On prend les 5 premiers
+            .slice(0, 6); // On prend les 6 premiers
 
         // 2. Afficher les produits SuperDeals
         superdealsContainer.innerHTML = superDealsProducts.length > 0 

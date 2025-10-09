@@ -7,95 +7,85 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
-        :root {
-            --gold-color: #D4AF37;
-            --dark-color: #1a1a1a;
-        }
-        .text-gold { color: var(--gold-color); }
-        .bg-gold { background-color: var(--gold-color); }
-        .border-gold { border-color: var(--gold-color); }
+        :root { --gold-color: #D4AF37; }
         .font-montserrat { font-family: 'Montserrat', sans-serif; }
     </style>
 </head>
 <body class="bg-gray-100 font-montserrat">
 
-    <!-- Header -->
-    <header class="bg-white shadow-md">
-        <div class="container mx-auto px-4 py-4 text-center">
-            <a href="index.html" class="inline-flex items-center">
-                <img src="https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png" alt="ABMCY MARKET Logo" class="h-10 mr-2">
+    <!-- Header Simplifié -->
+    <header class="bg-white shadow-sm">
+        <div class="container mx-auto px-4 py-4 flex justify-between items-center">
+            <a href="index.html" class="flex items-center">
+                <img src="https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png" alt="ABMCY MARKET Logo" class="h-8">
             </a>
+            <div class="flex items-center space-x-2 text-sm text-gray-500">
+                <svg class="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"></path></svg>
+                <span>Paiement sécurisé</span>
+            </div>
         </div>
     </header>
 
-    <!-- Contenu de la page Paiement -->
     <main class="container mx-auto px-4 py-12">
-        <h1 class="text-3xl font-bold text-gray-800 mb-8 text-center">Finaliser la Commande</h1>
-
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-12">
-            <!-- Formulaires de livraison et paiement -->
-            <div class="lg:col-span-2">
-                <form id="checkout-form" onsubmit="processCheckout(event)">
-                    <!-- Informations de livraison -->
-                    <div class="bg-white p-6 rounded-lg shadow mb-8">
-                        <h2 class="text-xl font-bold mb-4">Adresse de livraison</h2>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-12">
+            <!-- Formulaire de paiement -->
+            <div>
+                <h1 class="text-2xl font-bold mb-6">Informations de livraison et paiement</h1>
+                <form id="checkout-form" class="bg-white p-8 rounded-lg shadow-md space-y-6">
+                    <!-- Informations Personnelles -->
+                    <div>
+                        <h2 class="text-lg font-semibold mb-3">Vos coordonnées</h2>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label for="firstname" class="block text-sm font-medium text-gray-700">Prénom</label>
-                                <input type="text" id="firstname" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm" required>
+                                <input type="text" id="firstname" required class="mt-1 block w-full p-2 border border-gray-300 rounded-md">
                             </div>
                             <div>
                                 <label for="lastname" class="block text-sm font-medium text-gray-700">Nom</label>
-                                <input type="text" id="lastname" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm" required>
+                                <input type="text" id="lastname" required class="mt-1 block w-full p-2 border border-gray-300 rounded-md">
                             </div>
-                            <div class="md:col-span-2">
-                                <label for="address" class="block text-sm font-medium text-gray-700">Adresse</label>
-                                <input type="text" id="address" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm" required>
-                            </div>
-                            <div>
-                                <label for="city" class="block text-sm font-medium text-gray-700">Ville</label>
-                                <input type="text" id="city" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm" required>
-                            </div>
-                            <div>
-                                <label for="zip" class="block text-sm font-medium text-gray-700">Code Postal</label>
-                                <input type="text" id="zip" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm">
+                        </div>
+                        <div class="mt-4">
+                            <label for="address" class="block text-sm font-medium text-gray-700">Adresse de livraison</label>
+                            <input type="text" id="address" required class="mt-1 block w-full p-2 border border-gray-300 rounded-md">
+                        </div>
+                    </div>
+
+                    <!-- Méthodes de paiement -->
+                    <div>
+                        <h2 class="text-lg font-semibold mb-3">Méthode de paiement</h2>
+                        <div class="space-y-3 p-4 border rounded-md">
+                            <p class="text-sm text-gray-600">
+                                L'intégration des paiements par Mobile Money (Bénin/Sénégal) et Carte Bancaire sera bientôt disponible.
+                            </p>
+                            <div class="p-4 bg-yellow-100 text-yellow-800 rounded-md text-center">
+                                <strong>Fonctionnalité en développement</strong>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Informations de paiement -->
-                    <div class="bg-white p-6 rounded-lg shadow">
-                        <h2 class="text-xl font-bold mb-4">Paiement</h2>
-                        <p class="text-gray-600">Cette section est une simulation. Cliquez sur "Payer" pour finaliser la commande.</p>
-                        <!-- Ici, on pourrait intégrer un vrai module de paiement (Stripe, etc.) -->
-                    </div>
-
-                    <div class="mt-8">
-                        <button type="submit" class="w-full bg-black text-white py-3 rounded-lg font-semibold hover:bg-gray-800 transition text-lg">
-                            Payer
-                        </button>
-                    </div>
+                    <button type="submit" disabled class="w-full bg-black text-white font-bold py-3 px-4 rounded-lg hover:bg-gray-800 transition opacity-50 cursor-not-allowed">
+                        Payer (Bientôt disponible)
+                    </button>
                 </form>
             </div>
 
             <!-- Résumé de la commande -->
-            <div class="lg:col-span-1">
-                <div class="bg-white p-6 rounded-lg shadow sticky top-28">
-                    <h3 class="text-xl font-bold mb-4">Votre Commande</h3>
-                    <div id="checkout-summary-items" class="space-y-4 max-h-64 overflow-y-auto border-b pb-4 mb-4">
-                        <!-- Les articles du résumé seront injectés ici -->
+            <div class="bg-white p-8 rounded-lg shadow-md">
+                <h2 class="text-xl font-bold mb-4">Résumé de votre commande</h2>
+                <div id="checkout-summary-items" class="space-y-4 max-h-64 overflow-y-auto pr-2">
+                    <!-- Les articles du panier seront injectés ici -->
+                </div>
+                <div class="mt-6 pt-6 border-t space-y-2">
+                    <div class="flex justify-between">
+                        <span>Sous-total</span>
+                        <span id="checkout-subtotal">0 F CFA</span>
                     </div>
-                    <div class="space-y-2 border-b pb-4 mb-4">
-                        <div class="flex justify-between text-sm">
-                            <span>Sous-total</span>
-                            <span id="checkout-subtotal">0 F CFA</span>
-                        </div>
-                        <div class="flex justify-between text-sm">
-                            <span>Livraison</span>
-                            <span id="checkout-shipping">0 F CFA</span>
-                        </div>
+                    <div class="flex justify-between">
+                        <span>Livraison</span>
+                        <span id="checkout-shipping">0 F CFA</span>
                     </div>
-                    <div class="flex justify-between font-bold text-lg">
+                    <div class="flex justify-between font-bold text-xl mt-2">
                         <span>Total</span>
                         <span id="checkout-total">0 F CFA</span>
                     </div>
@@ -104,31 +94,11 @@
         </div>
     </main>
 
+    <footer class="text-center py-6 text-sm text-gray-500">
+        <p>&copy; 2024 ABMCY MARKET. <a href="politique-confidentialite.html" class="underline">Politique de confidentialité</a></p>
+    </footer>
+
     <script src="js/main.js"></script>
-    <script>
-        // Script spécifique à la page checkout pour remplir le résumé
-        document.addEventListener('DOMContentLoaded', () => {
-            const cart = getCart();
-            const itemsContainer = document.getElementById('checkout-summary-items');
-            itemsContainer.innerHTML = cart.map(item => `
-                <div class="flex items-center text-sm">
-                    <img src="${item.imageUrl}" class="w-12 h-12 rounded object-cover mr-3">
-                    <div class="flex-grow">
-                        <p class="font-semibold">${item.name}</p>
-                        <p class="text-gray-500">Qté: ${item.quantity}</p>
-                    </div>
-                    <p>${(item.price * item.quantity).toLocaleString('fr-FR')} F CFA</p>
-                </div>
-            `).join('');
 
-            const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-            const shipping = subtotal > 30000 ? 0 : 5000;
-            const total = subtotal + shipping;
-
-            document.getElementById('checkout-subtotal').textContent = `${subtotal.toLocaleString('fr-FR')} F CFA`;
-            document.getElementById('checkout-shipping').textContent = shipping > 0 ? `${shipping.toLocaleString('fr-FR')} F CFA` : 'Gratuite';
-            document.getElementById('checkout-total').textContent = `${total.toLocaleString('fr-FR')} F CFA`;
-        });
-    </script>
 </body>
 </html>
