@@ -1,6 +1,44 @@
 // --- Template - Gestion Produits par Catégorie ---
+const CENTRAL_ADMIN_API_URL = "https://script.google.com/macros/s/AKfycbw6Y2VBKFXli2aMvbfCaWeMx0Ws29axaG3BIm2oMiFh1-qpc-hkSRIcrQbQ0JmXRQFB/exec"; // URL du script central
 
-const PRODUCT_HEADERS = ["IDProduit", "Nom", "Marque", "PrixActuel", "PrixAncien", "Réduction%", "Stock", "ImageURL", "Description", "Tags", "Actif", "Catégorie", "NoteMoyenne", "NombreAvis", "Galerie"];
+// NOUVEAU: Configuration centrale des attributs par catégorie
+const CATEGORY_CONFIG = {
+  "Chaussures": ["Pointure", "Couleur", "Matière", "Type", "Genre", "Semelle", "Usage"],
+  "Vêtements": ["Taille", "Coupe", "Matière", "Couleur", "Genre", "Saison", "Style"],
+  "Sacs": ["Volume", "Type", "Matière", "Couleur", "Usage", "Genre"],
+  "Montres": ["Type", "Bracelet", "Cadran", "Marque", "Étanchéité", "Genre"],
+  "Lunettes": ["Type", "Forme", "Couleur", "Protection UV", "Matière", "Genre"],
+  "Bijoux": ["Type", "Métal", "Pierre", "Taille", "Genre", "Finition"],
+  "Accessoires": ["Dimensions", "Compatibilité", "Matière", "Usage", "Couleur", "Poids"],
+  "Beauté & soins": ["Type de peau", "Ingrédients", "Format", "Parfum", "Volume", "Genre"],
+  "Parfums": ["Famille olfactive", "Notes", "Intensité", "Format", "Genre"],
+  "Électronique": ["Marque", "Modèle", "Capacité", "Connectivité", "Compatibilité", "Garantie"],
+  "Informatique": ["Processeur", "RAM", "Stockage", "Écran", "OS", "Connectivité", "Usage"],
+  "Gaming": ["Plateforme", "Genre", "Éditeur", "PEGI", "Multijoueur", "Édition"],
+  "Livres": ["Auteur", "Genre", "Langue", "Format", "Pages", "ISBN", "Édition"],
+  "Musique": ["Artiste", "Genre", "Format", "Durée", "Label"],
+  "Films & séries": ["Titre", "Genre", "Format", "Langue", "Durée", "Réalisateur", "Acteurs"],
+  "Jeux & jouets": ["Âge", "Type", "Matière", "Dimensions", "Marque", "Éducatif/créatif"],
+  "Sport & fitness": ["Usage", "Taille", "Poids", "Niveau", "Matière", "Pliable", "Intensité"],
+  "Meubles": ["Dimensions", "Matière", "Style", "Usage", "Couleur", "Montage"],
+  "Décoration": ["Type", "Matière", "Couleur", "Style", "Usage"],
+  "Jardin": ["Type", "Usage", "Dimensions", "Matière", "Saison"],
+  "Outillage": ["Type", "Puissance", "Usage", "Alimentation", "Marque", "Sécurité"],
+  "Automobile": ["Marque", "Modèle", "Année", "Carburant", "Transmission", "Couleur"],
+  "Moto & vélo": ["Type", "Taille", "Usage", "Marque", "Vitesse", "Accessoires inclus"],
+  "Alimentation": ["Poids", "Ingrédients", "Origine", "Date limite", "Labels", "Type"],
+  // Ajoutez d'autres catégories de la liste ici...
+};
+
+const BASE_HEADERS = ["IDProduit", "Nom", "Marque", "PrixActuel", "PrixAncien", "Réduction%", "Stock", "ImageURL", "Description", "Tags", "Actif", "Catégorie", "NoteMoyenne", "NombreAvis", "Galerie"];
+
+/**
+ * NOUVEAU: Récupère les en-têtes pour une catégorie spécifique.
+ */
+function getCategorySpecificHeaders(categoryName) {
+  const specificAttributes = CATEGORY_CONFIG[categoryName] || [];
+  return [...BASE_HEADERS, ...specificAttributes];
+}
 
 const PERSONAL_DATA = {
   logoUrl: 'https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png',
@@ -43,18 +81,47 @@ function doPost(e) {
   try {
     // La logique de sécurité CORS n'est généralement pas nécessaire pour POST si l'appel vient d'un autre script Google.
     const request = JSON.parse(e.postData.contents);
-    if (request.action === 'ajouterProduit') {
-      invalidateCategoryCache(); // Vider le cache après un ajout
-      return addProduct(request.data);
+    const action = request.action;
+
+    switch(action) {
+      case 'ajouterProduit':
+        invalidateCategoryCache();
+        return addProduct(request.data);
+      case 'updateProduct':
+        invalidateCategoryCache();
+        return updateProduct(request.data);
+      case 'archiveOutOfStock':
+        invalidateCategoryCache();
+        return archiveOutOfStock();
+      default:
+        return createJsonResponse({ success: false, error: "Action POST non reconnue." });
     }
-    // Future actions like 'updateProduct' or 'deleteProduct' would go here
-    return createJsonResponse({ success: false, error: "Action POST non reconnue." });
 
   } catch (error) {
     return createJsonResponse({ success: false, error: error.message });
   }
 }
 
+/**
+ * NOUVEAU: Se déclenche automatiquement à chaque modification de la feuille.
+ */
+function onEdit(e) {
+  // On ne fait rien si c'est juste une sélection de cellule
+  if (!e.range || e.range.getHeight() === 0 || e.range.getWidth() === 0) {
+    return;
+  }
+  // On ignore les modifications sur la première ligne (en-têtes)
+  if (e.range.getRow() === 1) {
+    return;
+  }
+  
+  Logger.log("Modification détectée. Invalidation du cache global demandée.");
+  // Appelle le script central pour lui dire de mettre à jour la version du cache.
+  // On utilise un appel "fire-and-forget", on n'attend pas la réponse.
+  UrlFetchApp.fetch(CENTRAL_ADMIN_API_URL + "?action=invalidateCache", {
+    method: 'get', muteHttpExceptions: true
+  });
+}
 /**
  * Point d'entrée pour les requêtes GET (ex: obtenir le nombre/liste de produits).
  */
@@ -84,20 +151,21 @@ function doGet(e) {
  */
 function addProduct(productData) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheets()[0];
+  const sheet = ss.getActiveSheet();
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
   const newProductId = "PROD-" + Utilities.getUuid().substring(0, 6).toUpperCase();
 
   if (sheet.getLastRow() === 0) {
-    sheet.appendRow(PRODUCT_HEADERS);
+    // Ne devrait pas arriver si setupSheet est utilisé
+    return createJsonResponse({ success: false, error: "Feuille non initialisée." });
   }
 
   const prixAncien = (productData.reduction > 0) ? productData.prixActuel / (1 - (productData.reduction / 100)) : productData.prixActuel;
   
-  const newRow = [
-    newProductId, productData.nom, productData.marque, productData.prixActuel, prixAncien,
-    productData.reduction, productData.stock, productData.imageURL, productData.description,
-    productData.tags, true, productData.categorie || sheet.getName(), 0, 0, productData.galerie
-  ];
+  const newRow = headers.map(header => {
+      if (header === "IDProduit") return newProductId;
+      return productData[header] || ''; // Gère les champs non fournis
+  });
   
   sheet.appendRow(newRow);
   return createJsonResponse({ success: true, id: newProductId });
@@ -127,13 +195,14 @@ function showProductAddUI() {
 /**
  * Prépare la feuille de calcul avec les en-têtes corrects.
  */
-function setupSheet() {
+function setupSheet(categoryName) {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheets()[0];
+  const headers = getCategorySpecificHeaders(categoryName);
   sheet.clear();
-  sheet.appendRow(PRODUCT_HEADERS);
+  sheet.appendRow(headers);
   sheet.setFrozenRows(1);
-  sheet.getRange(1, 1, 1, PRODUCT_HEADERS.length).setFontWeight("bold");
-  SpreadsheetApp.getUi().alert("Feuille initialisée avec succès !");
+  sheet.getRange(1, 1, 1, headers.length).setFontWeight("bold");
+  SpreadsheetApp.getUi().alert(`Feuille initialisée comme "${categoryName}" avec succès !`);
 }
 
 /**

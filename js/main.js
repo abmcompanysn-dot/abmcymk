@@ -509,6 +509,9 @@ async function loadProductPage() { // Make it async
         const thumbnailsContainer = document.getElementById('product-thumbnails');
         const addToCartButton = document.getElementById('add-to-cart-button');
 
+        // NOUVEAU: Conteneurs pour les détails dynamiques
+        const variantsContainer = document.getElementById('product-variants-container');
+        const specsContainer = document.getElementById('product-specs-container');
         // Enlever les classes de chargement
         nameEl.classList.remove('h-12', 'bg-gray-200', 'animate-pulse');
         descriptionEl.classList.remove('h-20', 'bg-gray-200', 'animate-pulse');
@@ -560,6 +563,9 @@ async function loadProductPage() { // Make it async
             });
         });
 
+        // NOUVEAU: Afficher les détails spécifiques à la catégorie
+        renderCategorySpecificDetails(product, variantsContainer, specsContainer);
+
     } catch (error) {
         console.error("Erreur de chargement du produit:", error);
         const mainContent = document.querySelector('main');
@@ -573,6 +579,176 @@ async function loadProductPage() { // Make it async
  */
 function changeMainImage(newImageUrl) {
     document.getElementById('main-product-image').src = newImageUrl;
+}
+
+/**
+ * NOUVEAU: Aiguille vers la bonne fonction de rendu en fonction de la catégorie.
+ * @param {object} product L'objet produit.
+ * @param {HTMLElement} variantsContainer Le conteneur pour les options (taille, couleur...).
+ * @param {HTMLElement} specsContainer Le conteneur pour les spécifications techniques.
+ */
+function renderCategorySpecificDetails(product, variantsContainer, specsContainer) {
+    // Vide les conteneurs précédents
+    variantsContainer.innerHTML = '';
+    specsContainer.innerHTML = '';
+
+    // Logique de rendu basée sur la catégorie
+    switch (product.Catégorie.toLowerCase()) {
+        case 'vêtements':
+            renderClothingDetails(product, variantsContainer, specsContainer);
+            break;
+        case 'chaussures':
+            renderShoesDetails(product, variantsContainer, specsContainer);
+            break;
+        case 'électronique':
+            renderElectronicsDetails(product, variantsContainer, specsContainer);
+            break;
+        case 'sacs':
+            renderBagsDetails(product, variantsContainer, specsContainer);
+            break;
+        case 'livres':
+            renderBooksDetails(product, variantsContainer, specsContainer);
+            break;
+        case 'alimentation':
+            renderFoodDetails(product, variantsContainer, specsContainer);
+            break;
+        case 'beauté & soins':
+            renderBeautyDetails(product, variantsContainer, specsContainer);
+            break;
+        // Ajoutez d'autres 'case' pour chaque catégorie que vous voulez personnaliser
+        // case 'livres':
+        //     renderBooksDetails(product, specsContainer);
+        //     break;
+        default:
+            // Comportement par défaut si aucune catégorie ne correspond
+            specsContainer.innerHTML = '<p class="text-gray-600">Aucune spécification supplémentaire pour ce produit.</p>';
+            break;
+    }
+}
+
+/**
+ * NOUVEAU: Fonctions de rendu spécifiques par catégorie.
+ * Ces fonctions génèrent le HTML pour les variantes et les spécifications.
+ */
+
+function renderClothingDetails(product, variantsContainer, specsContainer) {
+    // Options de variantes (ex: Tailles)
+    if (product.Tailles) {
+        variantsContainer.innerHTML += createVariantSelector('Taille', product.Tailles.split(','));
+    }
+    // Spécifications
+    let specsHTML = '<ul>';
+    if (product.Coupes) specsHTML += `<li class="py-2 border-b"><strong>Coupe :</strong> ${product.Coupes}</li>`;
+    if (product.Matières) specsHTML += `<li class="py-2 border-b"><strong>Matière :</strong> ${product.Matières}</li>`;
+    if (product.Saisons) specsHTML += `<li class="py-2"><strong>Saison :</strong> ${product.Saisons}</li>`;
+    specsHTML += '</ul>';
+    specsContainer.innerHTML = specsHTML;
+}
+
+function renderShoesDetails(product, variantsContainer, specsContainer) {
+    // Options de variantes (ex: Pointures)
+    if (product.Pointures) {
+        variantsContainer.innerHTML += createVariantSelector('Pointure', product.Pointures.split(','));
+    }
+    // Spécifications
+    let specsHTML = '<ul>';
+    if (product.Usages) specsHTML += `<li class="py-2"><strong>Usage recommandé :</strong> ${product.Usages}</li>`;
+    specsHTML += '</ul>';
+    specsContainer.innerHTML = specsHTML;
+}
+
+function renderElectronicsDetails(product, variantsContainer, specsContainer) {
+    // Options de variantes (ex: Capacités)
+    if (product.Capacités) {
+        variantsContainer.innerHTML += createVariantSelector('Capacité', product.Capacités.split(','));
+    }
+    // Spécifications
+    let specsHTML = '<ul>';
+    if (product.Connectivités) specsHTML += `<li class="py-2 border-b"><strong>Connectivité :</strong> ${product.Connectivités}</li>`;
+    if (product.Garanties) specsHTML += `<li class="py-2"><strong>Garantie :</strong> ${product.Garanties}</li>`;
+    specsHTML += '</ul>';
+    specsContainer.innerHTML = specsHTML;
+}
+
+function renderBagsDetails(product, variantsContainer, specsContainer) {
+    if (product.Couleur) {
+        variantsContainer.innerHTML += createVariantSelector('Couleur', product.Couleur.split(','));
+    }
+    let specsHTML = '<ul>';
+    if (product.Volume) specsHTML += `<li class="py-2 border-b"><strong>Volume :</strong> ${product.Volume}</li>`;
+    if (product.Type) specsHTML += `<li class="py-2 border-b"><strong>Type :</strong> ${product.Type}</li>`;
+    if (product.Matière) specsHTML += `<li class="py-2"><strong>Matière :</strong> ${product.Matière}</li>`;
+    specsHTML += '</ul>';
+    specsContainer.innerHTML = specsHTML;
+}
+
+function renderBooksDetails(product, variantsContainer, specsContainer) {
+    // Pas de variantes sélectionnables pour les livres en général
+    let specsHTML = '<ul>';
+    if (product.Auteur) specsHTML += `<li class="py-2 border-b"><strong>Auteur :</strong> ${product.Auteur}</li>`;
+    if (product.Genre) specsHTML += `<li class="py-2 border-b"><strong>Genre :</strong> ${product.Genre}</li>`;
+    if (product.Format) specsHTML += `<li class="py-2 border-b"><strong>Format :</strong> ${product.Format}</li>`;
+    if (product.Langue) specsHTML += `<li class="py-2 border-b"><strong>Langue :</strong> ${product.Langue}</li>`;
+    if (product.ISBN) specsHTML += `<li class="py-2"><strong>ISBN :</strong> ${product.ISBN}</li>`;
+    specsHTML += '</ul>';
+    specsContainer.innerHTML = specsHTML;
+}
+
+function renderFoodDetails(product, variantsContainer, specsContainer) {
+    if (product.Poids) {
+        variantsContainer.innerHTML += createVariantSelector('Poids', product.Poids.split(','));
+    }
+    let specsHTML = '<ul>';
+    if (product.Ingrédients) specsHTML += `<li class="py-2 border-b"><strong>Ingrédients :</strong> ${product.Ingrédients}</li>`;
+    if (product.Origine) specsHTML += `<li class="py-2 border-b"><strong>Origine :</strong> ${product.Origine}</li>`;
+    if (product.Labels) specsHTML += `<li class="py-2"><strong>Labels :</strong> ${product.Labels}</li>`;
+    specsHTML += '</ul>';
+    specsContainer.innerHTML = specsHTML;
+}
+
+function renderBeautyDetails(product, variantsContainer, specsContainer) {
+    if (product.Format) {
+        variantsContainer.innerHTML += createVariantSelector('Format', product.Format.split(','));
+    }
+    let specsHTML = '<ul>';
+    if (product['Type de peau']) specsHTML += `<li class="py-2 border-b"><strong>Type de peau :</strong> ${product['Type de peau']}</li>`;
+    if (product.Ingrédients) specsHTML += `<li class="py-2"><strong>Ingrédients principaux :</strong> ${product.Ingrédients}</li>`;
+    specsHTML += '</ul>';
+    specsContainer.innerHTML = specsHTML;
+}
+/**
+ * NOUVEAU: Crée un sélecteur de variante (boutons).
+ * @param {string} label Le nom de la variante (ex: "Taille").
+ * @param {string[]} options Un tableau d'options (ex: ["S", "M", "L"]).
+ * @returns {string} Le code HTML du sélecteur.
+ */
+function createVariantSelector(label, options) {
+    let buttonsHTML = options.map(option => 
+        `<button class="variant-btn border-2 rounded-md px-4 py-1 text-sm font-semibold" onclick="selectVariant(this, '${label}')">${option.trim()}</button>`
+    ).join('');
+
+    return `
+        <div>
+            <h3 class="text-sm font-semibold mb-2">${label} :</h3>
+            <div class="flex flex-wrap gap-2">
+                ${buttonsHTML}
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * NOUVEAU: Gère la sélection visuelle d'un bouton de variante.
+ * @param {HTMLElement} selectedButton Le bouton qui a été cliqué.
+ * @param {string} groupName Le nom du groupe de variantes.
+ */
+function selectVariant(selectedButton, groupName) {
+    // Désélectionne tous les autres boutons du même groupe
+    selectedButton.parentElement.querySelectorAll('.variant-btn').forEach(btn => {
+        btn.classList.remove('selected');
+    });
+    // Sélectionne le bouton cliqué
+    selectedButton.classList.add('selected');
 }
 
 // --- LOGIQUE DE PAIEMENT (CHECKOUT) ---

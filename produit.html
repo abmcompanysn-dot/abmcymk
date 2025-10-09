@@ -17,6 +17,8 @@
         .font-montserrat { font-family: 'Montserrat', sans-serif; }
         /* Espace pour la barre de navigation inférieure */
         body { padding-bottom: 80px; }
+        .variant-btn { transition: all 0.2s ease; }
+        .variant-btn.selected { border-color: var(--gold-color); background-color: #fefce8; }
     </style>
 </head>
 <body class="bg-gray-50 font-montserrat">
@@ -76,10 +78,17 @@
                 <div id="product-price-container" class="flex items-center space-x-3 mb-6 h-10">
                     <!-- Le prix sera injecté ici par JS -->
                 </div>
+
+                <!-- NOUVEAU: Section pour les variantes (taille, couleur, etc.) -->
+                <div id="product-variants-container" class="mb-8 space-y-4">
+                    <!-- Les sélecteurs de variantes seront injectés ici -->
+                </div>
+
                 <div class="flex items-center space-x-4 mb-8">
                     <label for="quantity" class="font-semibold">Quantité:</label>
                     <input type="number" id="quantity" value="1" min="1" class="w-20 border border-gray-300 rounded p-2 text-center">
                 </div>
+
                 <button id="add-to-cart-button" class="w-full bg-black text-white py-3 rounded-lg font-semibold hover:bg-gray-800 transition text-lg" disabled>
                     Ajouter au panier
                 </button>
@@ -87,7 +96,12 @@
         </div>
 
         <!-- Section Description & Avis -->
-        <div id="product-details-section" class="mt-16 border-t pt-8">
+        <div class="mt-16 border-t pt-8">
+            <h3 class="text-2xl font-bold text-gray-800 mb-4">Détails du produit</h3>
+            <!-- NOUVEAU: Conteneur pour les spécifications techniques/détaillées -->
+            <div id="product-specs-container" class="mb-8 bg-white p-6 rounded-lg shadow-sm">
+                <!-- Les spécifications seront injectées ici -->
+            </div>
             <!-- Le contenu (description détaillée, caractéristiques) sera injecté ici -->
         </div>
 
