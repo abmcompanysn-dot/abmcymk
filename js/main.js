@@ -30,6 +30,7 @@ async function initializeApp() {
     
     // Initialisation des éléments qui nécessitent des données du backend
     await populateCategoryMenu(); // Doit être appelé avant initializeSearch si la recherche utilise les catégories
+    await populateNavLinks(); // NOUVEAU: Remplit les barres de navigation
     await initializeSearch(); // Peut nécessiter les produits
 
     // Une fois les données prêtes, on initialise le reste
@@ -127,6 +128,51 @@ async function populateCategoryMenu() {
     }
 }
 
+/**
+ * NOUVEAU: Remplit dynamiquement les liens de navigation principaux et de la bannière.
+ */
+async function populateNavLinks() {
+    const mainLinksContainer = document.getElementById('main-nav-links');
+    const bannerLinksContainer = document.getElementById('banner-nav-links');
+
+    // Ne fait rien si on n'est pas sur la page d'accueil
+    if (!mainLinksContainer || !bannerLinksContainer) return;
+
+    try {
+        const categories = await getCategories();
+        const MANY_CATEGORIES_THRESHOLD = 8;
+
+        let mainNavCategories = [];
+        let bannerNavCategories = [];
+
+        if (categories.length > MANY_CATEGORIES_THRESHOLD) {
+            // S'il y a beaucoup de catégories, on les divise
+            mainNavCategories = categories.slice(0, 4); // Les 4 premières pour le haut
+            bannerNavCategories = categories.slice(4, 10); // Les 6 suivantes pour la bannière
+        } else {
+            // Sinon, on utilise les mêmes pour les deux (jusqu'à 6)
+            mainNavCategories = categories.slice(0, 4);
+            bannerNavCategories = categories.slice(0, 6);
+        }
+
+        // Générer le HTML pour la navigation principale
+        let mainNavHTML = '<a href="promotions.html" class="py-3 text-red-600 hover:text-red-800">SuperDeals</a>'; // Lien fixe
+        mainNavHTML += mainNavCategories.map(cat => 
+            `<a href="categorie.html?id=${cat.IDCategorie}&name=${encodeURIComponent(cat.NomCategorie)}" class="py-3 text-gray-700 hover:text-gold">${cat.NomCategorie}</a>`
+        ).join('');
+        mainLinksContainer.innerHTML = mainNavHTML;
+
+        // Générer le HTML pour la navigation de la bannière
+        bannerLinksContainer.innerHTML = bannerNavCategories.map((cat, index) => {
+            // Logique pour cacher des liens sur mobile si nécessaire
+            const responsiveClasses = index > 2 ? 'hidden sm:block' : '';
+            return `<a href="categorie.html?id=${cat.IDCategorie}&name=${encodeURIComponent(cat.NomCategorie)}" class="px-4 py-1 hover:bg-white/20 rounded-full transition ${responsiveClasses}">${cat.NomCategorie}</a>`;
+        }).join('');
+
+    } catch (error) {
+        console.error("Erreur lors du remplissage des liens de navigation:", error);
+    }
+}
 // --- LOGIQUE DU PANIER ---
 
 /**
