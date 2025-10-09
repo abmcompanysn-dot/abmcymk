@@ -71,6 +71,11 @@ const CATEGORY_CONFIG = {
   "Mobilité urbaine": ["Type", "Autonomie", "Vitesse", "Poids", "Pliable"],
 };
 
+// NOUVEAU: Création de la catégorie universelle en regroupant tous les attributs uniques
+const allUniqueAttributes = [...new Set(Object.values(CATEGORY_CONFIG).flat())];
+CATEGORY_CONFIG["Universel (Tous les attributs)"] = allUniqueAttributes;
+
+
 const BASE_HEADERS = ["IDProduit", "Nom", "Marque", "PrixActuel", "PrixAncien", "Réduction%", "Stock", "ImageURL", "Description", "Tags", "Actif", "Catégorie", "NoteMoyenne", "NombreAvis", "Galerie"];
 
 /**
@@ -105,9 +110,22 @@ const PERSONAL_DATA = {
  * Crée un menu personnalisé à l'ouverture de la feuille de calcul.
  */
 function onOpen() {
-  SpreadsheetApp.getUi()
-      .createMenu('Gestion Catégorie')
-      .addItem('Initialiser la feuille', 'setupSheet')
+  const ui = SpreadsheetApp.getUi();
+  const menu = ui.createMenu('Gestion Catégorie');
+  
+  // NOUVEAU: Menu de mise à jour intelligent
+  const updateMenu = ui.createMenu('Mettre à jour pour la catégorie...');
+  Object.keys(CATEGORY_CONFIG).sort().forEach(categoryName => {
+    // Crée une fonction unique pour chaque item de menu
+    const functionName = `updateFor_${categoryName.replace(/[^a-zA-Z0-9]/g, '')}`;
+    this[functionName] = () => updateSheetForCategory(categoryName);
+    updateMenu.addItem(categoryName, functionName);
+  });
+  
+  menu.addItem('1. Initialiser la feuille (Base)', 'setupBaseSheet')
+      .addSeparator()
+      .addSubMenu(updateMenu)
+      .addSeparator()
       .addItem('Vider le cache de cette catégorie', 'invalidateCategoryCache')
       .addItem('Remplir avec des données de test', 'seedDefaultProducts')
       .addSeparator()
@@ -115,9 +133,6 @@ function onOpen() {
       .addToUi();
 }
 
-/**
- * Point d'entrée pour l'ajout de produit via une requête POST (appelé par l'interface centrale).
- */
 function doPost(e) {
   try {
     // La logique de sécurité CORS n'est généralement pas nécessaire pour POST si l'appel vient d'un autre script Google.
@@ -234,16 +249,39 @@ function showProductAddUI() {
 }
 
 /**
- * Prépare la feuille de calcul avec les en-têtes corrects.
+ * NOUVEAU: Prépare la feuille avec les en-têtes de BASE uniquement.
  */
-function setupSheet(categoryName) {
+function setupBaseSheet() {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheets()[0];
-  const headers = getCategorySpecificHeaders(categoryName);
   sheet.clear();
-  sheet.appendRow(headers);
+  sheet.appendRow(BASE_HEADERS);
   sheet.setFrozenRows(1);
-  sheet.getRange(1, 1, 1, headers.length).setFontWeight("bold");
-  SpreadsheetApp.getUi().alert(`Feuille initialisée comme "${categoryName}" avec succès !`);
+  sheet.getRange(1, 1, 1, BASE_HEADERS.length).setFontWeight("bold");
+  SpreadsheetApp.getUi().alert("Feuille de base initialisée ! Vous pouvez maintenant la mettre à jour pour une catégorie spécifique.");
+}
+
+/**
+ * NOUVEAU: Met à jour la feuille en ajoutant les colonnes manquantes pour une catégorie.
+ */
+function updateSheetForCategory(categoryName) {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheets()[0];
+  if (sheet.getLastRow() === 0) {
+    SpreadsheetApp.getUi().alert("Veuillez d'abord initialiser la feuille avec le menu 'Initialiser la feuille (Base)'.");
+    return;
+  }
+
+  const currentHeaders = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  const specificHeaders = CATEGORY_CONFIG[categoryName] || [];
+  
+  const missingHeaders = specificHeaders.filter(h => !currentHeaders.includes(h));
+
+  if (missingHeaders.length > 0) {
+    const lastColumn = sheet.getLastColumn();
+    sheet.getRange(1, lastColumn + 1, 1, missingHeaders.length).setValues([missingHeaders]).setFontWeight("bold");
+    SpreadsheetApp.getUi().alert(`Mise à jour terminée pour "${categoryName}". ${missingHeaders.length} colonne(s) ajoutée(s).`);
+  } else {
+    SpreadsheetApp.getUi().alert(`La feuille est déjà à jour pour la catégorie "${categoryName}". Aucune colonne ajoutée.`);
+  }
 }
 
 /**

@@ -533,10 +533,6 @@ async function loadProductPage() { // Make it async
         }
         priceContainer.innerHTML = priceHTML;
 
-        // Mettre à jour le bouton "Ajouter au panier"
-        addToCartButton.setAttribute('onclick', `addToCart(event, '${product.IDProduit}', '${product.Nom}', ${product.PrixActuel}, '${product.ImageURL || CONFIG.DEFAULT_PRODUCT_IMAGE}')`);
-        addToCartButton.disabled = false;
-
         // NOUVEAU: Construire la galerie de miniatures
         let galleryImages = [];
         if (product.ImageURL) galleryImages.push(product.ImageURL); // L'image principale est la première
@@ -566,6 +562,15 @@ async function loadProductPage() { // Make it async
         // NOUVEAU: Afficher les détails spécifiques à la catégorie
         renderCategorySpecificDetails(product, variantsContainer, specsContainer);
 
+        // Mettre à jour le bouton "Ajouter au panier"
+        addToCartButton.setAttribute('onclick', `addToCart(event, '${product.IDProduit}', '${product.Nom}', ${product.PrixActuel}, '${product.ImageURL || CONFIG.DEFAULT_PRODUCT_IMAGE}')`);
+        const hasVariants = variantsContainer.innerHTML.trim() !== '';
+        // Le bouton est désactivé si le produit est en rupture de stock ET qu'il n'y a pas de variantes.
+        addToCartButton.disabled = (product.Stock <= 0 && !hasVariants);
+
+        // NOUVEAU: Activer le zoom sur l'image principale
+        activateImageZoom("main-product-image", "zoom-result");
+
     } catch (error) {
         console.error("Erreur de chargement du produit:", error);
         const mainContent = document.querySelector('main');
@@ -579,6 +584,72 @@ async function loadProductPage() { // Make it async
  */
 function changeMainImage(newImageUrl) {
     document.getElementById('main-product-image').src = newImageUrl;
+    // Réactiver le zoom sur la nouvelle image
+    activateImageZoom("main-product-image", "zoom-result");
+}
+
+/**
+ * NOUVEAU: Active l'effet de zoom sur une image.
+ * @param {string} imgID L'ID de l'image sur laquelle zoomer.
+ * @param {string} resultID L'ID du conteneur pour afficher le résultat.
+ */
+function activateImageZoom(imgID, resultID) {
+  const img = document.getElementById(imgID);
+  const result = document.getElementById(resultID);
+  const container = img.parentElement;
+
+  // Supprimer l'ancienne loupe si elle existe
+  const oldLens = container.querySelector(".img-zoom-lens");
+  if (oldLens) {
+    container.removeChild(oldLens);
+  }
+
+  // Créer la loupe
+  const lens = document.createElement("DIV");
+  lens.setAttribute("class", "img-zoom-lens");
+  container.insertBefore(lens, img);
+
+  // Calculer le ratio entre le résultat et la loupe
+  const cx = result.offsetWidth / lens.offsetWidth;
+  const cy = result.offsetHeight / lens.offsetHeight;
+
+  // Définir l'image de fond pour le résultat et sa taille
+  result.style.backgroundImage = "url('" + img.src + "')";
+  result.style.backgroundSize = (img.width * cx) + "px " + (img.height * cy) + "px";
+
+  // Ajouter les écouteurs d'événements
+  lens.addEventListener("mousemove", moveLens);
+  img.addEventListener("mousemove", moveLens);
+  container.addEventListener("mouseenter", () => { result.style.display = "block"; });
+  container.addEventListener("mouseleave", () => { result.style.display = "none"; });
+
+  function moveLens(e) {
+    e.preventDefault();
+    // Obtenir la position du curseur
+    const pos = getCursorPos(e);
+    // Calculer la position de la loupe
+    let x = pos.x - (lens.offsetWidth / 2);
+    let y = pos.y - (lens.offsetHeight / 2);
+    // Empêcher la loupe de sortir des bords de l'image
+    if (x > img.width - lens.offsetWidth) {x = img.width - lens.offsetWidth;}
+    if (x < 0) {x = 0;}
+    if (y > img.height - lens.offsetHeight) {y = img.height - lens.offsetHeight;}
+    if (y < 0) {y = 0;}
+    // Appliquer la position à la loupe
+    lens.style.left = x + "px";
+    lens.style.top = y + "px";
+    // Afficher ce que la loupe "voit"
+    result.style.backgroundPosition = "-" + (x * cx) + "px -" + (y * cy) + "px";
+  }
+
+  function getCursorPos(e) {
+    let a, x = 0, y = 0;
+    e = e || window.event;
+    a = img.getBoundingClientRect();
+    x = e.pageX - a.left - window.pageXOffset;
+    y = e.pageY - a.top - window.pageYOffset;
+    return {x : x, y : y};
+  }
 }
 
 /**
@@ -742,10 +813,10 @@ function renderBeautyDetails(product, variantsContainer, specsContainer) {
  * @returns {string} Le code HTML du sélecteur.
  */
 function createVariantSelector(label, options) {
-    let buttonsHTML = options.map(option => 
-        `<button class="variant-btn border-2 rounded-md px-4 py-1 text-sm font-semibold" onclick="selectVariant(this, '${label}')">${option.trim()}</button>`
-    ).join('');
+    const validOptions = options.filter(opt => opt && opt.trim() !== '');
+    if (validOptions.length === 0) return '';
 
+    let buttonsHTML = validOptions.map(option => `<button class="variant-btn border-2 rounded-md px-4 py-1 text-sm font-semibold" data-group="${label}" onclick="selectVariant(this, '${label}')">${option.trim()}</button>`).join('');
     return `
         <div>
             <h3 class="text-sm font-semibold mb-2">${label} :</h3>
@@ -763,11 +834,18 @@ function createVariantSelector(label, options) {
  */
 function selectVariant(selectedButton, groupName) {
     // Désélectionne tous les autres boutons du même groupe
-    selectedButton.parentElement.querySelectorAll('.variant-btn').forEach(btn => {
+    document.querySelectorAll(`.variant-btn[data-group="${groupName}"]`).forEach(btn => {
         btn.classList.remove('selected');
     });
     // Sélectionne le bouton cliqué
     selectedButton.classList.add('selected');
+
+    // Activer le bouton "Ajouter au panier" si toutes les variantes sont sélectionnées
+    const variantGroups = document.querySelectorAll('#product-variants-container > div');
+    const allSelected = Array.from(variantGroups).every(group => group.querySelector('.variant-btn.selected'));
+
+    const addToCartButton = document.getElementById('add-to-cart-button');
+    addToCartButton.disabled = !allSelected;
 }
 
 // --- LOGIQUE DE PAIEMENT (CHECKOUT) ---
