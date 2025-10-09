@@ -543,7 +543,8 @@ async function loadProductPage() { // Make it async
         }
         
         // Rendre les URLs uniques pour éviter les doublons
-        galleryImages = [...new Set(galleryImages)];
+        // Limiter la galerie à 5 photos au maximum
+        galleryImages = galleryImages.slice(0, 5);
 
         thumbnailsContainer.innerHTML = galleryImages.map((imgUrl, index) => `
             <div class="border-2 ${index === 0 ? 'border-gold' : 'border-transparent'} rounded-lg cursor-pointer overflow-hidden thumbnail-item">
