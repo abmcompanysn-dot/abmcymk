@@ -211,15 +211,25 @@ function addToCart(event, productId, name, price, imageUrl) {
 
     const cart = getCart();
     const quantityInput = document.getElementById('quantity');
-    const quantity = quantityInput ? parseInt(quantityInput.value) : 1;
-    // Correction: la variable finalProductId n'existe pas dans ce contexte.
-    const existingProductIndex = cart.findIndex(item => item.productId === productId);
+    const quantity = quantityInput ? parseInt(quantityInput.value, 10) : 1;
+
+    // NOUVEAU: Récupérer les variantes sélectionnées (taille, couleur, etc.)
+    const selectedVariants = {};
+    const variantButtons = document.querySelectorAll('.variant-btn.selected');
+    variantButtons.forEach(btn => {
+        const group = btn.dataset.group;
+        const value = btn.textContent;
+        selectedVariants[group] = value;
+    });
+
+    // CORRECTION: La recherche de produit existant doit aussi prendre en compte les variantes.
+    const existingProductIndex = cart.findIndex(item => item.productId === productId && JSON.stringify(item.variants) === JSON.stringify(selectedVariants));
     if (existingProductIndex > -1) {
         // Le produit existe déjà, on augmente la quantité
         cart[existingProductIndex].quantity += quantity;
     } else {
         // Nouveau produit
-        cart.push({ id: finalProductId, productId: productId, name, price, imageUrl, quantity, variants: selectedVariants });
+        cart.push({ productId: productId, name, price, imageUrl, quantity, variants: selectedVariants });
     }
     
     saveCart(cart);

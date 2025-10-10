@@ -32,6 +32,14 @@
             body { padding-bottom: 0; }
             .mobile-nav { display: none; }
         }
+        /* NOUVEAU: Styles pour le squelette de chargement pour un affichage immédiat */
+        .skeleton-card {
+            background-color: #fff;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            overflow: hidden;
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
         /* NOUVEAU: Styles pour le défilement horizontal */
         .horizontal-scroll-container {
             -ms-overflow-style: none;  /* IE and Edge */
@@ -53,7 +61,7 @@
                 </a>
 
                 <!-- Barre de recherche -->
-                <form id="search-form-header" class="flex-1 mx-4">
+                <form id="search-form-header" class="flex-1 mx-4" onsubmit="initializeSearch()">
                     <div class="relative">
                         <input type="search" placeholder="Rechercher des produits, des marques et plus..." class="w-full p-2 pl-10 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-gold">
                         <svg class="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
@@ -62,12 +70,12 @@
 
                 <!-- Icônes utilisateur -->
                 <div class="flex items-center space-x-4">
-                    <a href="#" class="text-gray-600 hover:text-gold" aria-label="Notifications"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 00-5-5.917V5a1 1 0 00-2 0v.083A6 6 0 006 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg></a>
-                    <a href="panier.html" class="text-gray-600 hover:text-gold relative" aria-label="Panier">
+                    <a href="#" class="text-gray-600 hover:text-gold"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 00-5-5.917V5a1 1 0 00-2 0v.083A6 6 0 006 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg></a>
+                    <a href="panier.html" class="text-gray-600 hover:text-gold relative">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L4.5 8M7 13h10l4-8H5.4M7 13L4.5 8M12 13h8.5l-4 8H8l-4-8h8.5z"></path></svg>
-                        <span class="cart-badge absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center hidden">0</span>
+                        <span id="headerCartBadge" class="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center hidden">0</span>
                     </a>
-                    <a href="authentification.html" class="text-gray-600 hover:text-gold" aria-label="Mon compte"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg></a>
+                    <a href="authentification.html" class="text-gray-600 hover:text-gold"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg></a>
                 </div>
             </div>
         </div>
@@ -127,7 +135,13 @@
                 </div>
             </div>
             <div id="superdeals-products" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-                <!-- Les produits en SuperDeal seront injectés ici par JS -->
+                <!-- Le squelette de chargement est maintenant directement dans le HTML -->
+                <div class="skeleton-card"><div class="bg-gray-200 h-40"></div><div class="p-3 space-y-2"><div class="bg-gray-200 h-4 rounded"></div><div class="bg-gray-200 h-6 w-1/2 rounded"></div></div></div>
+                <div class="skeleton-card"><div class="bg-gray-200 h-40"></div><div class="p-3 space-y-2"><div class="bg-gray-200 h-4 rounded"></div><div class="bg-gray-200 h-6 w-1/2 rounded"></div></div></div>
+                <div class="skeleton-card"><div class="bg-gray-200 h-40"></div><div class="p-3 space-y-2"><div class="bg-gray-200 h-4 rounded"></div><div class="bg-gray-200 h-6 w-1/2 rounded"></div></div></div>
+                <div class="skeleton-card"><div class="bg-gray-200 h-40"></div><div class="p-3 space-y-2"><div class="bg-gray-200 h-4 rounded"></div><div class="bg-gray-200 h-6 w-1/2 rounded"></div></div></div>
+                <div class="skeleton-card"><div class="bg-gray-200 h-40"></div><div class="p-3 space-y-2"><div class="bg-gray-200 h-4 rounded"></div><div class="bg-gray-200 h-6 w-1/2 rounded"></div></div></div>
+                <div class="skeleton-card"><div class="bg-gray-200 h-40"></div><div class="p-3 space-y-2"><div class="bg-gray-200 h-4 rounded"></div><div class="bg-gray-200 h-6 w-1/2 rounded"></div></div></div>
             </div>
         </section>
 
@@ -218,8 +232,8 @@
                     <span class="text-xs">Compte</span>
                 </a>
                 <a href="panier.html" class="flex flex-col items-center text-gray-600 hover:text-gold transition relative">
-                    <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L4.5 8M7 13h10l4-8H5.4M7 13L4.5 8M12 13h8.5l-4 8H8l-4-8h8.5z"></path></svg>
-                    <span class="cart-badge absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center hidden">0</span>
+                    <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L4.5 8M7 13h10l4-8H5.4M7 13L4.5 8M12 13h8.5l-4 8H8l-4-8h8.5z"></path></svg>
+                    <span id="bottomNavCartBadge" class="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center hidden">0</span>
                     <span class="text-xs">Panier</span>
                 </a>
             </div>
