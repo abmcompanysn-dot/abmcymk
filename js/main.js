@@ -467,7 +467,7 @@ async function displaySearchResults(catalog) {
 
     const resultsHTML = filteredProducts.map(product => `
         <a href="produit.html?id=${product.IDProduit}" class="product-card bg-white rounded-lg shadow-md overflow-hidden block">
-            <div class="h-48 bg-gray-200"><img src="${product.ImageURL || CONFIG.DEFAULT_PRODUCT_IMAGE}" alt="${product.Nom}" class="h-full w-full object-cover"></div>
+            <div class="h-48 bg-gray-200"><img src="${product.ImageURL || CONFIG.DEFAULT_PRODUCT_IMAGE}" alt="${product.Nom}" class="h-full w-full object-cover" loading="lazy" width="200" height="192"></div>
             <div class="p-4">
                 <h4 class="font-semibold text-gray-800 mb-2">${product.Nom}</h4>
                 <span class="text-lg font-bold text-gold">${product.PrixActuel.toLocaleString('fr-FR')} F CFA</span>
@@ -643,7 +643,7 @@ function loadProductPage(catalog) {
 
         thumbnailsContainer.innerHTML = galleryImages.map((imgUrl, index) => `
             <div class="border-2 ${index === 0 ? 'border-gold' : 'border-transparent'} rounded-lg cursor-pointer overflow-hidden thumbnail-item">
-                <img src="${imgUrl}" alt="Miniature ${index + 1}" class="h-full w-full object-cover" onclick="changeMainImage('${imgUrl}')">
+                <img src="${imgUrl}" alt="Miniature ${index + 1}" class="h-full w-full object-cover" onclick="changeMainImage('${imgUrl}')" loading="lazy" width="80" height="80">
             </div>
         `).join('');
 
@@ -1092,7 +1092,7 @@ function renderProductCard(product) { // This function remains synchronous as it
     <a href="produit.html?id=${product.IDProduit}" class="product-card bg-white rounded-lg shadow overflow-hidden block">
         <div class="relative">
             <div class="h-40 bg-gray-200 flex items-center justify-center">
-            <img src="${product.ImageURL || CONFIG.DEFAULT_PRODUCT_IMAGE}" alt="${product.Nom}" class="h-full w-full object-cover" onerror="this.onerror=null;this.src='${CONFIG.DEFAULT_PRODUCT_IMAGE}';">
+            <img src="${product.ImageURL || CONFIG.DEFAULT_PRODUCT_IMAGE}" alt="${product.Nom}" class="h-full w-full object-cover" loading="lazy" width="160" height="160" onerror="this.onerror=null;this.src='${CONFIG.DEFAULT_PRODUCT_IMAGE}';">
             </div>
             ${discount > 0 ? `<span class="discount-badge absolute top-2 left-2 bg-red-500 text-white px-2 py-1 rounded-full text-xs font-bold">-${Math.round(discount)}%</span>` : ''}
         </div>
