@@ -622,6 +622,14 @@ function loadProductPage(catalog) {
         // Remplir les données
         nameEl.textContent = product.Nom;
         descriptionEl.textContent = product.Description;
+
+        // NOUVEAU: Mettre à jour les méta-tags Open Graph pour le partage
+        document.querySelector('meta[property="og:title"]').setAttribute('content', product.Nom);
+        document.querySelector('meta[property="og:description"]').setAttribute('content', product.Description || `Découvrez ${product.Nom} sur ABMCY MARKET.`);
+        document.querySelector('meta[property="og:image"]').setAttribute('content', product.ImageURL || CONFIG.DEFAULT_PRODUCT_IMAGE);
+        document.querySelector('meta[property="og:url"]').setAttribute('content', window.location.href);
+        document.querySelector('title').textContent = `${product.Nom} - ABMCY MARKET`;
+
         // CORRECTION: Charger l'image immédiatement
         mainImage.src = product.ImageURL || CONFIG.DEFAULT_PRODUCT_IMAGE;
         mainImage.alt = product.Nom;
