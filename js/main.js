@@ -1238,8 +1238,8 @@ function renderHomepageCategorySections(catalog) {
                         <h3 class="text-2xl font-bold text-gray-800">${category.NomCategorie}</h3>
                         <a href="categorie.html?id=${category.IDCategorie}&name=${encodeURIComponent(category.NomCategorie)}" class="text-sm font-semibold text-blue-600 hover:underline">Voir plus</a>
                     </div>
-                    <div class="horizontal-scroll-container flex space-x-4 overflow-x-auto pb-4">
-                        ${categoryProducts.map(p => `<div class="flex-shrink-0 w-1/2 md:w-1/3 lg:w-1/6">${renderProductCard(p)}</div>`).join('')}
+                    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                        ${categoryProducts.map(p => renderProductCard(p)).join('')}
                     </div>
                 </section>
             `;
