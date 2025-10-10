@@ -29,37 +29,15 @@ function showAdminInterface() {
  */
 function doGet(e) {
   try {
-    const action = e.parameter.action || 'getPublicData';
-
-    if (action === 'invalidateCache') {
-      updateCacheVersion();
-      return createJsonResponse({ success: true, message: "Cache version updated." });
-    }
-
-    if (action === 'getPublicData') {
-      const categories = getCategoriesWithProductCounts();
-      const cacheVersion = PropertiesService.getScriptProperties().getProperty('CACHE_VERSION') || '1.0';
-      return createJsonResponse({ success: true, data: categories, cacheVersion: cacheVersion });
-    }
-
-    return createJsonResponse({ success: false, error: "Action non reconnue." });
-
+    // Le seul rôle public de ce script pour le site web est de fournir la liste des catégories (l'annuaire).
+    // Le panneau d'administration utilise également cette fonction via google.script.run.
+    const categories = getCategoriesWithProductCounts();
+    return createJsonResponse({ success: true, data: categories });
   } catch (error) {
     return createJsonResponse({ success: false, error: error.message });
   }
 }
 
-/**
- * NOUVEAU: Se déclenche à chaque modification de la feuille de calcul centrale.
- * Invalide le cache si la feuille "Catégories" est modifiée.
- */
-function onEdit(e) {
-  const editedSheet = e.range.getSheet();
-  if (editedSheet.getName() === "Catégories") {
-    Logger.log("Modification détectée sur la feuille 'Catégories'. Invalidation du cache global.");
-    updateCacheVersion();
-  }
-}
 /**
  * Récupère la liste simple des catégories.
  */
@@ -210,16 +188,6 @@ function archiveAllOutOfStock() {
   const responses = UrlFetchApp.fetchAll(requests);
   // On pourrait agréger les résultats, mais pour l'instant on lance juste les tâches.
   return { success: true, message: "Tâche d'archivage lancée pour toutes les catégories." };
-}
-
-/**
- * NOUVEAU: Met à jour le numéro de version du cache.
- */
-function updateCacheVersion() {
-  const properties = PropertiesService.getScriptProperties();
-  const newVersion = new Date().getTime().toString(); // Timestamp unique comme version
-  properties.setProperty('CACHE_VERSION', newVersion);
-  Logger.log(`Version du cache mise à jour à : ${newVersion}`);
 }
 
 // --- UTILITAIRES ---
