@@ -29,10 +29,10 @@
         .border-gold { border-color: var(--gold-color); }
         .font-montserrat { font-family: 'Montserrat', sans-serif; }
         /* Espace pour la barre de navigation inférieure */
-        body {
-            padding-bottom: 100px; /* Espace pour la nav mobile + marge */
-            overflow-x: hidden; /* NOUVEAU: Empêche tout défilement horizontal */
-        }
+        body { 
+            padding-bottom: 100px; /* Espace pour la nav mobile + marge */ 
+            overflow-x: hidden; /* GARANTIT qu'aucun élément ne peut déborder horizontalement */
+        } 
         @media (min-width: 768px) {
             body { padding-bottom: 0; }
             .mobile-nav { display: none; }
@@ -62,13 +62,6 @@
             display: none;
         }
         /* NOUVEAU: Style pour l'affichage décalé des produits sur mobile */
-        @media (max-width: 767px) {
-            .horizontal-scroll-container {
-                display: grid;
-                grid-template-columns: repeat(2, 1fr);
-                overflow-x: visible;
-            }
-        }
     </style>
 </head>
 <body class="bg-gray-50 font-montserrat">
