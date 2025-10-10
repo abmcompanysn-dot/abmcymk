@@ -25,14 +25,16 @@ document.addEventListener('DOMContentLoaded', () => {
  * Fonction principale ASYNCHRONE qui initialise l'application.
  */
 async function initializeApp() {
-    // Tâches qui n'ont pas de dépendances, exécutées immédiatement.
+    // Étape 1: Mettre à jour les éléments qui n'ont pas besoin de données distantes.
     updateCartBadges();
-    
-    // OPTIMISATION: Exécuter les initialisations en parallèle pour gagner du temps.
-    // Toutes ces fonctions dépendent de getFullCatalog, mais peuvent s'exécuter en même temps.
-    // Promise.all attend que toutes les promesses soient résolues.
-    await Promise.all([populateCategoryMenu(), populateNavLinks(), initializeSearch()]);
 
+    // Étape 2: Charger TOUTES les données (catégories et produits) UNE SEULE FOIS.
+    const catalog = await getFullCatalog();
+
+    // Étape 3: Initialiser toutes les parties du site en leur passant les données déjà chargées.
+    // C'est beaucoup plus rapide et évite de surcharger l'API.
+    await Promise.all([populateCategoryMenu(catalog), populateNavLinks(catalog), initializeSearch()]);
+    
     // Une fois les données prêtes, on initialise le reste
     // Si nous sommes sur la page panier, on l'affiche
     if (document.getElementById('panier-page')) {
@@ -41,22 +43,22 @@ async function initializeApp() {
 
     // Si nous sommes sur la page de recherche, afficher les résultats
     if (window.location.pathname.endsWith('recherche.html')) {
-        displaySearchResults();
+        displaySearchResults(catalog);
     }
 
     // Si nous sommes sur une page catégorie, afficher les produits
     if (window.location.pathname.endsWith('categorie.html')) {
-        displayCategoryProducts();
+        displayCategoryProducts(catalog);
     }
 
     // Si nous sommes sur la page des promotions, afficher les produits
     if (window.location.pathname.endsWith('promotion.html')) {
-        displayPromotionProducts();
+        displayPromotionProducts(catalog);
     }
 
     // Si nous sommes sur la page produit, charger les données du produit
     if (window.location.pathname.endsWith('produit.html')) {
-        loadProductPage();
+        loadProductPage(catalog);
     }
 
     // Si nous sommes sur la page d'accueil (avec les nouvelles sections), on les remplit.
@@ -64,9 +66,9 @@ async function initializeApp() {
         renderDailyDealsHomepage();
         renderAllCategoriesSection(); // NOUVEAU: Affiche la section de toutes les catégories
         renderHomepageCategorySections(); // NOUVEAU: Affiche les sections par catégorie
-        startCountdown(); // Lancer le compte à rebours
+        startCountdown();
     }
-
+    
     // Si nous sommes sur la page compte, on l'initialise
     if (document.querySelector('main h1.text-3xl')?.textContent.includes("Mon Compte")) {
         initializeAccountPage();
@@ -96,14 +98,14 @@ function toggleMobileMenu() {
 /**
  * Remplit dynamiquement le menu des catégories à partir du fichier categories.js.
  */
-async function populateCategoryMenu() {
+async function populateCategoryMenu(catalog) {
     const menu = document.getElementById('mobileMenu');
     if (!menu) return; // S'assure que l'élément existe
     const boutiquesMenu = document.getElementById('boutiques-menu');
     let menuHTML = ''; // Initialiser la variable ici
 
     try {
-        const { data } = await getFullCatalog();
+        const { data } = catalog;
         const categories = (data.categories || []).filter(cat => cat.SheetID && cat.ScriptURL && !cat.ScriptURL.startsWith('REMPLIR_'));
 
         // Ajout d'un titre pour le menu déroulant
@@ -128,7 +130,7 @@ async function populateCategoryMenu() {
 /**
  * NOUVEAU: Remplit dynamiquement les liens de navigation principaux et de la bannière.
  */
-async function populateNavLinks() {
+async function populateNavLinks(catalog) {
     const mainLinksContainer = document.getElementById('main-nav-links');
     const bannerLinksContainer = document.getElementById('banner-nav-links');
 
@@ -136,7 +138,7 @@ async function populateNavLinks() {
     if (!mainLinksContainer) return;
 
     try {
-        const { data } = await getFullCatalog();
+        const { data } = catalog;
         const categories = (data.categories || []).filter(cat => cat.SheetID && cat.ScriptURL && !cat.ScriptURL.startsWith('REMPLIR_'));
         const MANY_CATEGORIES_THRESHOLD = 8;
 
@@ -360,7 +362,7 @@ function initializeSearch() {
  * Affiche les résultats sur la page de recherche.
  * La recherche se fait maintenant côté client pour plus de rapidité.
  */
-async function displaySearchResults() {
+async function displaySearchResults(catalog) {
     const params = new URLSearchParams(window.location.search);
     const query = params.get('q');
 
@@ -376,7 +378,7 @@ async function displaySearchResults() {
 
     let filteredProducts = [];
     try {
-        const { data } = await getFullCatalog();
+        const { data } = catalog;
         const allProducts = data.products || [];
 
         const lowerCaseQuery = query.toLowerCase();
@@ -413,7 +415,7 @@ async function displaySearchResults() {
 /**
  * NOUVEAU: Affiche les produits pour une catégorie donnée.
  */
-async function displayCategoryProducts() {
+async function displayCategoryProducts(catalog) {
     const params = new URLSearchParams(window.location.search);
     const categoryId = params.get('id');
     const categoryName = params.get('name');
@@ -435,7 +437,7 @@ async function displayCategoryProducts() {
     resultsContainer.innerHTML = Array(8).fill(skeletonCard).join('');
 
     try {
-        const { data } = await getFullCatalog();
+        const { data } = catalog;
         const allProducts = data.products || [];
         const allCategories = data.categories || [];
         
@@ -468,7 +470,7 @@ async function displayCategoryProducts() {
 /**
  * NOUVEAU: Affiche les produits en promotion.
  */
-async function displayPromotionProducts() {
+async function displayPromotionProducts(catalog) {
     const resultsContainer = document.getElementById('promotion-results-container');
     const resultsCount = document.getElementById('promotion-results-count');
 
@@ -483,7 +485,7 @@ async function displayPromotionProducts() {
     resultsContainer.innerHTML = Array(8).fill(skeletonCard).join('');
 
     try {
-        const { data } = await getFullCatalog();
+        const { data } = catalog;
         const allProducts = data.products || [];
         // Filtrer les produits qui ont une réduction
         const discountedProducts = allProducts.filter(product => product['Réduction%'] && parseFloat(product['Réduction%']) > 0);
@@ -510,7 +512,7 @@ async function displayPromotionProducts() {
 /**
  * Charge les données d'un produit spécifique sur la page produit.
  */
-async function loadProductPage() { // Make it async
+async function loadProductPage(catalog) { // Make it async
     const params = new URLSearchParams(window.location.search);
     const productId = params.get('id');
 
@@ -520,7 +522,7 @@ async function loadProductPage() { // Make it async
     }
 
     try {
-        const { data } = await getFullCatalog();
+        const { data } = catalog;
         const product = data.products.find(p => p.IDProduit == productId);
 
         if (!product) {
