@@ -91,7 +91,7 @@ const PERSONAL_DATA = {
   gallery: Array(5).fill('https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png').join(','),
   getProducts: function(categoryName) {
     let products = [];
-    for (let i = 1; i <= 10; i++) {
+    for (let i = 1; i <= 100; i++) { // MODIFICATION: Génère 100 produits au lieu de 10
         const price = (Math.floor(Math.random() * 20) + 5) * 10000;
         products.push({
             nom: `${categoryName} Produit ${i}`, marque: `Marque ${String.fromCharCode(65 + i)}`, categorie: categoryName,
@@ -126,7 +126,6 @@ function onOpen() {
   menu.addSubMenu(initMenu)
       .addSeparator()
       .addItem('Vider le cache de cette catégorie', 'invalidateCategoryCache')
-      .addItem('Remplir avec des données de test', 'seedDefaultProducts')
       .addSeparator()
       .addItem('Ajouter un produit', 'showProductAddUI')
       .addToUi();
@@ -237,13 +236,17 @@ function showProductAddUI() {
  * Prépare la feuille de calcul avec les en-têtes corrects pour une catégorie donnée.
  */
 function setupSheet(categoryName) {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheets()[0];
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheets()[0];
   const headers = getCategorySpecificHeaders(categoryName);
   sheet.clear();
+  sheet.setName(categoryName); // NOUVEAU: Renomme la feuille avec le nom de la catégorie
   sheet.appendRow(headers);
   sheet.setFrozenRows(1);
   sheet.getRange(1, 1, 1, headers.length).setFontWeight("bold");
-  SpreadsheetApp.getUi().alert(`Feuille initialisée comme "${categoryName}" avec succès !`);
+  
+  seedDefaultProducts(categoryName); // NOUVEAU: Ajoute les produits de test automatiquement
+  SpreadsheetApp.getUi().alert(`Feuille initialisée comme "${categoryName}" et remplie avec 100 produits de test.`);
 }
 
 /**
@@ -266,17 +269,14 @@ function invalidateCategoryCache() {
 }
 
 /**
- * Remplit la feuille avec 10 produits de test.
+ * Remplit la feuille avec 100 produits de test pour la catégorie donnée.
  */
-function seedDefaultProducts() {
-  const categoryName = getCategoryName();
+function seedDefaultProducts(categoryName) {
   const products = PERSONAL_DATA.getProducts(categoryName);
 
   products.forEach(productData => {
     addProduct(productData);
   });
-
-  SpreadsheetApp.getUi().alert('10 produits de test ont été ajoutés avec succès !');
 }
 
 /**

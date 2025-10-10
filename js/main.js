@@ -62,6 +62,7 @@ async function initializeApp() {
     // Si nous sommes sur la page d'accueil (avec les nouvelles sections), on les remplit.
     if (document.getElementById('superdeals-products')) {
         renderDailyDealsHomepage();
+        renderAllCategoriesSection(); // NOUVEAU: Affiche la section de toutes les catégories
         renderHomepageCategorySections(); // NOUVEAU: Affiche les sections par catégorie
         startCountdown(); // Lancer le compte à rebours
     }
@@ -1169,6 +1170,42 @@ async function renderHomepageCategorySections() {
     } catch (error) {
         console.error("Erreur lors de l'affichage des sections par catégorie:", error);
         container.innerHTML = '<p class="text-center text-red-500">Impossible de charger les sections de produits.</p>';
+    }
+}
+
+/**
+ * NOUVEAU: Affiche la liste complète de toutes les catégories sur la page d'accueil.
+ */
+async function renderAllCategoriesSection() {
+    const container = document.getElementById('all-categories-container');
+    if (!container) return;
+
+    // Afficher un squelette de chargement
+    container.innerHTML = '<div class="animate-pulse grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">' +
+        Array(12).fill('<div class="h-5 bg-gray-200 rounded"></div>').join('') +
+        '</div>';
+
+    try {
+        const { data } = await getFullCatalog();
+        const categories = data.categories || [];
+
+        if (categories.length === 0) {
+            container.innerHTML = '<p class="text-gray-500">Aucune catégorie à afficher pour le moment.</p>';
+            return;
+        }
+
+        // Organiser les catégories en colonnes pour une meilleure lisibilité
+        const categoriesHTML = categories.map(cat => `
+            <a href="categorie.html?id=${cat.IDCategorie}&name=${encodeURIComponent(cat.NomCategorie)}" class="block text-gray-700 hover:text-gold hover:underline text-sm py-1">
+                ${cat.NomCategorie}
+            </a>
+        `).join('');
+
+        container.innerHTML = `<div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-x-4 gap-y-2">${categoriesHTML}</div>`;
+
+    } catch (error) {
+        console.error("Erreur lors de l'affichage de la liste complète des catégories:", error);
+        container.innerHTML = '<p class="text-center text-red-500">Impossible de charger la liste des catégories.</p>';
     }
 }
 // --- LOGIQUE D'AUTHENTIFICATION ---
