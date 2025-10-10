@@ -937,10 +937,10 @@ async function renderDailyDealsHomepage() {
     const boutiquesContainer = document.getElementById('boutiques-container');
 
     if (!superdealsContainer || !boutiquesContainer) return;
-
+    
     // --- Étape 1: Afficher IMMÉDIATEMENT les squelettes de chargement ---
     const skeletonCard = `
-        <div class="bg-white rounded-lg shadow overflow-hidden animate-pulse">
+        <div class="bg-white rounded-lg shadow-md overflow-hidden animate-pulse">
             <div class="bg-gray-200 h-40"></div>
             <div class="p-3 space-y-2"><div class="bg-gray-200 h-4 rounded"></div><div class="bg-gray-200 h-6 w-1/2 rounded"></div></div>
         </div>`;
@@ -948,48 +948,46 @@ async function renderDailyDealsHomepage() {
     boutiquesContainer.innerHTML = Array(6).fill(skeletonCard).join('');
 
     // --- Étape 2: Donner au navigateur le temps de dessiner les squelettes ---
-    // setTimeout avec 0ms est une astuce pour laisser le thread principal se libérer un instant.
-    setTimeout(async () => {
-        try {
-            // --- Étape 3: Charger le catalogue complet ---
-            const { data } = await getFullCatalog();
-            const categories = data.categories || [];
-            const products = data.products || [];
+    // On lance le chargement des données. getFullCatalog est déjà optimisé avec un cache.
+    try {
+        // --- Étape 3: Charger le catalogue complet ---
+        const { data } = await getFullCatalog();
+        const categories = data.categories || [];
+        const products = data.products || [];
 
-            // --- Étape 4: Remplir la section "Nos Boutiques" dès que les catégories sont prêtes ---
-            if (categories.length > 0) {
-                boutiquesContainer.innerHTML = categories.map(cat => `
-                <a href="categorie.html?id=${cat.IDCategorie}&name=${encodeURIComponent(cat.NomCategorie)}" class="product-card bg-white rounded-lg shadow overflow-hidden block text-center">
-                    <div class="h-32 bg-gray-100 flex items-center justify-center p-2">
-                        <img src="${cat.ImageURL || CONFIG.DEFAULT_PRODUCT_IMAGE}" alt="${cat.NomCategorie}" class="max-h-full max-w-full object-contain">
-                    </div>
-                    <div class="p-2">
-                        <p class="font-semibold text-sm text-gray-800 truncate">${cat.NomCategorie}</p>
-                    </div>
-                </a>
-            `).join('');
-            } else {
-                boutiquesContainer.innerHTML = '<p class="col-span-full text-center text-gray-500">Aucune boutique à afficher.</p>';
-            }
-
-            // --- Étape 5: Remplir la section "SuperDeals" avec les produits ---
-            const superDealsProducts = products
-                .filter(p => p['Réduction%'] && parseFloat(p['Réduction%']) > 0)
-                .slice(0, 6);
-
-            if (superDealsProducts.length > 0) {
-                superdealsContainer.innerHTML = superDealsProducts.map(product => renderProductCard(product)).join('');
-            } else {
-                superdealsContainer.innerHTML = '<p class="col-span-full text-center text-gray-500">Aucune offre spéciale pour le moment.</p>';
-            }
-
-        } catch (error) {
-            console.error("Erreur lors du chargement des données de la page d'accueil:", error);
-            const errorMsg = '<p class="col-span-full text-center text-red-500">Impossible de charger le contenu.</p>';
-            superdealsContainer.innerHTML = errorMsg;
-            boutiquesContainer.innerHTML = errorMsg;
+        // --- Étape 4: Remplir la section "Nos Boutiques" dès que les catégories sont prêtes ---
+        if (categories.length > 0) {
+            boutiquesContainer.innerHTML = categories.slice(0, 6).map(cat => `
+            <a href="categorie.html?id=${cat.IDCategorie}&name=${encodeURIComponent(cat.NomCategorie)}" class="product-card bg-white rounded-lg shadow-md overflow-hidden block text-center">
+                <div class="h-32 bg-gray-100 flex items-center justify-center p-2">
+                    <img src="${cat.ImageURL || CONFIG.DEFAULT_PRODUCT_IMAGE}" alt="${cat.NomCategorie}" class="max-h-full max-w-full object-contain">
+                </div>
+                <div class="p-2">
+                    <p class="font-semibold text-sm text-gray-800 truncate">${cat.NomCategorie}</p>
+                </div>
+            </a>
+        `).join('');
+        } else {
+            boutiquesContainer.innerHTML = '<p class="col-span-full text-center text-gray-500">Aucune boutique à afficher.</p>';
         }
-    }, 0);
+
+        // --- Étape 5: Remplir la section "SuperDeals" avec les produits ---
+        const superDealsProducts = products
+            .filter(p => p['Réduction%'] && parseFloat(p['Réduction%']) > 0)
+            .slice(0, 6);
+
+        if (superDealsProducts.length > 0) {
+            superdealsContainer.innerHTML = superDealsProducts.map(product => renderProductCard(product)).join('');
+        } else {
+            superdealsContainer.innerHTML = '<p class="col-span-full text-center text-gray-500">Aucune offre spéciale pour le moment.</p>';
+        }
+
+    } catch (error) {
+        console.error("Erreur lors du chargement des données de la page d'accueil:", error);
+        const errorMsg = '<p class="col-span-full text-center text-red-500">Impossible de charger le contenu.</p>';
+        superdealsContainer.innerHTML = errorMsg;
+        boutiquesContainer.innerHTML = errorMsg;
+    }
 }
 
 /**
@@ -1136,7 +1134,7 @@ async function renderHomepageCategorySections() {
     const skeletonSection = `
         <div class="animate-pulse">
             <div class="h-8 bg-gray-200 rounded w-1/4 mb-4"></div>
-            <div class="flex space-x-4 overflow-hidden">
+            <div class="horizontal-scroll-container flex space-x-4 overflow-x-auto pb-4">
                 ${Array(6).fill('<div class="flex-shrink-0 w-1/2 md:w-1/3 lg:w-1/6"><div class="bg-gray-200 h-64 rounded-lg"></div></div>').join('')}
             </div>
         </div>`;
