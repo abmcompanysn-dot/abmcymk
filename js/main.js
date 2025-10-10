@@ -1009,11 +1009,8 @@ function startCountdown() {
  * Met en cache les résultats pour améliorer les performances de navigation.
  */
 async function getFullCatalog() {
-  // Étape 1: Vérifier la version du cache. Cette fonction vide le cache si nécessaire.
-  await checkCacheVersion();
-
-  // Étape 3: Si le cache est vide, faire un SEUL appel à l'API centrale pour tout récupérer.
-  console.log("Chargement du catalogue complet depuis le réseau...");
+  // CORRECTION: Cette fonction est maintenant uniquement responsable du chargement depuis le réseau.
+  console.log("Cache vide. Chargement initial du catalogue complet depuis le réseau...");
   try {
     const response = await fetch(`${CONFIG.CENTRAL_API_URL}?action=getPublicCatalog`);
     if (!response.ok) {
