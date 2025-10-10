@@ -1128,32 +1128,44 @@ function renderProductCard(product) { // This function remains synchronous as it
  * NOUVEAU: Affiche des sections de produits pour chaque catégorie sur la page d'accueil.
  */
 async function renderHomepageCategorySections() {
-    const container = document.getElementById('category-products-sections');
+    const container = document.getElementById('category-products-sections-container');
     if (!container) return;
 
-    // Afficher un squelette de chargement
+    // Étape 1: Afficher un squelette de chargement pour plusieurs sections.
     const skeletonSection = `
         <div class="animate-pulse">
             <div class="h-8 bg-gray-200 rounded w-1/4 mb-4"></div>
             <div class="horizontal-scroll-container flex space-x-4 overflow-x-auto pb-4">
                 ${Array(6).fill('<div class="flex-shrink-0 w-1/2 md:w-1/3 lg:w-1/6"><div class="bg-gray-200 h-64 rounded-lg"></div></div>').join('')}
             </div>
-        </div>`;
-    container.innerHTML = skeletonSection;
+        </div>
+    `;
+    container.innerHTML = Array(3).fill(skeletonSection).join('');
 
     try {
+        // Étape 2: Récupérer toutes les données (depuis le cache si possible).
         const { data } = await getFullCatalog();
         const categories = data.categories || [];
         const products = data.products || [];
 
-        let allSectionsHTML = '';
+        // Étape 3: OPTIMISATION - Regrouper tous les produits par catégorie en une seule passe.
+        // C'est beaucoup plus rapide que de filtrer la liste complète pour chaque catégorie.
+        const productsByCategory = products.reduce((acc, product) => {
+            const categoryName = product.Catégorie;
+            if (!acc[categoryName]) {
+                acc[categoryName] = [];
+            }
+            acc[categoryName].push(product);
+            return acc;
+        }, {});
 
-        categories.forEach(category => {
-            const categoryProducts = products.filter(p => p.Catégorie === category.NomCategorie).slice(0, 12); // Limite à 12 produits par section
-            if (categoryProducts.length === 0) return;
+        // Étape 4: Générer le HTML pour chaque catégorie qui a des produits.
+        const allSectionsHTML = categories.map(category => {
+            const categoryProducts = (productsByCategory[category.NomCategorie] || []).slice(0, 12); // Limite à 12 produits
+            if (categoryProducts.length === 0) return ''; // Ne pas créer de section si elle est vide.
 
-            allSectionsHTML += `
-                <section>
+            return `
+                <section data-category-id="${category.IDCategorie}">
                     <div class="flex justify-between items-center mb-4">
                         <h3 class="text-2xl font-bold text-gray-800">${category.NomCategorie}</h3>
                         <a href="categorie.html?id=${category.IDCategorie}&name=${encodeURIComponent(category.NomCategorie)}" class="text-sm font-semibold text-blue-600 hover:underline">Voir plus</a>
@@ -1163,9 +1175,12 @@ async function renderHomepageCategorySections() {
                     </div>
                 </section>
             `;
-        });
+        }).join('');
 
-        container.innerHTML = allSectionsHTML;
+        // Étape 5: Remplacer les squelettes par le contenu réel en une seule opération.
+        categories.forEach(category => {
+            container.innerHTML = allSectionsHTML;
+        });
 
     } catch (error) {
         console.error("Erreur lors de l'affichage des sections par catégorie:", error);

@@ -9,6 +9,76 @@
 const ADMIN_SPREADSHEET_ID = "1kTQsUgcvcWxJNgHuITi4nlMhAqwyVAMhQbzIMIODcBg";
 const CENTRAL_SHEET_ID = "1kTQsUgcvcWxJNgHuITi4nlMhAqwyVAMhQbzIMIODcBg"; // IMPORTANT: ID de la feuille centrale
 
+// NOUVEAU: Configuration centrale des attributs par catégorie, copiée depuis le template.
+const CATEGORY_CONFIG = {
+  "Chaussures": ["Pointure", "Couleur", "Matière", "Type", "Genre", "Semelle", "Usage"],
+  "Vêtements": ["Taille", "Coupe", "Matière", "Couleur", "Genre", "Saison", "Style"],
+  "Sacs": ["Volume", "Type", "Matière", "Couleur", "Usage", "Genre"],
+  "Montres": ["Type", "Bracelet", "Cadran", "Marque", "Étanchéité", "Genre"],
+  "Lunettes": ["Type", "Forme", "Couleur", "Protection UV", "Matière", "Genre"],
+  "Bijoux": ["Type", "Métal", "Pierre", "Taille", "Genre", "Finition"],
+  "Accessoires": ["Dimensions", "Compatibilité", "Matière", "Usage", "Couleur", "Poids"],
+  "Beauté & soins": ["Type de peau", "Ingrédients", "Format", "Parfum", "Volume", "Genre"],
+  "Parfums": ["Famille olfactive", "Notes", "Intensité", "Format", "Genre"],
+  "Électronique": ["Marque", "Modèle", "Capacité", "Connectivité", "Compatibilité", "Garantie"],
+  "Informatique": ["Processeur", "RAM", "Stockage", "Écran", "OS", "Connectivité", "Usage"],
+  "Gaming": ["Plateforme", "Genre", "Éditeur", "PEGI", "Multijoueur", "Édition"],
+  "Livres": ["Auteur", "Genre", "Langue", "Format", "Pages", "ISBN", "Édition"],
+  "Musique": ["Artiste", "Genre", "Format", "Durée", "Label"],
+  "Films & séries": ["Titre", "Genre", "Format", "Langue", "Durée", "Réalisateur", "Acteurs"],
+  "Jeux & jouets": ["Âge", "Type", "Matière", "Dimensions", "Marque", "Éducatif/créatif"],
+  "Sport & fitness": ["Usage", "Taille", "Poids", "Niveau", "Matière", "Pliable", "Intensité"],
+  "Meubles": ["Dimensions", "Matière", "Style", "Usage", "Couleur", "Montage"],
+  "Décoration": ["Type", "Matière", "Couleur", "Style", "Usage"],
+  "Jardin": ["Type", "Usage", "Dimensions", "Matière", "Saison"],
+  "Outillage": ["Type", "Puissance", "Usage", "Alimentation", "Marque", "Sécurité"],
+  "Automobile": ["Marque", "Modèle", "Année", "Carburant", "Transmission", "Couleur"],
+  "Moto & vélo": ["Type", "Taille", "Usage", "Marque", "Vitesse", "Accessoires inclus"],
+  "Alimentation": ["Poids", "Ingrédients", "Origine", "Date limite", "Labels", "Type"],
+  "Literie": ["Taille", "Matière", "Fermeté", "Épaisseur", "Traitement anti-acariens"],
+  "Rideaux & stores": ["Type", "Dimensions", "Matière", "Opacité", "Fixation"],
+  "Luminaires": ["Type", "Style", "Puissance", "Source", "Installation"],
+  "Vaisselle": ["Type", "Matière", "Nombre de pièces", "Usage", "Compatibilité lave-vaisselle"],
+  "Ustensiles de cuisine": ["Type", "Matière", "Usage", "Ergonomie", "Compatibilité"],
+  "Rangement": ["Type", "Dimensions", "Matière", "Capacité", "Empilable"],
+  "Salle de bain": ["Type", "Matière", "Dimensions", "Installation", "Usage"],
+  "Cuisine équipée": ["Type", "Dimensions", "Finition", "Électroménagers inclus"],
+  "Climatisation": ["Type", "Puissance", "Surface couverte", "Consommation", "Installation"],
+  "Chauffage": ["Type", "Puissance", "Technologie", "Sécurité", "Mobilité"],
+  "Instruments de musique": ["Type", "Marque", "Matière", "Niveau", "Accessoires inclus"],
+  "Matériel artistique": ["Type", "Format", "Couleur", "Technique", "Usage"],
+  "Loisirs créatifs": ["Type", "Niveau", "Matière", "Thème", "Âge"],
+  "Couture & tricot": ["Type", "Matière", "Couleur", "Format", "Compatibilité machine"],
+  "Modélisme": ["Type", "Échelle", "Matériau", "Niveau", "Motorisation"],
+  "Photographie": ["Type", "Résolution", "Format", "Connectivité", "Accessoires"],
+  "Scrapbooking": ["Type", "Format", "Thème", "Couleur", "Nombre d’éléments"],
+  "Calligraphie": ["Type", "Pointe", "Encre", "Format", "Usage"],
+  "Fournitures scolaires": ["Type", "Format", "Niveau", "Matière", "Compatibilité"],
+  "Jeux éducatifs": ["Âge", "Matière", "Thème", "Niveau", "Nombre de joueurs"],
+  "Livres jeunesse": ["Âge", "Genre", "Format", "Langue", "Illustration"],
+  "Mobilier enfant": ["Type", "Dimensions", "Sécurité", "Matière", "Évolutif"],
+  "Vêtements bébé": ["Taille", "Matière", "Sécurité", "Saison", "Genre"],
+  "Puériculture": ["Type", "Sécurité", "Âge", "Format", "Compatibilité"],
+  "Yoga & méditation": ["Type", "Matière", "Niveau", "Usage", "Format"],
+  "Compléments alimentaires": ["Type", "Ingrédients", "Posologie", "Certification", "Format"],
+  "Huiles essentielles": ["Plante", "Usage", "Format", "Certification", "Origine"],
+  "Matériel médical": ["Type", "Usage", "Format", "Précision", "Homologation"],
+  "Produits d’hygiène": ["Type", "Format", "Ingrédients", "Usage", "Certification"],
+  "Soins capillaires": ["Type", "Format", "Ingrédients", "Usage", "Texture"],
+  "Matériaux": ["Type", "Dimensions", "Matière", "Usage", "Certification"],
+  "Équipements de chantier": ["Type", "Puissance", "Sécurité", "Mobilité", "Usage"],
+  "Électricité": ["Type", "Tension", "Compatibilité", "Installation", "Sécurité"],
+  "Plomberie": ["Type", "Diamètre", "Matière", "Installation", "Usage"],
+  "Quincaillerie": ["Type", "Dimensions", "Matière", "Usage", "Résistance"],
+  "Équipements de protection": ["Type", "Norme", "Taille", "Usage", "Matière"],
+  "Bagages": ["Type", "Dimensions", "Matière", "Roues", "Sécurité"],
+  "Accessoires de voyage": ["Type", "Usage", "Format", "Compatibilité", "Sécurité"],
+  "Guides touristiques": ["Destination", "Langue", "Format", "Édition", "Thématique"],
+  "Camping": ["Type", "Dimensions", "Matière", "Usage", "Saison"],
+  "Randonnée": ["Type", "Niveau", "Matière", "Poids", "Imperméabilité"],
+  "Mobilité urbaine": ["Type", "Autonomie", "Vitesse", "Poids", "Pliable"],
+};
+
 // --- GESTIONNAIRE DE MENU ---
 function onOpen() {
   SpreadsheetApp.getUi()
@@ -225,12 +295,25 @@ function setupCentralSheet() {
     sheet = ss.insertSheet("Catégories");
   }
   sheet.clear();
-  const headers = ["IDCategorie", "NomCategorie", "SheetID", "ScriptURL"];
+  // NOUVEAU: Ajout de ImageURL pour le front-end
+  const headers = ["IDCategorie", "NomCategorie", "SheetID", "ScriptURL", "ImageURL"];
   sheet.appendRow(headers);
   sheet.setFrozenRows(1);
-  sheet.getRange("A1:D1").setFontWeight("bold");
+  sheet.getRange(1, 1, 1, headers.length).setFontWeight("bold");
   
-  // Exemple de remplissage
-  sheet.appendRow(["CAT-01", "Smartphones", "ID_SHEET_SMARTPHONES", "URL_SCRIPT_SMARTPHONES"]);
-  sheet.appendRow(["CAT-02", "Ordinateurs", "ID_SHEET_ORDINATEURS", "URL_SCRIPT_ORDINATEURS"]);
+  // NOUVEAU: Remplissage automatique à partir de CATEGORY_CONFIG
+  const categoriesToInsert = Object.keys(CATEGORY_CONFIG).sort();
+  const rows = categoriesToInsert.map((catName, index) => {
+    const catId = `CAT-${String(index + 1).padStart(3, '0')}`;
+    const placeholderSheetId = `REMPLIR_ID_FEUILLE_${catName.replace(/[^a-zA-Z0-9]/g, '_').toUpperCase()}`;
+    const placeholderScriptUrl = `REMPLIR_URL_SCRIPT_${catName.replace(/[^a-zA-Z0-9]/g, '_').toUpperCase()}`;
+    const placeholderImageUrl = `https://via.placeholder.com/150/f0f0f0/333333?text=${encodeURIComponent(catName)}`;
+    return [catId, catName, placeholderSheetId, placeholderScriptUrl, placeholderImageUrl];
+  });
+
+  if (rows.length > 0) {
+    sheet.getRange(2, 1, rows.length, headers.length).setValues(rows);
+  }
+
+  SpreadsheetApp.getUi().alert(`Initialisation terminée. ${rows.length} catégories ont été ajoutées à la feuille "Catégories".`);
 }
