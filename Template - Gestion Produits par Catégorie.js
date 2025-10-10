@@ -332,9 +332,10 @@ function seedDefaultProducts(categoryName) {
  * Crée une réponse JSON standard.
  */
 function createJsonResponse(data) {
-  const jsonResponse = ContentService.createTextOutput(JSON.stringify(data))
-    .setMimeType(ContentService.MimeType.JSON);
-    
+  const jsonResponse = ContentService.createTextOutput(JSON.stringify(data));
+  jsonResponse.setMimeType(ContentService.MimeType.JSON);
+  // CORRECTION: Utiliser addHttpHeader pour définir l'en-tête CORS.
+  jsonResponse.addHttpHeader('Access-Control-Allow-Origin', 'https://abmcymarket.vercel.app');
   return jsonResponse;
 }
 

@@ -275,8 +275,9 @@ function archiveAllOutOfStock() {
 // --- UTILITAIRES ---
 
 function createJsonResponse(data) {
-  return ContentService.createTextOutput(JSON.stringify(data))
-    .setMimeType(ContentService.MimeType.JSON);
+  const jsonResponse = ContentService.createTextOutput(JSON.stringify(data));
+  jsonResponse.setMimeType(ContentService.MimeType.JSON);
+  return jsonResponse;
 }
 
 /**
