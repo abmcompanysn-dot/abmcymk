@@ -42,13 +42,6 @@ async function initializeApp() {
     if (window.location.pathname.endsWith('categorie.html')) {
         initializeCategoryPage();
     }
-    // NOUVEAU: Initialiser immédiatement les squelettes de la page d'accueil.
-    if (document.getElementById('superdeals-products')) {
-        initializeHomepageSkeletons();
-    }
-    if (document.getElementById('promotion-results-container')) {
-        initializePromoPageSkeletons();
-    }
 
     if (document.getElementById('countdown')) {
         startCountdown(); // Le compte à rebours est indépendant.
@@ -552,20 +545,6 @@ function fillCategoryProducts(catalog) {
 }
 
 /**
- * NOUVEAU: Initialise l'affichage de la page promotions avec des squelettes.
- */
-function initializePromoPageSkeletons() {
-    const resultsContainer = document.getElementById('promotion-results-container');
-    if (!resultsContainer) return;
-    const skeletonCard = `
-        <div class="bg-white rounded-lg shadow overflow-hidden animate-pulse">
-            <div class="bg-gray-200 h-40"></div>
-            <div class="p-3 space-y-2"><div class="bg-gray-200 h-4 rounded"></div><div class="bg-gray-200 h-6 w-1/2 rounded"></div></div>
-        </div>`;
-    resultsContainer.innerHTML = Array(8).fill(skeletonCard).join('');
-}
-
-/**
  * NOUVEAU: Affiche les produits en promotion.
  */
 function displayPromotionProducts(catalog) {
@@ -934,24 +913,6 @@ async function processCheckout(event) {
 }
 
 /**
- * NOUVEAU: Affiche les squelettes de chargement sur la page d'accueil.
- */
-function initializeHomepageSkeletons() {
-    const superdealsContainer = document.getElementById('superdeals-products');
-    const boutiquesContainer = document.getElementById('boutiques-container');
-    const categorySectionsContainer = document.getElementById('category-products-sections-container');
-
-    // Squelettes pour SuperDeals et Boutiques
-    if (superdealsContainer) superdealsContainer.innerHTML = Array(6).fill(renderSkeletonCard()).join('');
-    if (boutiquesContainer) boutiquesContainer.innerHTML = Array(6).fill(renderSkeletonCard()).join('');
-
-    // Squelettes pour les sections de catégories
-    if (categorySectionsContainer) {
-        categorySectionsContainer.innerHTML = Array(3).fill(renderSkeletonSection()).join('');
-    }
-}
-
-/**
  * NOUVEAU: Affiche les produits dans les sections "SuperDeals" et "Big Save" de la page d'accueil.
  */
 function renderDailyDealsHomepage(catalog) {
@@ -1283,43 +1244,11 @@ function renderHomepageCategorySections(catalog) {
 }
 
 /**
- * NOUVEAU: Génère le HTML pour un squelette de carte produit.
- */
-function renderSkeletonCard() {
-    return `
-        <div class="bg-white rounded-lg shadow overflow-hidden animate-pulse">
-            <div class="bg-gray-200 h-40"></div>
-            <div class="p-3 space-y-2">
-                <div class="bg-gray-200 h-4 rounded"></div>
-                <div class="bg-gray-200 h-6 w-1/2 rounded"></div>
-            </div>
-        </div>`;
-}
-
-/**
- * NOUVEAU: Génère le HTML pour un squelette de section de catégorie.
- */
-function renderSkeletonSection() {
-    return `
-        <div class="animate-pulse">
-            <div class="h-8 bg-gray-200 rounded w-1/4 mb-4"></div>
-            <div class="horizontal-scroll-container flex space-x-4 overflow-x-auto pb-4">
-                ${Array(6).fill('<div class="flex-shrink-0 w-1/2 md:w-1/3 lg:w-1/6"><div class="bg-gray-200 h-64 rounded-lg"></div></div>').join('')}
-            </div>
-        </div>`;
-}
-
-/**
  * NOUVEAU: Affiche la liste complète de toutes les catégories sur la page d'accueil.
  */
 function renderAllCategoriesSection(catalog) {
     const container = document.getElementById('all-categories-container');
     if (!container) return;
-
-    // Afficher un squelette de chargement
-    container.innerHTML = '<div class="animate-pulse grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">' +
-        Array(12).fill('<div class="h-5 bg-gray-200 rounded"></div>').join('') +
-        '</div>';
 
     try {
         const { data } = catalog;
