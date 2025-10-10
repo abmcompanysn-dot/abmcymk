@@ -9,77 +9,6 @@ const CONFIG = {
     DEFAULT_PRODUCT_IMAGE: "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png",
 };
 
-// NOUVEAU: Les catégories sont maintenant statiques dans le front-end pour un chargement instantané.
-// Pour activer une catégorie, remplacez "REMPLIR_ID_FEUILLE" et "REMPLIR_URL_SCRIPT" par les vraies valeurs.
-const STATIC_CATEGORIES = [
-    { "IDCategorie": "CAT-001", "NomCategorie": "Accessoires", "SheetID": "REMPLIR_ID_FEUILLE", "ScriptURL": "REMPLIR_URL_SCRIPT", "ImageURL": "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png" },
-    { "IDCategorie": "CAT-002", "NomCategorie": "Accessoires de voyage", "SheetID": "REMPLIR_ID_FEUILLE", "ScriptURL": "REMPLIR_URL_SCRIPT", "ImageURL": "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png" },
-    { "IDCategorie": "CAT-003", "NomCategorie": "Alimentation", "SheetID": "REMPLIR_ID_FEUILLE", "ScriptURL": "REMPLIR_URL_SCRIPT", "ImageURL": "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png" },
-    { "IDCategorie": "CAT-004", "NomCategorie": "Automobile", "SheetID": "REMPLIR_ID_FEUILLE", "ScriptURL": "REMPLIR_URL_SCRIPT", "ImageURL": "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png" },
-    { "IDCategorie": "CAT-005", "NomCategorie": "Bagages", "SheetID": "REMPLIR_ID_FEUILLE", "ScriptURL": "REMPLIR_URL_SCRIPT", "ImageURL": "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png" },
-    { "IDCategorie": "CAT-006", "NomCategorie": "Beauté & soins", "SheetID": "REMPLIR_ID_FEUILLE", "ScriptURL": "REMPLIR_URL_SCRIPT", "ImageURL": "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png" },
-    { "IDCategorie": "CAT-007", "NomCategorie": "Bijoux", "SheetID": "REMPLIR_ID_FEUILLE", "ScriptURL": "REMPLIR_URL_SCRIPT", "ImageURL": "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png" },
-    { "IDCategorie": "CAT-008", "NomCategorie": "Calligraphie", "SheetID": "REMPLIR_ID_FEUILLE", "ScriptURL": "REMPLIR_URL_SCRIPT", "ImageURL": "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png" },
-    { "IDCategorie": "CAT-009", "NomCategorie": "Camping", "SheetID": "REMPLIR_ID_FEUILLE", "ScriptURL": "REMPLIR_URL_SCRIPT", "ImageURL": "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png" },
-    { "IDCategorie": "CAT-010", "NomCategorie": "Chauffage", "SheetID": "REMPLIR_ID_FEUILLE", "ScriptURL": "REMPLIR_URL_SCRIPT", "ImageURL": "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png" },
-    { "IDCategorie": "CAT-011", "NomCategorie": "Chaussures", "SheetID": "REMPLIR_ID_FEUILLE", "ScriptURL": "REMPLIR_URL_SCRIPT", "ImageURL": "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png" },
-    { "IDCategorie": "CAT-012", "NomCategorie": "Climatisation", "SheetID": "REMPLIR_ID_FEUILLE", "ScriptURL": "REMPLIR_URL_SCRIPT", "ImageURL": "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png" },
-    { "IDCategorie": "CAT-013", "NomCategorie": "Compléments alimentaires", "SheetID": "REMPLIR_ID_FEUILLE", "ScriptURL": "REMPLIR_URL_SCRIPT", "ImageURL": "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png" },
-    { "IDCategorie": "CAT-014", "NomCategorie": "Couture & tricot", "SheetID": "REMPLIR_ID_FEUILLE", "ScriptURL": "REMPLIR_URL_SCRIPT", "ImageURL": "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png" },
-    { "IDCategorie": "CAT-015", "NomCategorie": "Cuisine équipée", "SheetID": "REMPLIR_ID_FEUILLE", "ScriptURL": "REMPLIR_URL_SCRIPT", "ImageURL": "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png" },
-    { "IDCategorie": "CAT-016", "NomCategorie": "Décoration", "SheetID": "REMPLIR_ID_FEUILLE", "ScriptURL": "REMPLIR_URL_SCRIPT", "ImageURL": "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png" },
-    { "IDCategorie": "CAT-017", "NomCategorie": "Films & séries", "SheetID": "REMPLIR_ID_FEUILLE", "ScriptURL": "REMPLIR_URL_SCRIPT", "ImageURL": "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png" },
-    { "IDCategorie": "CAT-018", "NomCategorie": "Fournitures scolaires", "SheetID": "REMPLIR_ID_FEUILLE", "ScriptURL": "REMPLIR_URL_SCRIPT", "ImageURL": "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png" },
-    { "IDCategorie": "CAT-019", "NomCategorie": "Gaming", "SheetID": "REMPLIR_ID_FEUILLE", "ScriptURL": "REMPLIR_URL_SCRIPT", "ImageURL": "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png" },
-    { "IDCategorie": "CAT-020", "NomCategorie": "Guides touristiques", "SheetID": "REMPLIR_ID_FEUILLE", "ScriptURL": "REMPLIR_URL_SCRIPT", "ImageURL": "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png" },
-    { "IDCategorie": "CAT-021", "NomCategorie": "Huiles essentielles", "SheetID": "REMPLIR_ID_FEUILLE", "ScriptURL": "REMPLIR_URL_SCRIPT", "ImageURL": "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png" },
-    { "IDCategorie": "CAT-022", "NomCategorie": "Informatique", "SheetID": "REMPLIR_ID_FEUILLE", "ScriptURL": "REMPLIR_URL_SCRIPT", "ImageURL": "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png" },
-    { "IDCategorie": "CAT-023", "NomCategorie": "Instruments de musique", "SheetID": "REMPLIR_ID_FEUILLE", "ScriptURL": "REMPLIR_URL_SCRIPT", "ImageURL": "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png" },
-    { "IDCategorie": "CAT-024", "NomCategorie": "Jardin", "SheetID": "REMPLIR_ID_FEUILLE", "ScriptURL": "REMPLIR_URL_SCRIPT", "ImageURL": "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png" },
-    { "IDCategorie": "CAT-025", "NomCategorie": "Jeux & jouets", "SheetID": "REMPLIR_ID_FEUILLE", "ScriptURL": "REMPLIR_URL_SCRIPT", "ImageURL": "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png" },
-    { "IDCategorie": "CAT-026", "NomCategorie": "Jeux éducatifs", "SheetID": "REMPLIR_ID_FEUILLE", "ScriptURL": "REMPLIR_URL_SCRIPT", "ImageURL": "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png" },
-    { "IDCategorie": "CAT-027", "NomCategorie": "Literie", "SheetID": "REMPLIR_ID_FEUILLE", "ScriptURL": "REMPLIR_URL_SCRIPT", "ImageURL": "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png" },
-    { "IDCategorie": "CAT-028", "NomCategorie": "Livres", "SheetID": "REMPLIR_ID_FEUILLE", "ScriptURL": "REMPLIR_URL_SCRIPT", "ImageURL": "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png" },
-    { "IDCategorie": "CAT-029", "NomCategorie": "Livres jeunesse", "SheetID": "REMPLIR_ID_FEUILLE", "ScriptURL": "REMPLIR_URL_SCRIPT", "ImageURL": "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png" },
-    { "IDCategorie": "CAT-030", "NomCategorie": "Loisirs créatifs", "SheetID": "REMPLIR_ID_FEUILLE", "ScriptURL": "REMPLIR_URL_SCRIPT", "ImageURL": "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png" },
-    { "IDCategorie": "CAT-031", "NomCategorie": "Luminaires", "SheetID": "REMPLIR_ID_FEUILLE", "ScriptURL": "REMPLIR_URL_SCRIPT", "ImageURL": "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png" },
-    { "IDCategorie": "CAT-032", "NomCategorie": "Lunettes", "SheetID": "REMPLIR_ID_FEUILLE", "ScriptURL": "REMPLIR_URL_SCRIPT", "ImageURL": "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png" },
-    { "IDCategorie": "CAT-033", "NomCategorie": "Matériel artistique", "SheetID": "REMPLIR_ID_FEUILLE", "ScriptURL": "REMPLIR_URL_SCRIPT", "ImageURL": "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png" },
-    { "IDCategorie": "CAT-034", "NomCategorie": "Matériel médical", "SheetID": "REMPLIR_ID_FEUILLE", "ScriptURL": "REMPLIR_URL_SCRIPT", "ImageURL": "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png" },
-    { "IDCategorie": "CAT-035", "NomCategorie": "Matériaux", "SheetID": "REMPLIR_ID_FEUILLE", "ScriptURL": "REMPLIR_URL_SCRIPT", "ImageURL": "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png" },
-    { "IDCategorie": "CAT-036", "NomCategorie": "Meubles", "SheetID": "REMPLIR_ID_FEUILLE", "ScriptURL": "REMPLIR_URL_SCRIPT", "ImageURL": "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png" },
-    { "IDCategorie": "CAT-037", "NomCategorie": "Mobilité urbaine", "SheetID": "REMPLIR_ID_FEUILLE", "ScriptURL": "REMPLIR_URL_SCRIPT", "ImageURL": "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png" },
-    { "IDCategorie": "CAT-038", "NomCategorie": "Mobilier enfant", "SheetID": "REMPLIR_ID_FEUILLE", "ScriptURL": "REMPLIR_URL_SCRIPT", "ImageURL": "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png" },
-    { "IDCategorie": "CAT-039", "NomCategorie": "Modélisme", "SheetID": "REMPLIR_ID_FEUILLE", "ScriptURL": "REMPLIR_URL_SCRIPT", "ImageURL": "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png" },
-    { "IDCategorie": "CAT-040", "NomCategorie": "Montres", "SheetID": "REMPLIR_ID_FEUILLE", "ScriptURL": "REMPLIR_URL_SCRIPT", "ImageURL": "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png" },
-    { "IDCategorie": "CAT-041", "NomCategorie": "Moto & vélo", "SheetID": "REMPLIR_ID_FEUILLE", "ScriptURL": "REMPLIR_URL_SCRIPT", "ImageURL": "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png" },
-    { "IDCategorie": "CAT-042", "NomCategorie": "Musique", "SheetID": "REMPLIR_ID_FEUILLE", "ScriptURL": "REMPLIR_URL_SCRIPT", "ImageURL": "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png" },
-    { "IDCategorie": "CAT-043", "NomCategorie": "Outillage", "SheetID": "REMPLIR_ID_FEUILLE", "ScriptURL": "REMPLIR_URL_SCRIPT", "ImageURL": "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png" },
-    { "IDCategorie": "CAT-044", "NomCategorie": "Parfums", "SheetID": "REMPLIR_ID_FEUILLE", "ScriptURL": "REMPLIR_URL_SCRIPT", "ImageURL": "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png" },
-    { "IDCategorie": "CAT-045", "NomCategorie": "Photographie", "SheetID": "REMPLIR_ID_FEUILLE", "ScriptURL": "REMPLIR_URL_SCRIPT", "ImageURL": "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png" },
-    { "IDCategorie": "CAT-046", "NomCategorie": "Plomberie", "SheetID": "REMPLIR_ID_FEUILLE", "ScriptURL": "REMPLIR_URL_SCRIPT", "ImageURL": "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png" },
-    { "IDCategorie": "CAT-047", "NomCategorie": "Produits d’hygiène", "SheetID": "REMPLIR_ID_FEUILLE", "ScriptURL": "REMPLIR_URL_SCRIPT", "ImageURL": "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png" },
-    { "IDCategorie": "CAT-048", "NomCategorie": "Puériculture", "SheetID": "REMPLIR_ID_FEUILLE", "ScriptURL": "REMPLIR_URL_SCRIPT", "ImageURL": "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png" },
-    { "IDCategorie": "CAT-049", "NomCategorie": "Quincaillerie", "SheetID": "REMPLIR_ID_FEUILLE", "ScriptURL": "REMPLIR_URL_SCRIPT", "ImageURL": "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png" },
-    { "IDCategorie": "CAT-050", "NomCategorie": "Randonnée", "SheetID": "REMPLIR_ID_FEUILLE", "ScriptURL": "REMPLIR_URL_SCRIPT", "ImageURL": "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png" },
-    { "IDCategorie": "CAT-051", "NomCategorie": "Rangement", "SheetID": "REMPLIR_ID_FEUILLE", "ScriptURL": "REMPLIR_URL_SCRIPT", "ImageURL": "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png" },
-    { "IDCategorie": "CAT-052", "NomCategorie": "Rideaux & stores", "SheetID": "REMPLIR_ID_FEUILLE", "ScriptURL": "REMPLIR_URL_SCRIPT", "ImageURL": "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png" },
-    { "IDCategorie": "CAT-053", "NomCategorie": "Sacs", "SheetID": "REMPLIR_ID_FEUILLE", "ScriptURL": "REMPLIR_URL_SCRIPT", "ImageURL": "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png" },
-    { "IDCategorie": "CAT-054", "NomCategorie": "Salle de bain", "SheetID": "REMPLIR_ID_FEUILLE", "ScriptURL": "REMPLIR_URL_SCRIPT", "ImageURL": "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png" },
-    { "IDCategorie": "CAT-055", "NomCategorie": "Scrapbooking", "SheetID": "REMPLIR_ID_FEUILLE", "ScriptURL": "REMPLIR_URL_SCRIPT", "ImageURL": "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png" },
-    { "IDCategorie": "CAT-056", "NomCategorie": "Soins capillaires", "SheetID": "REMPLIR_ID_FEUILLE", "ScriptURL": "REMPLIR_URL_SCRIPT", "ImageURL": "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png" },
-    { "IDCategorie": "CAT-057", "NomCategorie": "Sport & fitness", "SheetID": "REMPLIR_ID_FEUILLE", "ScriptURL": "REMPLIR_URL_SCRIPT", "ImageURL": "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png" },
-    { "IDCategorie": "CAT-058", "NomCategorie": "Ustensiles de cuisine", "SheetID": "REMPLIR_ID_FEUILLE", "ScriptURL": "REMPLIR_URL_SCRIPT", "ImageURL": "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png" },
-    { "IDCategorie": "CAT-059", "NomCategorie": "Vaisselle", "SheetID": "REMPLIR_ID_FEUILLE", "ScriptURL": "REMPLIR_URL_SCRIPT", "ImageURL": "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png" },
-    { "IDCategorie": "CAT-060", "NomCategorie": "Vêtements", "SheetID": "REMPLIR_ID_FEUILLE", "ScriptURL": "REMPLIR_URL_SCRIPT", "ImageURL": "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png" },
-    { "IDCategorie": "CAT-061", "NomCategorie": "Vêtements bébé", "SheetID": "REMPLIR_ID_FEUILLE", "ScriptURL": "REMPLIR_URL_SCRIPT", "ImageURL": "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png" },
-    { "IDCategorie": "CAT-062", "NomCategorie": "Yoga & méditation", "SheetID": "REMPLIR_ID_FEUILLE", "ScriptURL": "REMPLIR_URL_SCRIPT", "ImageURL": "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png" },
-    { "IDCategorie": "CAT-063", "NomCategorie": "Électricité", "SheetID": "REMPLIR_ID_FEUILLE", "ScriptURL": "REMPLIR_URL_SCRIPT", "ImageURL": "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png" },
-    { "IDCategorie": "CAT-064", "NomCategorie": "Électronique", "SheetID": "REMPLIR_ID_FEUILLE", "ScriptURL": "REMPLIR_URL_SCRIPT", "ImageURL": "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png" },
-    { "IDCategorie": "CAT-065", "NomCategorie": "Équipements de chantier", "SheetID": "REMPLIR_ID_FEUILLE", "ScriptURL": "REMPLIR_URL_SCRIPT", "ImageURL": "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png" },
-    { "IDCategorie": "CAT-066", "NomCategorie": "Équipements de protection", "SheetID": "REMPLIR_ID_FEUILLE", "ScriptURL": "REMPLIR_URL_SCRIPT", "ImageURL": "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png" }
-];
-
 // Variables globales pour le chargement progressif de la page d'accueil
 let categoryDirectory = []; // Stocke la liste des catégories et leurs URLs
 let allLoadedProducts = []; // Stocke tous les produits déjà chargés
@@ -174,8 +103,8 @@ async function populateCategoryMenu() {
     let menuHTML = ''; // Initialiser la variable ici
 
     try {
-        // Utilisation de la liste statique pour un affichage instantané
-        const categories = (STATIC_CATEGORIES || []).filter(cat => cat.SheetID && cat.ScriptURL && !cat.ScriptURL.startsWith('REMPLIR_'));
+        const { data } = await getFullCatalog();
+        const categories = (data.categories || []).filter(cat => cat.SheetID && cat.ScriptURL && !cat.ScriptURL.startsWith('REMPLIR_'));
 
         // Ajout d'un titre pour le menu déroulant
         menuHTML = `<div class="p-2 border-b"><h3 class="font-semibold text-sm text-gray-500 px-2">Toutes les catégories</h3></div>`;
@@ -207,8 +136,8 @@ async function populateNavLinks() {
     if (!mainLinksContainer) return;
 
     try {
-        // Utilisation de la liste statique pour un affichage instantané
-        const categories = (STATIC_CATEGORIES || []).filter(cat => cat.SheetID && cat.ScriptURL && !cat.ScriptURL.startsWith('REMPLIR_'));
+        const { data } = await getFullCatalog();
+        const categories = (data.categories || []).filter(cat => cat.SheetID && cat.ScriptURL && !cat.ScriptURL.startsWith('REMPLIR_'));
         const MANY_CATEGORIES_THRESHOLD = 8;
 
         let mainNavCategories = [];
@@ -447,8 +376,8 @@ async function displaySearchResults() {
 
     let filteredProducts = [];
     try {
-        // La recherche se fait sur les produits chargés, qui viennent des catégories actives
-        const allProducts = (await getFullCatalog()).data.products || [];
+        const { data } = await getFullCatalog();
+        const allProducts = data.products || [];
 
         const lowerCaseQuery = query.toLowerCase();
         filteredProducts = allProducts.filter(product => 
@@ -508,7 +437,7 @@ async function displayCategoryProducts() {
     try {
         const { data } = await getFullCatalog();
         const allProducts = data.products || [];
-        const allCategories = STATIC_CATEGORIES; // Utiliser la liste statique pour trouver le nom
+        const allCategories = data.categories || [];
         
         // CORRECTION: Le produit n'a pas d'IDCategorie, mais un nom de catégorie.
         // On trouve la catégorie correspondante à l'ID de l'URL pour obtenir son nom.
@@ -554,8 +483,8 @@ async function displayPromotionProducts() {
     resultsContainer.innerHTML = Array(8).fill(skeletonCard).join('');
 
     try {
-        // Les promotions sont cherchées parmi les produits des catégories actives
-        const allProducts = (await getFullCatalog()).data.products || [];
+        const { data } = await getFullCatalog();
+        const allProducts = data.products || [];
         // Filtrer les produits qui ont une réduction
         const discountedProducts = allProducts.filter(product => product['Réduction%'] && parseFloat(product['Réduction%']) > 0);
 
@@ -1018,8 +947,8 @@ async function renderDailyDealsHomepage() {
     // On lance le chargement des données. getFullCatalog est déjà optimisé avec un cache.
     try {
         // --- Étape 3: Charger le catalogue complet ---
-        const categories = (STATIC_CATEGORIES || []).filter(cat => cat.SheetID && cat.ScriptURL && !cat.ScriptURL.startsWith('REMPLIR_'));
-        const { data } = await getFullCatalog(); // Charge uniquement les produits des catégories actives
+        const { data } = await getFullCatalog();
+        const categories = (data.categories || []).filter(cat => cat.SheetID && cat.ScriptURL && !cat.ScriptURL.startsWith('REMPLIR_'));
         const products = data.products || [];
 
         // --- Étape 4: Remplir la section "Nos Boutiques" dès que les catégories sont prêtes ---
@@ -1139,17 +1068,24 @@ async function getFullCatalog() {
     // Étape 3: Si le cache est vide, on charge les données depuis le réseau.
     console.log("Chargement du catalogue complet depuis le réseau...");
     try {
-        // NOUVELLE LOGIQUE: Utiliser la liste statique pour déterminer quelles catégories charger.
-        const categories = (STATIC_CATEGORIES || []).filter(cat => cat.SheetID && cat.ScriptURL && !cat.ScriptURL.startsWith('REMPLIR_'));
+        // Étape 3a: Récupérer la liste des catégories depuis l'API centrale.
+        const categoriesResponse = await fetch(CONFIG.CENTRAL_API_URL);
+        if (!categoriesResponse.ok) throw new Error("Impossible de charger l'annuaire des catégories.");
+        const categoriesResult = await categoriesResponse.json();
+        if (!categoriesResult.success) throw new Error(categoriesResult.error || "Erreur lors de la récupération des catégories.");
+
+        // Filtrer pour ne garder que les catégories actives et correctement configurées.
+        const allCategories = categoriesResult.data || [];
+        const categories = allCategories.filter(cat => cat.SheetID && cat.ScriptURL && !cat.ScriptURL.startsWith('REMPLIR_'));
 
         if (categories.length === 0) {
             console.warn("Aucune catégorie active n'est configurée dans le backend.");
-            const catalogData = { success: true, data: { categories: STATIC_CATEGORIES, products: [] } };
+            const catalogData = { success: true, data: { categories: allCategories, products: [] } };
             sessionStorage.setItem('fullCatalog', JSON.stringify(catalogData));
             return catalogData;
         }
 
-        // Lancer toutes les requêtes pour les produits des catégories actives en parallèle.
+        // Étape 3b: Lancer toutes les requêtes pour les produits en parallèle.
         // C'est ROBUSTE: si une requête échoue, les autres continuent.
         const productFetchPromises = categories.map(cat =>
             fetch(`${cat.ScriptURL}?action=getProducts`).then(res => res.ok ? res.json() : { success: false, data: [] }).catch(() => ({ success: false, data: [] })) // Ajout d'un .catch pour la robustesse
@@ -1157,7 +1093,7 @@ async function getFullCatalog() {
         const productResults = await Promise.all(productFetchPromises);
         const allProducts = productResults.flatMap(res => (res.success && res.data) ? res.data : []);
 
-        const catalogData = { success: true, data: { categories: STATIC_CATEGORIES, products: allProducts } };
+        const catalogData = { success: true, data: { categories: allCategories, products: allProducts } };
         console.log(`Catalogue complet assemblé (${allProducts.length} produits). Mise en cache pour la session.`);
         sessionStorage.setItem('fullCatalog', JSON.stringify(catalogData));
         return catalogData;
@@ -1216,8 +1152,8 @@ async function renderHomepageCategorySections() {
 
     try {
         // Étape 2: Récupérer toutes les données (depuis le cache si possible).
-        const categories = (STATIC_CATEGORIES || []).filter(cat => cat.SheetID && cat.ScriptURL && !cat.ScriptURL.startsWith('REMPLIR_'));
-        const { data } = await getFullCatalog(); // Charge les produits
+        const { data } = await getFullCatalog();
+        const categories = (data.categories || []).filter(cat => cat.SheetID && cat.ScriptURL && !cat.ScriptURL.startsWith('REMPLIR_'));
         const products = data.products || [];
 
         // Étape 3: OPTIMISATION - Regrouper tous les produits par catégorie en une seule passe.
@@ -1273,8 +1209,8 @@ async function renderAllCategoriesSection() {
         '</div>';
 
     try {
-        // Utilisation de la liste statique pour un affichage instantané
-        const categories = (STATIC_CATEGORIES || []).filter(cat => cat.SheetID && cat.ScriptURL && !cat.ScriptURL.startsWith('REMPLIR_'));
+        const { data } = await getFullCatalog();
+        const categories = (data.categories || []).filter(cat => cat.SheetID && cat.ScriptURL && !cat.ScriptURL.startsWith('REMPLIR_'));
 
         if (categories.length === 0) {
             container.innerHTML = '<p class="text-gray-500">Aucune catégorie à afficher pour le moment.</p>';
