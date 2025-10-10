@@ -611,6 +611,11 @@ function loadProductPage(catalog) {
         const specsContainer = document.getElementById('product-specs-container');
         // Enlever les classes de chargement
         nameEl.classList.remove('h-12', 'bg-gray-200', 'animate-pulse');
+        
+        // NOUVEAU: Conteneur pour les boutons d'action
+        const actionButtonsContainer = document.getElementById('action-buttons-container');
+        const contactSellerButton = document.getElementById('contact-seller-button');
+
         descriptionEl.classList.remove('h-20', 'bg-gray-200', 'animate-pulse');
         mainImage.parentElement.classList.remove('animate-pulse');
 
@@ -673,6 +678,17 @@ function loadProductPage(catalog) {
         // NOUVEAU: Mettre à jour le lien WhatsApp avec le numéro de la catégorie du produit
         const category = data.categories.find(cat => cat.NomCategorie === product.Catégorie);
         updateWhatsAppLink(category ? category.Numero : null);
+
+        // NOUVEAU: Configurer le bouton "Contacter le vendeur"
+        if (category && category.Numero) {
+            const cleanedNumber = String(category.Numero).replace(/[\s+()-]/g, '');
+            contactSellerButton.href = `https://wa.me/${cleanedNumber}?text=${encodeURIComponent(`Bonjour, je suis intéressé(e) par le produit : ${product.Nom}`)}`;
+            contactSellerButton.classList.remove('hidden');
+        } else {
+            contactSellerButton.classList.add('hidden');
+        }
+        // Rendre le conteneur de boutons visible
+        actionButtonsContainer.classList.remove('hidden');
 
         // NOUVEAU: Activer le zoom sur l'image principale
         activateInternalZoom("image-zoom-wrapper");
@@ -1169,8 +1185,8 @@ async function shareProduct(event, productId) {
     const productUrl = `${window.location.origin}/produit.html?id=${productId}`;
     const product = (await getCatalogAndRefreshInBackground()).data.products.find(p => p.IDProduit === productId);
     const shareData = {
-        title: product ? product.Nom : "Superbe produit sur ABMCY MARKET",
-        text: product ? `Découvrez ${product.Nom} sur ABMCY MARKET !` : "Découvrez ce superbe produit sur ABMCY MARKET !",
+        title: product ? `Découvrez ${product.Nom} sur ABMCY MARKET` : "Une offre à ne pas manquer sur ABMCY MARKET",
+        text: product ? `Wow, regarde cette offre incroyable pour "${product.Nom}" sur ABMCY MARKET ! Je pense que ça va te plaire.` : "J'ai trouvé une super boutique en ligne, ABMCY MARKET, jette un oeil !",
         url: productUrl,
     };
 
