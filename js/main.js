@@ -1275,7 +1275,7 @@ function renderHomepageCategorySections(catalog) {
                         <h3 class="text-2xl font-bold text-gray-800">${category.NomCategorie}</h3>
                         <a href="categorie.html?id=${category.IDCategorie}&name=${encodeURIComponent(category.NomCategorie)}" class="text-sm font-semibold text-blue-600 hover:underline">Voir plus</a>
                     </div>
-                    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                    <div class="horizontal-scroll-container grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                         ${categoryProducts.map(p => renderProductCard(p)).join('')}
                     </div>
                 </section>
