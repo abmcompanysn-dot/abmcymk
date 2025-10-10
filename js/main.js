@@ -3,7 +3,7 @@ const CONFIG = {
     CLIENT_API_URL: "https://script.google.com/macros/s/AKfycbwi3zpOqK7EKSKDCQ1VTIYvrfesOTTpNBs4vQvh_3BCcSE65KGjlWnLsilUtyvOdsgT/exec",
 
     // URL du script central. On ajoute l'action dans la requête fetch.
-    CENTRAL_API_URL: "https://script.google.com/macros/s/AKfycbx5TAYHbtKpp08C5fBy4WnRHfMW57OQhL90D0Z4E7vUIUaPdRh7F2v-VJmnsSYp888C/exec",
+    CENTRAL_API_URL: "https://script.google.com/macros/s/AKfycbwXJ7nGrftKjKHaG6r_I1i9HCmcFJHmDk8BEvmW1jbNpBnI7-DjnDw7eLEet9HeHRwF/exec",
     
     // Autres configurations
     DEFAULT_PRODUCT_IMAGE: "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png",
@@ -1040,38 +1040,66 @@ function startCountdown() {
 }
 
 /**
- * NOUVEAU: Fonction centrale pour récupérer toutes les données publiques (produits et catégories).
+ * NOUVEAU: Vérifie si le cache local est à jour par rapport au serveur.
+ * Si le cache n'est pas à jour, il est vidé.
+ */
+async function checkCacheVersion() {
+  try {
+    // On fait un appel très léger pour juste récupérer la version du cache côté serveur.
+    const response = await fetch(CONFIG.CENTRAL_API_URL + "?action=getCacheVersion");
+    if (!response.ok) throw new Error(`Erreur réseau lors de la vérification de version.`);
+    const result = await response.json();
+    if (!result.success) throw new Error(result.error || "Impossible de vérifier la version du cache.");
+
+    const serverVersion = result.cacheVersion;
+    const localVersion = sessionStorage.getItem('abmcyCacheVersion');
+
+    if (serverVersion && serverVersion !== localVersion) {
+      console.log(`Nouvelle version des données détectée (${serverVersion}). Vidage du cache local.`);
+      sessionStorage.removeItem('abmcyFullCatalog');
+      sessionStorage.setItem('abmcyCacheVersion', serverVersion);
+    } else if (!localVersion && serverVersion) {
+      // Si on n'a pas de version locale, on la stocke.
+      sessionStorage.setItem('abmcyCacheVersion', serverVersion);
+    }
+  } catch (error) {
+    console.error("Impossible de vérifier la version du cache, utilisation des données locales si disponibles.", error);
+  }
+}
+
+/**
+ * NOUVEAU: Fonction centrale pour récupérer toutes les données publiques.
  * Met en cache les résultats pour améliorer les performances de navigation.
  */
 async function getFullCatalog() {
+  // Étape 1: Vérifier la version du cache. Cette fonction vide le cache si nécessaire.
+  await checkCacheVersion();
+
+  // Étape 2: Essayer de récupérer les données depuis le cache de session.
+  const cachedItem = sessionStorage.getItem('abmcyFullCatalog');
+  if (cachedItem) {
+    console.log("Utilisation du catalogue complet depuis le cache de session.");
+    return JSON.parse(cachedItem);
+  }
+
+  // Étape 3: Si le cache est vide, faire un SEUL appel à l'API centrale pour tout récupérer.
+  console.log("Chargement du catalogue complet depuis le réseau...");
   try {
-    // Étape 1: Récupérer la liste des catégories depuis l'API centrale.
-    const categoriesResponse = await fetch(CONFIG.CENTRAL_API_URL + "?action=getPublicCatalog");
-    if (!categoriesResponse.ok) throw new Error("Impossible de charger l'annuaire des catégories.");
-    const categoriesResult = await categoriesResponse.json();
-    if (!categoriesResult.success) throw new Error(categoriesResult.error || "Erreur lors de la récupération des catégories.");
+    const response = await fetch(`${CONFIG.CENTRAL_API_URL}?action=getPublicCatalog`);
+    if (!response.ok) {
+      throw new Error(`Erreur réseau: ${response.statusText}`);
+    }
+    const result = await response.json();
 
-    // Filtrer pour ne garder que les catégories actives et correctement configurées.
-    const allCategories = (categoriesResult.data && categoriesResult.data.categories) ? categoriesResult.data.categories : [];
-    const categories = allCategories.filter(cat => cat.SheetID && cat.ScriptURL && !cat.ScriptURL.startsWith('REMPLIR_'));
-
-    if (categories.length === 0) {
-      return { success: true, data: { categories: allCategories, products: [] } };
+    if (!result.success) {
+      throw new Error(result.error || "L'API a retourné une erreur.");
     }
 
-    // Étape 2: Lancer toutes les requêtes pour les produits en parallèle.
-    // C'est ROBUSTE: si une requête échoue, les autres continuent.
-    const productFetchPromises = categories.map(cat =>
-      fetch(`${cat.ScriptURL}?action=getProducts`)
-        .then(res => res.ok ? res.json() : { success: false, data: [] })
-        .catch(() => ({ success: false, data: [] })) // Ajout d'un .catch pour la robustesse
-    );
-    const productResults = await Promise.all(productFetchPromises);
-    const allProducts = productResults.flatMap(res => (res.success && res.data) ? res.data : []);
-
-    const catalogData = { success: true, data: { categories: allCategories, products: allProducts } };
-    console.log(`Catalogue complet assemblé (${allProducts.length} produits).`);
-    return catalogData;
+    // Stocker le résultat dans le cache de session pour les navigations futures.
+    console.log(`Catalogue complet assemblé (${result.data.products.length} produits). Mise en cache pour la session.`);
+    sessionStorage.setItem('abmcyFullCatalog', JSON.stringify(result));
+    sessionStorage.setItem('abmcyCacheVersion', result.cacheVersion); // Stocker la version du cache
+    return result;
 
   } catch (error) {
     console.error("Échec du chargement du catalogue complet:", error);

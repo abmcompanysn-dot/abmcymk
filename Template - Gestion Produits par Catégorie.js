@@ -1,5 +1,5 @@
 // --- Template - Gestion Produits par Catégorie ---
-const CENTRAL_ADMIN_API_URL = "https://script.google.com/macros/s/AKfycbw6Y2VBKFXli2aMvbfCaWeMx0Ws29axaG3BIm2oMiFh1-qpc-hkSRIcrQbQ0JmXRQFB/exec"; // URL du script central
+const CENTRAL_ADMIN_API_URL = "https://script.google.com/macros/s/AKfycbwXJ7nGrftKjKHaG6r_I1i9HCmcFJHmDk8BEvmW1jbNpBnI7-DjnDw7eLEet9HeHRwF/exec"; // URL du script central
 
 // NOUVEAU: Configuration centrale des attributs par catégorie
 const CATEGORY_CONFIG = {
@@ -147,7 +147,7 @@ function onOpen() {
   
   menu.addSubMenu(initMenu)
       .addSeparator()
-      .addItem('Vider le cache de cette catégorie', 'invalidateCategoryCache')
+      .addItem('Forcer la mise à jour du cache global', 'invalidateGlobalCache')
       .addSeparator()
       .addItem('Ajouter un produit', 'showProductAddUI')
       .addToUi();
@@ -176,11 +176,7 @@ function onEdit(e) {
   }
   
   Logger.log("Modification détectée. Invalidation du cache global demandée.");
-  // Appelle le script central pour lui dire de mettre à jour la version du cache.
-  // On utilise un appel "fire-and-forget", on n'attend pas la réponse.
-  UrlFetchApp.fetch(CENTRAL_ADMIN_API_URL + "?action=invalidateCache", {
-    method: 'get', muteHttpExceptions: true
-  });
+  invalidateGlobalCache();
 }
 
 /**
@@ -291,10 +287,7 @@ function addProduct(productData, origin) { // La fonction addProduct existe déj
   sheet.appendRow(newRow);
   
   // NOUVEAU: Invalider le cache global après l'ajout d'un produit
-  UrlFetchApp.fetch(CENTRAL_ADMIN_API_URL + "?action=invalidateCache", {
-    method: 'get', muteHttpExceptions: true
-  });
-
+  invalidateGlobalCache();
   return createJsonResponse({ success: true, id: newProductId }, origin);
 }
 
@@ -406,18 +399,6 @@ function getCategoryName() {
 }
 
 /**
- * Vide le cache pour cette catégorie spécifique.
- */
-function invalidateCategoryCache() {
-  try {
-    const cache = CacheService.getScriptCache();
-    const cacheKey = `products_${SpreadsheetApp.getActiveSpreadsheet().getId()}`;
-    cache.remove(cacheKey);
-    Logger.log(`Cache vidé pour la clé : ${cacheKey}`);
-  } catch (e) { Logger.log(`Erreur lors du vidage du cache : ${e.message}`); }
-}
-
-/**
  * NOUVEAU: Utilitaire pour invalider le cache global
  */
 function invalidateGlobalCache() {
@@ -425,6 +406,7 @@ function invalidateGlobalCache() {
   UrlFetchApp.fetch(CENTRAL_ADMIN_API_URL + "?action=invalidateCache", {
     method: 'get', muteHttpExceptions: true
   });
+  Logger.log("Demande d'invalidation du cache global envoyée.");
 }
 
 /**
@@ -442,9 +424,11 @@ function seedDefaultProducts(categoryName) {
  * Crée une réponse JSON standard.
  */
 function createJsonResponse(data, origin) { // Ajout de 'origin' pour la cohérence
-  // CORRECTION DÉFINITIVE : On crée l'objet, on définit son type, et on retourne.
+  // CORRECTION : La réponse DOIT inclure l'en-tête CORS pour être acceptée par le navigateur.
   const output = ContentService.createTextOutput(JSON.stringify(data));
   output.setMimeType(ContentService.MimeType.JSON);
+  // Autorise toutes les origines. La fonction doOptions gère la requête de pré-vol.
+  output.addHeader('Access-Control-Allow-Origin', '*');
   return output;
 }
 

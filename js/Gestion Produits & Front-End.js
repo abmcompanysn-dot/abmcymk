@@ -129,6 +129,12 @@ function doGet(e) {
       return createJsonResponse({ success: true, message: `Cache invalidé. Nouvelle version: ${newVersion}` }, origin);
     }
 
+    // NOUVEAU: Point d'entrée léger pour juste vérifier la version du cache
+    if (action === 'getCacheVersion') {
+      const cacheVersion = PropertiesService.getScriptProperties().getProperty('cacheVersion') || '0';
+      return createJsonResponse({ success: true, cacheVersion: cacheVersion }, origin);
+    }
+
     // NOUVEAU: Point d'entrée unique pour le front-end public (main.js)
     if (action === 'getPublicCatalog') {
       const catalog = getPublicCatalog();
