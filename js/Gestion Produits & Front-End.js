@@ -105,15 +105,16 @@ function doGet(e) {
     // CORRECTION: Gérer l'invalidation du cache appelée par les feuilles de catégorie
     if (action === 'invalidateCache') {
       const cache = PropertiesService.getScriptProperties();
-      const newVersion = new Date().getTime();
+      const newVersion = new Date().getTime().toString();
       cache.setProperty('cacheVersion', newVersion);
       return createJsonResponse({ success: true, message: `Cache invalidé. Nouvelle version: ${newVersion}` });
     }
 
-    // Le seul rôle public de ce script pour le site web est de fournir la liste des catégories (l'annuaire).
-    // Le panneau d'administration utilise également cette fonction via google.script.run.
-    const categories = getCategoriesWithProductCounts();
+    // Pour l'action 'getPublicData' ou par défaut, on renvoie la liste des catégories et la version du cache.
+    // Le panneau d'administration utilise getCategoriesWithProductCounts() directement via google.script.run.
+    const categories = getCategories(); // Utiliser la version simple sans décompte pour l'API publique
     return createJsonResponse({ success: true, data: categories, cacheVersion: PropertiesService.getScriptProperties().getProperty('cacheVersion') });
+
   } catch (error) {
     return createJsonResponse({ success: false, error: error.message });
   }

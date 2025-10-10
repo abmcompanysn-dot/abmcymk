@@ -1031,23 +1031,25 @@ function startCountdown() {
  * Met en cache les résultats pour améliorer les performances de navigation.
  */
 async function checkCacheVersion() {
-    try {
-        const response = await fetch(CONFIG.CENTRAL_API_URL + "?action=getPublicData");
-        if (!response.ok) throw new Error(`Erreur réseau lors de la vérification de version.`);
-        const result = await response.json();
-        if (!result.success) throw new Error(result.error || "Impossible de vérifier la version du cache.");
+  try {
+    // On appelle l'API centrale pour obtenir la version du cache.
+    // On utilise `action=getPublicData` pour être explicite.
+    const response = await fetch(CONFIG.CENTRAL_API_URL + "?action=getPublicData");
+    if (!response.ok) throw new Error(`Erreur réseau lors de la vérification de version.`);
+    const result = await response.json();
+    if (!result.success) throw new Error(result.error || "Impossible de vérifier la version du cache.");
 
-        const serverVersion = result.cacheVersion;
-        const localVersion = sessionStorage.getItem('cacheVersion');
+    const serverVersion = result.cacheVersion;
+    const localVersion = sessionStorage.getItem('cacheVersion');
 
-        if (serverVersion !== localVersion) {
-            console.log(`Nouvelle version du cache détectée (${serverVersion}). Vidage du cache local.`);
-            sessionStorage.removeItem('fullCatalog');
-            sessionStorage.setItem('cacheVersion', serverVersion);
-        }
-    } catch (error) {
-        console.error("Impossible de vérifier la version du cache, utilisation des données locales si disponibles.", error);
+    if (serverVersion && serverVersion !== localVersion) {
+      console.log(`Nouvelle version du cache détectée (${serverVersion}). Vidage du cache local.`);
+      sessionStorage.removeItem('fullCatalog');
+      sessionStorage.setItem('cacheVersion', serverVersion);
     }
+  } catch (error) {
+    console.error("Impossible de vérifier la version du cache, utilisation des données locales si disponibles.", error);
+  }
 }
 
 /**
@@ -1383,6 +1385,20 @@ function initializeAccountPage() {
 /**
  * NOUVEAU: Charge les commandes récentes pour la page de compte.
  */
+async function loadRecentOrdersForAccount(clientId) {
+    const ordersSection = document.getElementById('recent-orders-section');
+    if (!ordersSection) return;
+
+    ordersSection.innerHTML = '<p>Chargement des commandes récentes...</p>';
+
+    // Note: Cette action n'existe pas encore côté backend, il faudra l'ajouter.
+    // Pour l'instant, on simule ou on laisse un message.
+    // Dans un futur développement, on appellerait une action comme 'getOrdersByClientId'.
+    ordersSection.innerHTML = `
+        <h4 class="text-lg font-semibold mb-4">Mes commandes récentes</h4>
+        <p class="text-gray-500">Cette fonctionnalité est en cours de développement.</p>
+    `;
+}
 async function loadRecentOrdersForAccount(clientId) {
     const ordersSection = document.getElementById('recent-orders-section');
     if (!ordersSection) return;
