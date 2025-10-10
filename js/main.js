@@ -1316,7 +1316,7 @@ function renderAllCategoriesSection(catalog) {
             </a>
         `).join('');
 
-        container.innerHTML = `<div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-x-4 gap-y-2">${categoriesHTML}</div>`;
+        container.innerHTML = `<div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-x-4 gap-y-2">${categoriesHTML}</div>`;
 
     } catch (error) {
         console.error("Erreur lors de l'affichage de la liste complète des catégories:", error);
