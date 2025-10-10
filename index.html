@@ -63,6 +63,11 @@
         }
         /* NOUVEAU: Style pour l'affichage décalé des produits sur mobile */
         @media (max-width: 767px) {
+            .horizontal-scroll-container {
+                display: grid;
+                grid-template-columns: repeat(2, 1fr);
+                overflow-x: visible;
+            }
         }
     </style>
 </head>
