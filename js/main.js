@@ -456,8 +456,10 @@ async function displaySearchResults(catalog) {
         const lowerCaseQuery = query.toLowerCase();
         filteredProducts = allProducts.filter(product => 
             product.Nom.toLowerCase().includes(lowerCaseQuery) ||
+            (product.Marque && product.Marque.toLowerCase().includes(lowerCaseQuery)) ||
             product.Catégorie.toLowerCase().includes(lowerCaseQuery) ||
-            (product.Tags && product.Tags.toLowerCase().includes(lowerCaseQuery))
+            (product.Tags && product.Tags.toLowerCase().includes(lowerCaseQuery)) ||
+            (product.Description && product.Description.toLowerCase().includes(lowerCaseQuery))
         );
         resultsCount.textContent = `${filteredProducts.length} résultat(s) trouvé(s).`;
     } catch (error) {
@@ -1117,9 +1119,300 @@ function renderProductCard(product) { // This function remains synchronous as it
     const stock = product.Stock || 0;
 
     // Pour la nouvelle carte de type AliExpress, on simplifie l'affichage
+    // NOUVEAU: La carte est maintenant un div, avec des boutons d'action.
     return `
-    <a href="produit.html?id=${product.IDProduit}" class="product-card bg-white rounded-lg shadow overflow-hidden block">
-        <div class="relative">
+    <div class="product-card bg-white rounded-lg shadow overflow-hidden flex flex-col justify-between">
+        <a href="produit.html?id=${product.IDProduit}" class="block">
+            <div class="relative group">
+                <div class="h-40 bg-gray-200 flex items-center justify-center">
+                    <img src="${product.ImageURL || CONFIG.DEFAULT_PRODUCT_IMAGE}" alt="${product.Nom}" class="h-full w-full object-cover" loading="lazy" width="160" height="160" onerror="this.onerror=null;this.src='${CONFIG.DEFAULT_PRODUCT_IMAGE}';">
+                </div>
+                ${discount > 0 ? `<span class="discount-badge absolute top-2 left-2 bg-red-500 text-white px-2 py-1 rounded-full text-xs font-bold">-${Math.round(discount)}%</span>` : ''}
+                <!-- NOUVEAU: Bouton "Ajouter au panier" style AliExpress qui apparaît au survol -->
+                <button onclick="addToCart(event, '${product.IDProduit}', '${product.Nom}', ${price}, '${product.ImageURL}')" class="absolute bottom-2 right-2 bg-white p-2 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 hover:bg-gold hover:text-white">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L4.5 8m-2.5 5l1.5-5M7 13h10l4-8H5.4M7 13L4.5 8"></path></svg>
+                </button>
+            </div>
+            <div class="p-3">
+                <p class="text-sm text-gray-700 truncate" title="${product.Nom}">${product.Nom}</p>
+                <p class="font-bold text-lg mt-1">${price.toLocaleString('fr-FR')} F CFA</p>
+                ${oldPrice > price ? `<p class="text-xs text-gray-400 line-through">${oldPrice.toLocaleString('fr-FR')} F CFA</p>` : ''}
+            </div>
+        </a>
+        <div class="p-3 pt-0">
+            <a href="produit.html?id=${product.IDProduit}" class="w-full block text-center bg-gray-800 text-white py-2 rounded-lg font-semibold text-sm hover:bg-black transition">
+                Voir
+            </a>
+        </div>
+    </div>
+    `;
+}
+
+/**
+ * NOUVEAU: Affiche des sections de produits pour chaque catégorie sur la page d'accueil.
+ */
+function renderHomepageCategorySections(catalog) {
+    const container = document.getElementById('category-products-sections-container');
+    if (!container) return;
+
+    // Étape 1: Afficher un squelette de chargement pour plusieurs sections.
+    const skeletonSection = `
+        <div class="animate-pulse">
+            <div class="h-8 bg-gray-200 rounded w-1/4 mb-4"></div>
+            <div class="horizontal-scroll-container flex space-x-4 overflow-x-auto pb-4">
+                ${Array(6).fill('<div class="flex-shrink-0 w-1/2 md:w-1/3 lg:w-1/6"><div class="bg-gray-200 h-64 rounded-lg"></div></div>').join('')}
+            </div>
+        </div>
+    `;
+    container.innerHTML = Array(3).fill(skeletonSection).join('');
+
+    try {
+        // Étape 2: Récupérer toutes les données (depuis le cache si possible).
+        const { data } = catalog;
+        const categories = (data.categories || []).filter(cat => cat.SheetID && cat.ScriptURL && !cat.ScriptURL.startsWith('REMPLIR_'));
+        const products = data.products || [];
+
+        // Étape 3: OPTIMISATION - Regrouper tous les produits par catégorie en une seule passe.
+        // C'est beaucoup plus rapide que de filtrer la liste complète pour chaque catégorie.
+        const productsByCategory = products.reduce((acc, product) => {
+            const categoryName = product.Catégorie;
+            if (!acc[categoryName]) {
+                acc[categoryName] = [];
+            }
+            acc[categoryName].push(product);
+            return acc;
+        }, {});
+
+        // Étape 4: Générer le HTML pour chaque catégorie qui a des produits.
+        const allSectionsHTML = categories.map(category => {
+            const categoryProducts = (productsByCategory[category.NomCategorie] || []).slice(0, 12); // Limite à 12 produits
+            if (categoryProducts.length === 0) return ''; // Ne pas créer de section si elle est vide.
+
+            return `
+                <section data-category-id="${category.IDCategorie}">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-2xl font-bold text-gray-800">${category.NomCategorie}</h3>
+                        <a href="categorie.html?id=${category.IDCategorie}&name=${encodeURIComponent(category.NomCategorie)}" class="text-sm font-semibold text-blue-600 hover:underline">Voir plus</a>
+                    </div>
+                    <div class="horizontal-scroll-container flex space-x-4 overflow-x-auto pb-4">
+                        ${categoryProducts.map(p => `<div class="flex-shrink-0 w-1/2 md:w-1/3 lg:w-1/6">${renderProductCard(p)}</div>`).join('')}
+                    </div>
+                </section>
+            `;
+        }).join('');
+
+        // Étape 5: Remplacer les squelettes par le contenu réel en une seule opération.
+        categories.forEach(category => {
+            container.innerHTML = allSectionsHTML;
+        });
+
+    } catch (error) {
+        console.error("Erreur lors de l'affichage des sections par catégorie:", error);
+        container.innerHTML = '<p class="text-center text-red-500">Impossible de charger les sections de produits.</p>';
+    }
+}
+
+/**
+ * NOUVEAU: Affiche la liste complète de toutes les catégories sur la page d'accueil.
+ */
+function renderAllCategoriesSection(catalog) {
+    const container = document.getElementById('all-categories-container');
+    if (!container) return;
+
+    // Afficher un squelette de chargement
+    container.innerHTML = '<div class="animate-pulse grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">' +
+        Array(12).fill('<div class="h-5 bg-gray-200 rounded"></div>').join('') +
+        '</div>';
+
+    try {
+        const { data } = catalog;
+        const categories = (data.categories || []).filter(cat => cat.SheetID && cat.ScriptURL && !cat.ScriptURL.startsWith('REMPLIR_'));
+
+        if (categories.length === 0) {
+            container.innerHTML = '<p class="text-gray-500">Aucune catégorie à afficher pour le moment.</p>';
+            return;
+        }
+
+        // Organiser les catégories en colonnes pour une meilleure lisibilité
+        const categoriesHTML = categories.map(cat => `
+            <a href="categorie.html?id=${cat.IDCategorie}&name=${encodeURIComponent(cat.NomCategorie)}" class="block text-gray-700 hover:text-gold hover:underline text-sm py-1">
+                ${cat.NomCategorie}
+            </a>
+        `).join('');
+
+        container.innerHTML = `<div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-x-4 gap-y-2">${categoriesHTML}</div>`;
+
+    } catch (error) {
+        console.error("Erreur lors de l'affichage de la liste complète des catégories:", error);
+        container.innerHTML = '<p class="text-center text-red-500">Impossible de charger la liste des catégories.</p>';
+    }
+}
+// --- LOGIQUE D'AUTHENTIFICATION ---
+
+/**
+ * Gère la soumission des formulaires de connexion et d'inscription.
+ * @param {Event} event L'événement de soumission du formulaire.
+ * @param {string} type 'login' ou 'register'.
+ */
+async function handleAuthForm(event, type) {
+    event.preventDefault();
+    const form = event.target;
+    const statusDiv = document.getElementById('auth-status');
+    statusDiv.className = 'mt-4 text-center font-semibold'; // Reset classes
+    statusDiv.textContent = 'Veuillez patienter...';
+
+    let payload;
+
+    if (type === 'register') {
+        const password = form.querySelector('#register-password').value;
+        const passwordConfirm = form.querySelector('#register-password-confirm').value;
+
+        if (password !== passwordConfirm) {
+            statusDiv.textContent = 'Les mots de passe ne correspondent pas.';
+            statusDiv.classList.add('text-red-600');
+            return;
+        }
+
+        payload = {
+            action: 'creerCompteClient',
+            data: {
+                nom: form.querySelector('#register-nom').value,
+                email: form.querySelector('#register-email').value,
+                motDePasse: password,
+                adresse: '',
+                telephone: ''
+            }
+        };
+    } else { // type === 'login'
+        payload = {
+            action: 'connecterClient', // Assurez-vous que cette action existe dans votre API Client
+            data: {
+                email: form.querySelector('#login-email').value,
+                motDePasse: form.querySelector('#login-password').value
+            }
+        };
+    }
+
+    try {
+        form.querySelector('button[type="submit"]').disabled = true;
+        const response = await fetch(CONFIG.CLIENT_API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            throw new Error(`Erreur réseau: ${response.statusText}`);
+        }
+
+        const result = await response.json();
+
+        if (result.success) {
+            if (type === 'register') {
+                statusDiv.textContent = 'Inscription réussie ! Vous pouvez maintenant vous connecter.';
+                statusDiv.classList.add('text-green-600');
+                setTimeout(() => switchTab('login'), 1500); // Basculer vers l'onglet de connexion
+            } else { // type === 'login'
+                statusDiv.textContent = 'Connexion réussie ! Redirection...';
+                statusDiv.classList.add('text-green-600');
+                // Stocker les informations de l'utilisateur et rediriger
+                localStorage.setItem('abmcyUser', JSON.stringify(result.user));
+                window.location.href = 'compte.html'; // Redirection vers la page de compte
+            }
+        } else {
+            throw new Error(result.error || 'Une erreur est survenue.');
+        }
+    } catch (error) {
+        statusDiv.textContent = `Erreur: ${error.message}`;
+        statusDiv.classList.add('text-red-600');
+    } finally {
+        form.querySelector('button[type="submit"]').disabled = false;
+    }
+}
+
+/**
+ * Gère le changement d'onglet entre Connexion et Inscription.
+ * @param {string} tabName 'login' ou 'register'.
+ */
+function switchTab(tabName) {
+    const loginTab = document.getElementById('login-tab');
+    const registerTab = document.getElementById('register-tab');
+    const loginForm = document.getElementById('login-form');
+    const registerForm = document.getElementById('register-form');
+
+    loginTab.classList.toggle('border-gold', tabName === 'login');
+    loginTab.classList.toggle('text-gray-500', tabName !== 'login');
+    registerTab.classList.toggle('border-gold', tabName === 'register');
+    registerTab.classList.toggle('text-gray-500', tabName !== 'register');
+
+    loginForm.classList.toggle('hidden', tabName !== 'login');
+    registerForm.classList.toggle('hidden', tabName !== 'register');
+
+    document.getElementById('auth-status').textContent = ''; // Clear status messages
+}
+
+// --- LOGIQUE DE LA PAGE COMPTE ---
+
+/**
+ * Initialise la page "Mon Compte".
+ * Vérifie si l'utilisateur est connecté, sinon le redirige.
+ * Affiche les informations de l'utilisateur.
+ */
+function initializeAccountPage() {
+    const user = JSON.parse(localStorage.getItem('abmcyUser'));
+
+    // Si l'utilisateur n'est pas connecté, on le renvoie à la page d'authentification
+    if (!user) {
+        window.location.href = 'authentification.html';
+        return;
+    }
+
+    // Afficher les informations de l'utilisateur
+    document.getElementById('user-name-display').textContent = user.Nom;
+    document.getElementById('user-email-display').textContent = user.Email;
+    document.getElementById('dashboard-user-name').textContent = user.Nom;
+    document.getElementById('dashboard-user-name-link').textContent = user.Nom;
+
+    // Initiales pour l'avatar
+    const initials = user.Nom.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+    document.getElementById('user-initials').textContent = initials;
+
+    // Logique de déconnexion
+    const logoutLink = document.getElementById('logout-link');
+    const logoutNav = document.getElementById('logout-nav-link');
+    
+    const logoutAction = (e) => {
+        e.preventDefault();
+        if (confirm("Êtes-vous sûr de vouloir vous déconnecter ?")) {
+            localStorage.removeItem('abmcyUser');
+            window.location.href = 'authentification.html';
+        }
+    };
+
+    logoutLink.addEventListener('click', logoutAction);
+    logoutNav.addEventListener('click', logoutAction);
+
+    // Charger et afficher les commandes récentes
+    loadRecentOrdersForAccount(user.IDClient);
+}
+
+/**
+ * NOUVEAU: Charge les commandes récentes pour la page de compte.
+ */
+async function loadRecentOrdersForAccount(clientId) {
+    const ordersSection = document.getElementById('recent-orders-section');
+    if (!ordersSection) return;
+
+    ordersSection.innerHTML = '<p>Chargement des commandes récentes...</p>';
+
+    // Note: Cette action n'existe pas encore côté backend, il faudra l'ajouter.
+    // Pour l'instant, on simule ou on laisse un message.
+    // Dans un futur développement, on appellerait une action comme 'getOrdersByClientId'.
+    ordersSection.innerHTML = `
+        <h4 class="text-lg font-semibold mb-4">Mes commandes récentes</h4>
+        <p class="text-gray-500">Cette fonctionnalité est en cours de développement.</p>
+    `;
+}
             <div class="h-40 bg-gray-200 flex items-center justify-center">
             <img src="${product.ImageURL || CONFIG.DEFAULT_PRODUCT_IMAGE}" alt="${product.Nom}" class="h-full w-full object-cover" loading="lazy" width="160" height="160" onerror="this.onerror=null;this.src='${CONFIG.DEFAULT_PRODUCT_IMAGE}';">
             </div>
