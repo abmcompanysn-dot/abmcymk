@@ -29,7 +29,10 @@
         .border-gold { border-color: var(--gold-color); }
         .font-montserrat { font-family: 'Montserrat', sans-serif; }
         /* Espace pour la barre de navigation inférieure */
-        body { padding-bottom: 100px; /* Espace pour la nav mobile + marge */ }
+        body {
+            padding-bottom: 100px; /* Espace pour la nav mobile + marge */
+            overflow-x: hidden; /* NOUVEAU: Empêche tout défilement horizontal */
+        }
         @media (min-width: 768px) {
             body { padding-bottom: 0; }
             .mobile-nav { display: none; }
