@@ -1110,33 +1110,57 @@ function renderProductCard(product) { // This function remains synchronous as it
     const stock = product.Stock || 0;
 
     // Pour la nouvelle carte de type AliExpress, on simplifie l'affichage
-    // NOUVEAU: La carte est maintenant un div, avec des boutons d'action.
     return `
-    <div class="product-card bg-white rounded-lg shadow overflow-hidden flex flex-col justify-between">
-        <a href="produit.html?id=${product.IDProduit}" class="block">
-            <div class="relative group">
-                <div class="h-40 bg-gray-200 flex items-center justify-center">
-                    <img src="${product.ImageURL || CONFIG.DEFAULT_PRODUCT_IMAGE}" alt="${product.Nom}" class="h-full w-full object-cover" loading="lazy" width="160" height="160" onerror="this.onerror=null;this.src='${CONFIG.DEFAULT_PRODUCT_IMAGE}';">
+    <div class="product-card bg-white rounded-lg shadow overflow-hidden flex flex-col justify-between group">
+        <div>
+            <a href="produit.html?id=${product.IDProduit}" class="block">
+                <div class="relative">
+                    <div class="h-40 bg-gray-200 flex items-center justify-center">
+                        <img src="${product.ImageURL || CONFIG.DEFAULT_PRODUCT_IMAGE}" alt="${product.Nom}" class="h-full w-full object-cover" loading="lazy" width="160" height="160" onerror="this.onerror=null;this.src='${CONFIG.DEFAULT_PRODUCT_IMAGE}';">
+                    </div>
+                    ${discount > 0 ? `<span class="discount-badge absolute top-2 left-2 bg-red-500 text-white px-2 py-1 rounded-full text-xs font-bold">-${Math.round(discount)}%</span>` : ''}
+                    
+                    <!-- NOUVEAU: Conteneur pour les icônes d'action qui apparaissent au survol -->
+                    <div class="absolute top-2 right-2 flex flex-col space-y-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                        <button onclick="addToCart(event, '${product.IDProduit}', '${product.Nom}', ${price}, '${product.ImageURL}')" title="Ajouter au panier" class="bg-white p-2 rounded-full shadow-lg hover:bg-gold hover:text-white">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
+                        </button>
+                        <button onclick="shareProduct(event, '${product.IDProduit}')" title="Partager" class="bg-white p-2 rounded-full shadow-lg hover:bg-gold hover:text-white">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12s-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.368a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z"></path></svg>
+                        </button>
+                    </div>
                 </div>
-                ${discount > 0 ? `<span class="discount-badge absolute top-2 left-2 bg-red-500 text-white px-2 py-1 rounded-full text-xs font-bold">-${Math.round(discount)}%</span>` : ''}
-                <!-- NOUVEAU: Bouton "Ajouter au panier" style AliExpress qui apparaît au survol -->
-                <button onclick="addToCart(event, '${product.IDProduit}', '${product.Nom}', ${price}, '${product.ImageURL}')" class="absolute bottom-2 right-2 bg-white p-2 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 hover:bg-gold hover:text-white">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L4.5 8m-2.5 5l1.5-5M7 13h10l4-8H5.4M7 13L4.5 8"></path></svg>
-                </button>
-            </div>
-            <div class="p-3">
-                <p class="text-sm text-gray-700 truncate" title="${product.Nom}">${product.Nom}</p>
-                <p class="font-bold text-lg mt-1">${price.toLocaleString('fr-FR')} F CFA</p>
-                ${oldPrice > price ? `<p class="text-xs text-gray-400 line-through">${oldPrice.toLocaleString('fr-FR')} F CFA</p>` : ''}
-            </div>
-        </a>
+                <div class="p-3">
+                    <p class="text-sm text-gray-700 truncate" title="${product.Nom}">${product.Nom}</p>
+                    <p class="font-bold text-lg mt-1">${price.toLocaleString('fr-FR')} F CFA</p>
+                    ${oldPrice > price ? `<p class="text-xs text-gray-400 line-through">${oldPrice.toLocaleString('fr-FR')} F CFA</p>` : ''}
+                </div>
+            </a>
+        </div>
         <div class="p-3 pt-0">
-            <a href="produit.html?id=${product.IDProduit}" class="w-full block text-center bg-gray-800 text-white py-2 rounded-lg font-semibold text-sm hover:bg-black transition">
-                Voir
+            <a href="produit.html?id=${product.IDProduit}" class="w-full block text-center bg-gray-100 text-gray-800 py-1.5 rounded-lg font-semibold text-xs hover:bg-gray-200 transition">
+                Voir le produit
             </a>
         </div>
     </div>
     `;
+}
+
+/**
+ * NOUVEAU: Copie le lien du produit dans le presse-papiers et affiche une notification.
+ * @param {Event} event 
+ * @param {string} productId 
+ */
+function shareProduct(event, productId) {
+    event.preventDefault();
+    event.stopPropagation();
+    const productUrl = `${window.location.origin}/produit.html?id=${productId}`;
+    navigator.clipboard.writeText(productUrl).then(() => {
+        showToast('Lien du produit copié !');
+    }).catch(err => {
+        console.error('Erreur de copie du lien: ', err);
+        showToast('Impossible de copier le lien.', true);
+    });
 }
 
 /**
