@@ -25,60 +25,51 @@ document.addEventListener('DOMContentLoaded', () => {
  * Fonction principale ASYNCHRONE qui initialise l'application.
  */
 async function initializeApp() {
-    // Étape 1: Mettre à jour les éléments qui n'ont pas besoin de données distantes.
+    // --- ÉTAPE 1: Rendu immédiat de ce qui ne dépend pas des données distantes ---
     updateCartBadges();
-
-    // Étape 2: Charger TOUTES les données (catégories et produits) UNE SEULE FOIS.
-    const catalog = await getFullCatalog();
-
-    // Étape 3: Initialiser toutes les parties du site en leur passant les données déjà chargées.
-    // C'est beaucoup plus rapide et évite de surcharger l'API.
-    await Promise.all([populateCategoryMenu(catalog), populateNavLinks(catalog), initializeSearch()]);
-    
-    // Une fois les données prêtes, on initialise le reste
-    // Si nous sommes sur la page panier, on l'affiche
-    if (document.getElementById('panier-page')) {
-        renderCartPage();
-    }
-
-    // Si nous sommes sur la page de recherche, afficher les résultats
-    if (window.location.pathname.endsWith('recherche.html')) {
-        displaySearchResults(catalog);
-    }
-
-    // Si nous sommes sur une page catégorie, afficher les produits
-    if (window.location.pathname.endsWith('categorie.html')) {
-        displayCategoryProducts(catalog);
-    }
-
-    // Si nous sommes sur la page des promotions, afficher les produits
-    if (window.location.pathname.endsWith('promotion.html')) {
-        displayPromotionProducts(catalog);
-    }
-
-    // Si nous sommes sur la page produit, charger les données du produit
-    if (window.location.pathname.endsWith('produit.html')) {
-        loadProductPage(catalog);
-    }
-
-    // Si nous sommes sur la page d'accueil (avec les nouvelles sections), on les remplit.
-    if (document.getElementById('superdeals-products')) {
-        renderDailyDealsHomepage();
-        renderAllCategoriesSection(); // NOUVEAU: Affiche la section de toutes les catégories
-        renderHomepageCategorySections(); // NOUVEAU: Affiche les sections par catégorie
-        startCountdown();
-    }
-    
-    // Si nous sommes sur la page compte, on l'initialise
-    if (document.querySelector('main h1.text-3xl')?.textContent.includes("Mon Compte")) {
-        initializeAccountPage();
-    }
-
-    // Si nous sommes sur la page d'authentification, on attache les événements aux deux formulaires
+    initializeSearch(); // Les formulaires de recherche peuvent être initialisés immédiatement.
     if (document.getElementById('auth-forms')) {
         document.getElementById('login-form').addEventListener('submit', (e) => handleAuthForm(e, 'login'));
         document.getElementById('register-form').addEventListener('submit', (e) => handleAuthForm(e, 'register'));
     }
+    if (document.querySelector('main h1.text-3xl')?.textContent.includes("Mon Compte")) {
+        initializeAccountPage(); // La page compte gère sa propre logique d'authentification.
+    }
+    if (document.getElementById('panier-page')) {
+        renderCartPage(); // Le panier lit depuis le localStorage, pas besoin d'attendre l'API.
+    }
+    if (document.getElementById('countdown')) {
+        startCountdown(); // Le compte à rebours est indépendant.
+    }
+
+    // --- ÉTAPE 2: Lancer le chargement des données en arrière-plan ---
+    // On ne bloque PAS le reste de l'exécution de la page.
+    const catalogPromise = getFullCatalog();
+
+    // --- ÉTAPE 3: Remplir les sections qui dépendent des données une fois qu'elles sont prêtes ---
+    catalogPromise.then(catalog => {
+        if (!catalog || !catalog.success) {
+            console.error("Impossible de charger le catalogue. Le site pourrait ne pas fonctionner correctement.");
+            return;
+        }
+
+        // Remplir les menus et les liens de navigation
+        populateCategoryMenu(catalog);
+        populateNavLinks(catalog);
+
+        // Remplir le contenu spécifique à la page actuelle
+        if (window.location.pathname.endsWith('recherche.html')) displaySearchResults(catalog);
+        if (window.location.pathname.endsWith('categorie.html')) displayCategoryProducts(catalog);
+        if (window.location.pathname.endsWith('promotion.html')) displayPromotionProducts(catalog);
+        if (window.location.pathname.endsWith('produit.html')) loadProductPage(catalog);
+        
+        // Remplir les sections de la page d'accueil
+        if (document.getElementById('superdeals-products')) {
+            renderDailyDealsHomepage(catalog);
+            renderAllCategoriesSection(catalog);
+            renderHomepageCategorySections(catalog);
+        }
+    });
 }
 
 /**
@@ -98,7 +89,7 @@ function toggleMobileMenu() {
 /**
  * Remplit dynamiquement le menu des catégories à partir du fichier categories.js.
  */
-async function populateCategoryMenu(catalog) {
+function populateCategoryMenu(catalog) {
     const menu = document.getElementById('mobileMenu');
     if (!menu) return; // S'assure que l'élément existe
     const boutiquesMenu = document.getElementById('boutiques-menu');
@@ -130,7 +121,7 @@ async function populateCategoryMenu(catalog) {
 /**
  * NOUVEAU: Remplit dynamiquement les liens de navigation principaux et de la bannière.
  */
-async function populateNavLinks(catalog) {
+function populateNavLinks(catalog) {
     const mainLinksContainer = document.getElementById('main-nav-links');
     const bannerLinksContainer = document.getElementById('banner-nav-links');
 
@@ -426,7 +417,7 @@ async function displaySearchResults(catalog) {
 /**
  * NOUVEAU: Affiche les produits pour une catégorie donnée.
  */
-async function displayCategoryProducts(catalog) {
+function displayCategoryProducts(catalog) {
     const params = new URLSearchParams(window.location.search);
     const categoryId = params.get('id');
     const categoryName = params.get('name');
@@ -481,7 +472,7 @@ async function displayCategoryProducts(catalog) {
 /**
  * NOUVEAU: Affiche les produits en promotion.
  */
-async function displayPromotionProducts(catalog) {
+function displayPromotionProducts(catalog) {
     const resultsContainer = document.getElementById('promotion-results-container');
     const resultsCount = document.getElementById('promotion-results-count');
 
@@ -523,7 +514,7 @@ async function displayPromotionProducts(catalog) {
 /**
  * Charge les données d'un produit spécifique sur la page produit.
  */
-async function loadProductPage(catalog) { // Make it async
+function loadProductPage(catalog) {
     const params = new URLSearchParams(window.location.search);
     const productId = params.get('id');
 
@@ -941,7 +932,7 @@ async function processCheckout(event) {
 /**
  * NOUVEAU: Affiche les produits dans les sections "SuperDeals" et "Big Save" de la page d'accueil.
  */
-async function renderDailyDealsHomepage() {
+function renderDailyDealsHomepage(catalog) {
     const superdealsContainer = document.getElementById('superdeals-products');
     const boutiquesContainer = document.getElementById('boutiques-container');
 
@@ -960,7 +951,7 @@ async function renderDailyDealsHomepage() {
     // On lance le chargement des données. getFullCatalog est déjà optimisé avec un cache.
     try {
         // --- Étape 3: Charger le catalogue complet ---
-        const { data } = await getFullCatalog();
+        const { data } = catalog;
         const categories = (data.categories || []).filter(cat => cat.SheetID && cat.ScriptURL && !cat.ScriptURL.startsWith('REMPLIR_'));
         const products = data.products || [];
 
@@ -1140,7 +1131,7 @@ function renderProductCard(product) { // This function remains synchronous as it
 /**
  * NOUVEAU: Affiche des sections de produits pour chaque catégorie sur la page d'accueil.
  */
-async function renderHomepageCategorySections() {
+function renderHomepageCategorySections(catalog) {
     const container = document.getElementById('category-products-sections-container');
     if (!container) return;
 
@@ -1157,7 +1148,7 @@ async function renderHomepageCategorySections() {
 
     try {
         // Étape 2: Récupérer toutes les données (depuis le cache si possible).
-        const { data } = await getFullCatalog();
+        const { data } = catalog;
         const categories = (data.categories || []).filter(cat => cat.SheetID && cat.ScriptURL && !cat.ScriptURL.startsWith('REMPLIR_'));
         const products = data.products || [];
 
@@ -1204,7 +1195,7 @@ async function renderHomepageCategorySections() {
 /**
  * NOUVEAU: Affiche la liste complète de toutes les catégories sur la page d'accueil.
  */
-async function renderAllCategoriesSection() {
+function renderAllCategoriesSection(catalog) {
     const container = document.getElementById('all-categories-container');
     if (!container) return;
 
@@ -1214,7 +1205,7 @@ async function renderAllCategoriesSection() {
         '</div>';
 
     try {
-        const { data } = await getFullCatalog();
+        const { data } = catalog;
         const categories = (data.categories || []).filter(cat => cat.SheetID && cat.ScriptURL && !cat.ScriptURL.startsWith('REMPLIR_'));
 
         if (categories.length === 0) {
