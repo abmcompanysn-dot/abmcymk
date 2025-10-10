@@ -63,6 +63,13 @@
             .product-grid .product-card:nth-child(2n) {
                 margin-top: 1.5rem; /* 24px */
             }
+            /* NOUVEAU: Empêche le défilement horizontal des sections de produits sur mobile */
+            .horizontal-scroll-container {
+                display: grid;
+                grid-template-columns: repeat(2, 1fr); /* Affiche 2 colonnes */
+                gap: 1rem; /* Espace entre les produits */
+                overflow-x: visible;
+            }
         }
     </style>
 </head>
