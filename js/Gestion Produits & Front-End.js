@@ -100,10 +100,20 @@ function showAdminInterface() {
  */
 function doGet(e) {
   try {
+    const action = e.parameter.action;
+
+    // CORRECTION: Gérer l'invalidation du cache appelée par les feuilles de catégorie
+    if (action === 'invalidateCache') {
+      const cache = PropertiesService.getScriptProperties();
+      const newVersion = new Date().getTime();
+      cache.setProperty('cacheVersion', newVersion);
+      return createJsonResponse({ success: true, message: `Cache invalidé. Nouvelle version: ${newVersion}` });
+    }
+
     // Le seul rôle public de ce script pour le site web est de fournir la liste des catégories (l'annuaire).
     // Le panneau d'administration utilise également cette fonction via google.script.run.
     const categories = getCategoriesWithProductCounts();
-    return createJsonResponse({ success: true, data: categories });
+    return createJsonResponse({ success: true, data: categories, cacheVersion: PropertiesService.getScriptProperties().getProperty('cacheVersion') });
   } catch (error) {
     return createJsonResponse({ success: false, error: error.message });
   }
