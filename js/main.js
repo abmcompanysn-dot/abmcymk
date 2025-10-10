@@ -456,8 +456,10 @@ async function displaySearchResults(catalog) {
         const lowerCaseQuery = query.toLowerCase();
         filteredProducts = allProducts.filter(product => 
             product.Nom.toLowerCase().includes(lowerCaseQuery) ||
+            (product.Marque && product.Marque.toLowerCase().includes(lowerCaseQuery)) ||
             product.Catégorie.toLowerCase().includes(lowerCaseQuery) ||
-            (product.Tags && product.Tags.toLowerCase().includes(lowerCaseQuery))
+            (product.Tags && product.Tags.toLowerCase().includes(lowerCaseQuery)) ||
+            (product.Description && product.Description.toLowerCase().includes(lowerCaseQuery))
         );
         resultsCount.textContent = `${filteredProducts.length} résultat(s) trouvé(s).`;
     } catch (error) {
@@ -470,16 +472,7 @@ async function displaySearchResults(catalog) {
         return;
     }
 
-    const resultsHTML = filteredProducts.map(product => `
-        <a href="produit.html?id=${product.IDProduit}" class="product-card bg-white rounded-lg shadow-md overflow-hidden block">
-            <div class="h-48 bg-gray-200"><img src="${product.ImageURL || CONFIG.DEFAULT_PRODUCT_IMAGE}" alt="${product.Nom}" class="h-full w-full object-cover" loading="lazy" width="200" height="192"></div>
-            <div class="p-4">
-                <h4 class="font-semibold text-gray-800 mb-2">${product.Nom}</h4>
-                <span class="text-lg font-bold text-gold">${product.PrixActuel.toLocaleString('fr-FR')} F CFA</span>
-                <button class="w-full mt-3 bg-black text-white py-2 rounded hover:bg-gray-800 transition" onclick="addToCart(event, '${product.IDProduit}', '${product.Nom}', ${product.PrixActuel}, '${product.ImageURL || CONFIG.DEFAULT_PRODUCT_IMAGE}')">Ajouter</button>
-            </div>
-        </a>
-    `).join('');
+    const resultsHTML = filteredProducts.map(product => renderProductCard(product)).join('');
 
     resultsContainer.innerHTML = resultsHTML;
 }
@@ -1117,20 +1110,32 @@ function renderProductCard(product) { // This function remains synchronous as it
     const stock = product.Stock || 0;
 
     // Pour la nouvelle carte de type AliExpress, on simplifie l'affichage
+    // NOUVEAU: La carte est maintenant un div, avec des boutons d'action.
     return `
-    <a href="produit.html?id=${product.IDProduit}" class="product-card bg-white rounded-lg shadow overflow-hidden block">
-        <div class="relative">
-            <div class="h-40 bg-gray-200 flex items-center justify-center">
-            <img src="${product.ImageURL || CONFIG.DEFAULT_PRODUCT_IMAGE}" alt="${product.Nom}" class="h-full w-full object-cover" loading="lazy" width="160" height="160" onerror="this.onerror=null;this.src='${CONFIG.DEFAULT_PRODUCT_IMAGE}';">
+    <div class="product-card bg-white rounded-lg shadow overflow-hidden flex flex-col justify-between">
+        <a href="produit.html?id=${product.IDProduit}" class="block">
+            <div class="relative group">
+                <div class="h-40 bg-gray-200 flex items-center justify-center">
+                    <img src="${product.ImageURL || CONFIG.DEFAULT_PRODUCT_IMAGE}" alt="${product.Nom}" class="h-full w-full object-cover" loading="lazy" width="160" height="160" onerror="this.onerror=null;this.src='${CONFIG.DEFAULT_PRODUCT_IMAGE}';">
+                </div>
+                ${discount > 0 ? `<span class="discount-badge absolute top-2 left-2 bg-red-500 text-white px-2 py-1 rounded-full text-xs font-bold">-${Math.round(discount)}%</span>` : ''}
+                <!-- NOUVEAU: Bouton "Ajouter au panier" style AliExpress qui apparaît au survol -->
+                <button onclick="addToCart(event, '${product.IDProduit}', '${product.Nom}', ${price}, '${product.ImageURL}')" class="absolute bottom-2 right-2 bg-white p-2 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 hover:bg-gold hover:text-white">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L4.5 8m-2.5 5l1.5-5M7 13h10l4-8H5.4M7 13L4.5 8"></path></svg>
+                </button>
             </div>
-            ${discount > 0 ? `<span class="discount-badge absolute top-2 left-2 bg-red-500 text-white px-2 py-1 rounded-full text-xs font-bold">-${Math.round(discount)}%</span>` : ''}
+            <div class="p-3">
+                <p class="text-sm text-gray-700 truncate" title="${product.Nom}">${product.Nom}</p>
+                <p class="font-bold text-lg mt-1">${price.toLocaleString('fr-FR')} F CFA</p>
+                ${oldPrice > price ? `<p class="text-xs text-gray-400 line-through">${oldPrice.toLocaleString('fr-FR')} F CFA</p>` : ''}
+            </div>
+        </a>
+        <div class="p-3 pt-0">
+            <a href="produit.html?id=${product.IDProduit}" class="w-full block text-center bg-gray-800 text-white py-2 rounded-lg font-semibold text-sm hover:bg-black transition">
+                Voir
+            </a>
         </div>
-        <div class="p-3">
-            <p class="text-sm text-gray-700 truncate" title="${product.Nom}">${product.Nom}</p>
-            <p class="font-bold text-lg mt-1">${price.toLocaleString('fr-FR')} F CFA</p>
-            ${oldPrice > price ? `<p class="text-xs text-gray-400 line-through">${oldPrice.toLocaleString('fr-FR')} F CFA</p>` : ''}
-        </div>
-    </a>
+    </div>
     `;
 }
 
