@@ -599,6 +599,10 @@ function loadProductPage(catalog) {
         // Le bouton est désactivé si le produit est en rupture de stock ET qu'il n'y a pas de variantes.
         addToCartButton.disabled = (product.Stock <= 0 && !hasVariants);
 
+        // NOUVEAU: Charger et afficher les produits similaires
+        const similarProductsContainer = document.getElementById('similar-products-container');
+        renderSimilarProducts(product, data.products, similarProductsContainer);
+
         // NOUVEAU: Activer le zoom sur l'image principale
         activateInternalZoom("image-zoom-wrapper");
 
@@ -657,164 +661,40 @@ function activateInternalZoom(wrapperId) {
  * @param {HTMLElement} specsContainer Le conteneur pour les spécifications techniques.
  */
 function renderCategorySpecificDetails(product, variantsContainer, specsContainer) {
-    // Vide les conteneurs précédents
     variantsContainer.innerHTML = '';
     specsContainer.innerHTML = '';
 
-    // Logique de rendu basée sur la catégorie
-    switch (product.Catégorie.toLowerCase()) {
-        case 'vêtements':
-            renderClothingDetails(product, variantsContainer, specsContainer);
-            break;
-        case 'chaussures':
-            renderShoesDetails(product, variantsContainer, specsContainer);
-            break;
-        case 'électronique':
-            renderElectronicsDetails(product, variantsContainer, specsContainer);
-            break;
-        case 'sacs':
-            renderBagsDetails(product, variantsContainer, specsContainer);
-            break;
-        case 'livres':
-            renderBooksDetails(product, variantsContainer, specsContainer);
-            break;
-        case 'alimentation':
-            renderFoodDetails(product, variantsContainer, specsContainer);
-            break;
-        case 'beauté & soins':
-            renderBeautyDetails(product, variantsContainer, specsContainer);
-            break;
-        // NOUVEAU: Ajout des nouvelles catégories
-        case 'literie':
-            renderBeddingDetails(product, variantsContainer, specsContainer);
-            break;
-        case 'luminaires':
-            renderLightingDetails(product, variantsContainer, specsContainer);
-            break;
-        case 'vêtements bébé':
-            renderBabyClothesDetails(product, variantsContainer, specsContainer);
-            break;
-        case 'bagages':
-            renderLuggageDetails(product, variantsContainer, specsContainer);
-            break;
-        case 'photographie':
-            renderPhotographyDetails(product, variantsContainer, specsContainer);
-            break;
-        case 'fournitures scolaires':
-            renderSchoolSuppliesDetails(product, variantsContainer, specsContainer);
-            break;
-        // Ajoutez d'autres 'case' pour chaque catégorie que vous voulez personnaliser
-        // case 'livres':
-        //     renderBooksDetails(product, specsContainer);
-        //     break;
-        default:
-            // Comportement par défaut si aucune catégorie ne correspond
-            specsContainer.innerHTML = '<p class="text-gray-600">Aucune spécification supplémentaire pour ce produit.</p>';
-            break;
-    }
-}
+    // Récupérer la configuration des attributs depuis le catalogue
+    const categoryConfig = catalog.data.categoryConfig || {};
+    const categoryAttributes = categoryConfig[product.Catégorie] || [];
 
-/**
- * NOUVEAU: Fonctions de rendu spécifiques par catégorie.
- * Ces fonctions génèrent le HTML pour les variantes et les spécifications.
- */
-
-function renderClothingDetails(product, variantsContainer, specsContainer) {
-    // Options de variantes (ex: Tailles)
-    if (product.Taille && product.Taille.includes(',')) variantsContainer.innerHTML += createVariantSelector('Taille', product.Taille.split(','));
-    if (product.Couleur && product.Couleur.includes(',')) variantsContainer.innerHTML += createVariantSelector('Couleur', product.Couleur.split(','));
-
-    // Spécifications
+    let variantsHTML = '';
     let specsHTML = '<ul>';
-    if (product.Coupe) specsHTML += `<li class="flex justify-between py-2 border-b"><span>Coupe</span> <span class="font-semibold text-gray-800">${product.Coupe}</span></li>`;
-    if (product.Matière) specsHTML += `<li class="flex justify-between py-2 border-b"><span>Matière</span> <span class="font-semibold text-gray-800">${product.Matière}</span></li>`;
-    if (product.Saison) specsHTML += `<li class="flex justify-between py-2 border-b"><span>Saison</span> <span class="font-semibold text-gray-800">${product.Saison}</span></li>`;
-    if (product.Style) specsHTML += `<li class="flex justify-between py-2 border-b"><span>Style</span> <span class="font-semibold text-gray-800">${product.Style}</span></li>`;
-    if (product.Genre) specsHTML += `<li class="flex justify-between py-2"><span>Genre</span> <span class="font-semibold text-gray-800">${product.Genre}</span></li>`;
-    specsHTML += '</ul>';
-    specsContainer.innerHTML = specsHTML;
-}
+    let hasSpecs = false;
 
-function renderShoesDetails(product, variantsContainer, specsContainer) {
-    // Options de variantes (ex: Pointures)
-    if (product.Pointure && product.Pointure.includes(',')) {
-        variantsContainer.innerHTML += createVariantSelector('Pointure', product.Pointure.split(','));
-    }
-    if (product.Couleur && product.Couleur.includes(',')) {
-        variantsContainer.innerHTML += createVariantSelector('Couleur', product.Couleur.split(','));
-    }
-    // Spécifications
-    let specsHTML = '<ul>';
-    if (product.Matière) specsHTML += `<li class="flex justify-between py-2 border-b"><span>Matière</span> <span class="font-semibold text-gray-800">${product.Matière}</span></li>`;
-    if (product.Type) specsHTML += `<li class="flex justify-between py-2 border-b"><span>Type</span> <span class="font-semibold text-gray-800">${product.Type}</span></li>`;
-    if (product.Genre) specsHTML += `<li class="flex justify-between py-2 border-b"><span>Genre</span> <span class="font-semibold text-gray-800">${product.Genre}</span></li>`;
-    if (product.Semelle) specsHTML += `<li class="flex justify-between py-2 border-b"><span>Semelle</span> <span class="font-semibold text-gray-800">${product.Semelle}</span></li>`;
-    if (product.Usage) specsHTML += `<li class="flex justify-between py-2"><span>Usage</span> <span class="font-semibold text-gray-800">${product.Usage}</span></li>`;
-    specsHTML += '</ul>';
-    specsContainer.innerHTML = specsHTML;
-}
+    // Parcourir tous les attributs définis pour cette catégorie
+    categoryAttributes.forEach(attr => {
+        const value = product[attr];
+        if (value) {
+            // Si la valeur contient une virgule, on la traite comme une variante sélectionnable
+            if (String(value).includes(',')) {
+                variantsHTML += createVariantSelector(attr, String(value).split(','));
+            } else {
+                // Sinon, on l'affiche comme une spécification
+                specsHTML += `<li class="flex justify-between py-2 border-b"><span>${attr}</span> <span class="font-semibold text-gray-800">${value}</span></li>`;
+                hasSpecs = true;
+            }
+        }
+    });
 
-function renderElectronicsDetails(product, variantsContainer, specsContainer) {
-    // Options de variantes (ex: Capacités)
-    if (product.Capacité && product.Capacité.includes(',')) {
-        variantsContainer.innerHTML += createVariantSelector('Capacité', product.Capacité.split(','));
-    }
-    // Spécifications
-    let specsHTML = '<ul>';
-    if (product.Marque) specsHTML += `<li class="flex justify-between py-2 border-b"><span>Marque</span> <span class="font-semibold text-gray-800">${product.Marque}</span></li>`;
-    if (product.Modèle) specsHTML += `<li class="flex justify-between py-2 border-b"><span>Modèle</span> <span class="font-semibold text-gray-800">${product.Modèle}</span></li>`;
-    if (product.Connectivité) specsHTML += `<li class="flex justify-between py-2 border-b"><span>Connectivité</span> <span class="font-semibold text-gray-800">${product.Connectivité}</span></li>`;
-    if (product.Compatibilité) specsHTML += `<li class="flex justify-between py-2 border-b"><span>Compatibilité</span> <span class="font-semibold text-gray-800">${product.Compatibilité}</span></li>`;
-    if (product.Garantie) specsHTML += `<li class="flex justify-between py-2"><span>Garantie</span> <span class="font-semibold text-gray-800">${product.Garantie}</span></li>`;
     specsHTML += '</ul>';
-    specsContainer.innerHTML = specsHTML;
-}
 
-function renderBagsDetails(product, variantsContainer, specsContainer) {
-    if (product.Couleur) {
-        variantsContainer.innerHTML += createVariantSelector('Couleur', product.Couleur.split(','));
+    variantsContainer.innerHTML = variantsHTML;
+    if (hasSpecs) {
+        specsContainer.innerHTML = specsHTML;
+    } else {
+        specsContainer.innerHTML = '<p class="text-gray-600">Aucune spécification supplémentaire pour ce produit.</p>';
     }
-    let specsHTML = '<ul>';
-    if (product.Volume) specsHTML += `<li class="py-2 border-b"><strong>Volume :</strong> ${product.Volume}</li>`;
-    if (product.Type) specsHTML += `<li class="py-2 border-b"><strong>Type :</strong> ${product.Type}</li>`;
-    if (product.Matière) specsHTML += `<li class="py-2"><strong>Matière :</strong> ${product.Matière}</li>`;
-    specsHTML += '</ul>';
-    specsContainer.innerHTML = specsHTML;
-}
-
-function renderBooksDetails(product, variantsContainer, specsContainer) {
-    // Pas de variantes sélectionnables pour les livres en général
-    let specsHTML = '<ul>';
-    if (product.Auteur) specsHTML += `<li class="py-2 border-b"><strong>Auteur :</strong> ${product.Auteur}</li>`;
-    if (product.Genre) specsHTML += `<li class="py-2 border-b"><strong>Genre :</strong> ${product.Genre}</li>`;
-    if (product.Format) specsHTML += `<li class="py-2 border-b"><strong>Format :</strong> ${product.Format}</li>`;
-    if (product.Langue) specsHTML += `<li class="py-2 border-b"><strong>Langue :</strong> ${product.Langue}</li>`;
-    if (product.ISBN) specsHTML += `<li class="py-2"><strong>ISBN :</strong> ${product.ISBN}</li>`;
-    specsHTML += '</ul>';
-    specsContainer.innerHTML = specsHTML;
-}
-
-function renderFoodDetails(product, variantsContainer, specsContainer) {
-    if (product.Poids) {
-        variantsContainer.innerHTML += createVariantSelector('Poids', product.Poids.split(','));
-    }
-    let specsHTML = '<ul>';
-    if (product.Ingrédients) specsHTML += `<li class="py-2 border-b"><strong>Ingrédients :</strong> ${product.Ingrédients}</li>`;
-    if (product.Origine) specsHTML += `<li class="py-2 border-b"><strong>Origine :</strong> ${product.Origine}</li>`;
-    if (product.Labels) specsHTML += `<li class="py-2"><strong>Labels :</strong> ${product.Labels}</li>`;
-    specsHTML += '</ul>';
-    specsContainer.innerHTML = specsHTML;
-}
-
-function renderBeautyDetails(product, variantsContainer, specsContainer) {
-    if (product.Format) {
-        variantsContainer.innerHTML += createVariantSelector('Format', product.Format.split(','));
-    }
-    let specsHTML = '<ul>';
-    if (product['Type de peau']) specsHTML += `<li class="py-2 border-b"><strong>Type de peau :</strong> ${product['Type de peau']}</li>`;
-    if (product.Ingrédients) specsHTML += `<li class="py-2"><strong>Ingrédients principaux :</strong> ${product.Ingrédients}</li>`;
-    specsHTML += '</ul>';
-    specsContainer.innerHTML = specsHTML;
 }
 /**
  * NOUVEAU: Crée un sélecteur de variante (boutons).
@@ -850,6 +730,38 @@ function selectVariant(selectedButton, groupName) {
     // Sélectionne le bouton cliqué
     selectedButton.classList.add('selected');
 
+}
+
+/**
+ * NOUVEAU: Affiche des produits similaires basés sur la même catégorie.
+ * @param {object} currentProduct Le produit actuellement affiché.
+ * @param {Array} allProducts La liste de tous les produits.
+ * @param {HTMLElement} container Le conteneur où afficher les produits similaires.
+ */
+function renderSimilarProducts(currentProduct, allProducts, container) {
+    if (!container) return;
+
+    // Afficher le squelette de chargement
+    const skeletonCard = `
+        <div class="bg-white rounded-lg shadow overflow-hidden animate-pulse">
+            <div class="bg-gray-200 h-40"></div>
+            <div class="p-3 space-y-2"><div class="bg-gray-200 h-4 rounded"></div><div class="bg-gray-200 h-6 w-1/2 rounded"></div></div>
+        </div>`;
+    container.innerHTML = Array(4).fill(skeletonCard).join('');
+
+    // Filtrer pour trouver des produits de la même catégorie, en excluant le produit actuel
+    const similar = allProducts.filter(p => 
+        p.Catégorie === currentProduct.Catégorie && 
+        p.IDProduit !== currentProduct.IDProduit
+    ).slice(0, 4); // Limiter à 4 produits similaires
+
+    if (similar.length === 0) {
+        container.innerHTML = '<p class="col-span-full text-center text-gray-500">Aucun produit similaire trouvé.</p>';
+        return;
+    }
+
+    const similarProductsHTML = similar.map(product => renderProductCard(product)).join('');
+    container.innerHTML = similarProductsHTML;
 }
 
 // --- LOGIQUE DE PAIEMENT (CHECKOUT) ---

@@ -248,7 +248,7 @@ function getPublicCatalog() {
     }
   });
 
-  return { categories: categories, products: allProducts };
+  return { categories: categories, products: allProducts, categoryConfig: CATEGORY_CONFIG };
 }
 
 /**
