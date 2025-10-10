@@ -100,12 +100,13 @@ async function populateCategoryMenu() {
     if (!menu) return; // S'assure que l'élément existe
     const boutiquesMenu = document.getElementById('boutiques-menu');
     let menuHTML = ''; // Initialiser la variable ici
+    const errorHTML = '<p class="px-4 py-2 text-sm text-red-500">Erreur de chargement.</p>';
 
     try {
         // On récupère les données depuis la nouvelle fonction centrale
-        const catalog = await getFullCatalog();
-        const categories = catalog.data.categories;
-        
+        const { data } = await getFullCatalog();
+        const categories = data.categories || [];
+
         // Ajout d'un titre pour le menu déroulant
         menuHTML = `<div class="p-2 border-b"><h3 class="font-semibold text-sm text-gray-500 px-2">Toutes les catégories</h3></div>`;
 
@@ -116,7 +117,6 @@ async function populateCategoryMenu() {
         // Ajout du lien vers les promotions
         menuHTML += '<a href="promotion.html" class="block px-4 py-2 text-sm text-red-600 font-semibold hover:bg-gray-100">Promotions</a>';
     } catch (error) {
-        const errorHTML = '<p class="px-4 py-2 text-sm text-red-500">Erreur de chargement.</p>';
         console.error("Erreur lors du chargement des menus de catégories:", error);
         menu.innerHTML = errorHTML;
         if (boutiquesMenu) boutiquesMenu.innerHTML = errorHTML;
@@ -140,7 +140,8 @@ async function populateNavLinks() {
     if (!mainLinksContainer) return;
 
     try {
-        const categories = await getCategories();
+        const { data } = await getFullCatalog();
+        const categories = data.categories || [];
         const MANY_CATEGORIES_THRESHOLD = 8;
 
         let mainNavCategories = [];
@@ -205,14 +206,16 @@ function saveCart(cart) {
  * @param {string} imageUrl - L'URL de l'image du produit.
  */
 function addToCart(event, productId, name, price, imageUrl) {
-    event.preventDefault();
-    event.stopPropagation();
+    if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
 
     const cart = getCart();
     const quantityInput = document.getElementById('quantity');
     const quantity = quantityInput ? parseInt(quantityInput.value) : 1;
-    const existingProductIndex = cart.findIndex(item => item.id === finalProductId);
-
+    // Correction: la variable finalProductId n'existe pas dans ce contexte.
+    const existingProductIndex = cart.findIndex(item => item.productId === productId);
     if (existingProductIndex > -1) {
         // Le produit existe déjà, on augmente la quantité
         cart[existingProductIndex].quantity += quantity;
@@ -220,7 +223,7 @@ function addToCart(event, productId, name, price, imageUrl) {
         // Nouveau produit
         cart.push({ id: finalProductId, productId: productId, name, price, imageUrl, quantity, variants: selectedVariants });
     }
-
+    
     saveCart(cart);
     alert(`${name} a été ajouté au panier !`); // Message de confirmation simple
 }
@@ -229,7 +232,7 @@ function addToCart(event, productId, name, price, imageUrl) {
  * Met à jour les badges du panier (nombre d'articles).
  */
 function updateCartBadges() {
-    const cart = getCart();
+    const cart = getCart() || [];
     const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
 
     const badges = document.querySelectorAll('#bottomNavCartBadge'); // Cible tous les badges
@@ -248,7 +251,7 @@ function updateCartBadges() {
  * Affiche les articles sur la page du panier.
  */
 function renderCartPage() {
-    const cart = getCart();
+    const cart = getCart() || [];
     const cartContainer = document.getElementById('cart-page-items');
     
     if (cart.length === 0) {
@@ -290,7 +293,7 @@ function renderCartPage() {
  * Met à jour le résumé de la commande sur la page panier.
  */
 function updateCartSummary() {
-    const cart = getCart();
+    const cart = getCart() || [];
     const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     
     const shippingCost = subtotal > 30000 ? 0 : 5000; // Livraison gratuite si > 30000 F CFA
@@ -307,7 +310,7 @@ function updateCartSummary() {
  * @param {string} newQuantity - La nouvelle quantité (depuis l'input).
  */
 function changeQuantity(index, newQuantity) {
-    const cart = getCart();
+    const cart = getCart() || [];
     const quantity = parseInt(newQuantity);
 
     if (quantity > 0) {
@@ -330,7 +333,7 @@ function removeFromCart(index) {
         return;
     }
 
-    const cart = getCart();
+    const cart = getCart() || [];
     cart.splice(index, 1); // Supprime l'élément à l'index donné
 
     saveCart(cart);
@@ -377,8 +380,8 @@ async function displaySearchResults() {
 
     let filteredProducts = [];
     try {
-        const catalog = await getFullCatalog();
-        const allProducts = catalog.data.products;
+        const { data } = await getFullCatalog();
+        const allProducts = data.products || [];
 
         const lowerCaseQuery = query.toLowerCase();
         filteredProducts = allProducts.filter(product => 
@@ -398,12 +401,12 @@ async function displaySearchResults() {
     }
 
     const resultsHTML = filteredProducts.map(product => `
-        <a href="produit.html?id=${product.IDProduit}" class="bg-white rounded-lg shadow-md overflow-hidden block">
+        <a href="produit.html?id=${product.IDProduit}" class="product-card bg-white rounded-lg shadow-md overflow-hidden block">
             <div class="h-48 bg-gray-200"><img src="${product.ImageURL || CONFIG.DEFAULT_PRODUCT_IMAGE}" alt="${product.Nom}" class="h-full w-full object-cover"></div>
             <div class="p-4">
                 <h4 class="font-semibold text-gray-800 mb-2">${product.Nom}</h4>
                 <span class="text-lg font-bold text-gold">${product.PrixActuel.toLocaleString('fr-FR')} F CFA</span>
-                <button class="w-full mt-3 bg-black text-white py-2 rounded hover:bg-gray-800 transition" onclick="addToCart(event, '${product.IDProduit}', '${product.Nom}', ${product.PrixActuel}, '${product.ImageURL || CONFIG.DEFAULT_PRODUCT_IMAGE}')">Ajouter au panier</button>
+                <button class="w-full mt-3 bg-black text-white py-2 rounded hover:bg-gray-800 transition" onclick="addToCart(event, '${product.IDProduit}', '${product.Nom}', ${product.PrixActuel}, '${product.ImageURL || CONFIG.DEFAULT_PRODUCT_IMAGE}')">Ajouter</button>
             </div>
         </a>
     `).join('');
@@ -436,9 +439,9 @@ async function displayCategoryProducts() {
     resultsContainer.innerHTML = Array(8).fill(skeletonCard).join('');
 
     try {
-        const catalog = await getFullCatalog();
-        const allProducts = catalog.data.products;
-        const allCategories = catalog.data.categories;
+        const { data } = await getFullCatalog();
+        const allProducts = data.products || [];
+        const allCategories = data.categories || [];
 
         // CORRECTION: Le produit n'a pas d'IDCategorie, mais un nom de catégorie.
         // On trouve la catégorie correspondante à l'ID de l'URL pour obtenir son nom.
@@ -484,8 +487,8 @@ async function displayPromotionProducts() {
     resultsContainer.innerHTML = Array(8).fill(skeletonCard).join('');
 
     try {
-        const catalog = await getFullCatalog();
-        const allProducts = catalog.data.products;
+        const { data } = await getFullCatalog();
+        const allProducts = data.products || [];
         // Filtrer les produits qui ont une réduction
         const discountedProducts = allProducts.filter(product => product['Réduction%'] && parseFloat(product['Réduction%']) > 0);
 
@@ -521,8 +524,8 @@ async function loadProductPage() { // Make it async
     }
 
     try {
-        const catalog = await getFullCatalog();
-        const product = catalog.data.products.find(p => p.IDProduit == productId);
+        const { data } = await getFullCatalog();
+        const product = data.products.find(p => p.IDProduit == productId);
 
         if (!product) {
             throw new Error("Produit non trouvé.");
@@ -949,9 +952,9 @@ async function renderDailyDealsHomepage() {
     setTimeout(async () => {
         try {
             // --- Étape 3: Charger le catalogue complet ---
-            const catalog = await getFullCatalog();
-            const categories = catalog.data.categories;
-            const products = catalog.data.products;
+            const { data } = await getFullCatalog();
+            const categories = data.categories || [];
+            const products = data.products || [];
 
             // --- Étape 4: Remplir la section "Nos Boutiques" dès que les catégories sont prêtes ---
             if (categories.length > 0) {
@@ -1034,20 +1037,23 @@ function startCountdown() {
  * Met en cache les résultats pour améliorer les performances de navigation.
  */
 async function checkCacheVersion() {
-    const response = await fetch(CONFIG.CENTRAL_API_URL + "?action=getPublicData");
-    if (!response.ok) throw new Error(`Erreur réseau lors de la récupération des catégories.`);
-    const result = await response.json();
-    if (!result.success) throw new Error(result.error || "Impossible de charger la liste des catégories.");
+    try {
+        const response = await fetch(CONFIG.CENTRAL_API_URL + "?action=getPublicData");
+        if (!response.ok) throw new Error(`Erreur réseau lors de la vérification de version.`);
+        const result = await response.json();
+        if (!result.success) throw new Error(result.error || "Impossible de vérifier la version du cache.");
 
-    const serverVersion = result.cacheVersion;
-    const localVersion = sessionStorage.getItem('cacheVersion');
+        const serverVersion = result.cacheVersion;
+        const localVersion = sessionStorage.getItem('cacheVersion');
 
-    if (serverVersion !== localVersion) {
-        console.log(`Nouvelle version du cache détectée (${serverVersion}). Vidage du cache local.`);
-        sessionStorage.removeItem('fullCatalog');
-        sessionStorage.setItem('cacheVersion', serverVersion);
+        if (serverVersion !== localVersion) {
+            console.log(`Nouvelle version du cache détectée (${serverVersion}). Vidage du cache local.`);
+            sessionStorage.removeItem('fullCatalog');
+            sessionStorage.setItem('cacheVersion', serverVersion);
+        }
+    } catch (error) {
+        console.error("Impossible de vérifier la version du cache, utilisation des données locales si disponibles.", error);
     }
-    return result; // On retourne les données déjà récupérées pour éviter un 2ème appel
 }
 
 /**
@@ -1056,32 +1062,38 @@ async function checkCacheVersion() {
  */
 async function getFullCatalog() {
     // Étape 1: Vérifier la version du cache. Cette fonction vide le cache si nécessaire.
-    const publicData = await checkCacheVersion();
+    await checkCacheVersion();
 
     // Étape 2: Vérifier si les données sont maintenant dans le cache.
     const cachedItem = sessionStorage.getItem('fullCatalog');
     if (cachedItem) {
-        const { data } = JSON.parse(cachedItem);
         console.log("Utilisation du catalogue complet depuis le cache de session.");
-        return data;
+        return JSON.parse(cachedItem);
     }
 
-    // Étape 3: Si le cache est vide ou expiré, on charge les données.
-    // On utilise les données déjà récupérées par checkCacheVersion()
-    const categories = publicData.data;
-    console.log("Appels API parallèles pour tous les produits...");
-    const productFetchPromises = categories.map(cat => 
-        fetch(`${cat.ScriptURL}?action=getProducts`).then(res => res.json())
-    );
-    const productResults = await Promise.all(productFetchPromises);
-    const allProducts = productResults.flatMap(res => (res.success && res.data) ? res.data : []);
+    // Étape 3: Si le cache est vide, on charge les données depuis le réseau.
+    console.log("Chargement du catalogue complet depuis le réseau...");
+    try {
+        const response = await fetch(CONFIG.CENTRAL_API_URL + "?action=getPublicData");
+        if (!response.ok) throw new Error(`Erreur réseau lors de la récupération des catégories.`);
+        const publicData = await response.json();
+        if (!publicData.success) throw new Error(publicData.error || "Impossible de charger la liste des catégories.");
 
-    const catalogData = { success: true, data: { categories, products: allProducts } };
-    const itemToCache = { data: catalogData }; // On ne stocke plus le timestamp
-    
-    console.log(`Catalogue complet assemblé (${allProducts.length} produits). Mise en cache pour la session.`);
-    sessionStorage.setItem('fullCatalog', JSON.stringify(itemToCache));
-    return catalogData;
+        const categories = publicData.data || [];
+        const productFetchPromises = categories.map(cat =>
+            fetch(`${cat.ScriptURL}?action=getProducts`).then(res => res.json()).catch(() => ({ success: false, data: [] })) // Ajout d'un .catch pour la robustesse
+        );
+        const productResults = await Promise.all(productFetchPromises);
+        const allProducts = productResults.flatMap(res => (res.success && res.data) ? res.data : []);
+
+        const catalogData = { success: true, data: { categories, products: allProducts } };
+        console.log(`Catalogue complet assemblé (${allProducts.length} produits). Mise en cache pour la session.`);
+        sessionStorage.setItem('fullCatalog', JSON.stringify(catalogData));
+        return catalogData;
+    } catch (error) {
+        console.error("Échec du chargement du catalogue complet:", error);
+        return { success: false, data: { categories: [], products: [] }, error: error.message }; // Retourner une structure de données vide en cas d'échec
+    }
 }
 
 /**
@@ -1131,9 +1143,9 @@ async function renderHomepageCategorySections() {
     container.innerHTML = skeletonSection;
 
     try {
-        const catalog = await getFullCatalog();
-        const categories = catalog.data.categories;
-        const products = catalog.data.products;
+        const { data } = await getFullCatalog();
+        const categories = data.categories || [];
+        const products = data.products || [];
 
         let allSectionsHTML = '';
 
@@ -1199,7 +1211,7 @@ async function handleAuthForm(event, type) {
         };
     } else { // type === 'login'
         payload = {
-            action: 'connecterClient',
+            action: 'connecterClient', // Assurez-vous que cette action existe dans votre API Client
             data: {
                 email: form.querySelector('#login-email').value,
                 motDePasse: form.querySelector('#login-password').value
@@ -1225,7 +1237,7 @@ async function handleAuthForm(event, type) {
             if (type === 'register') {
                 statusDiv.textContent = 'Inscription réussie ! Vous pouvez maintenant vous connecter.';
                 statusDiv.classList.add('text-green-600');
-                form.reset();
+                setTimeout(() => switchTab('login'), 1500); // Basculer vers l'onglet de connexion
             } else { // type === 'login'
                 statusDiv.textContent = 'Connexion réussie ! Redirection...';
                 statusDiv.classList.add('text-green-600');
