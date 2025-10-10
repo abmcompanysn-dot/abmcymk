@@ -425,18 +425,19 @@ function setupCentralSheet() {
   }
   sheet.clear();
   // NOUVEAU: Ajout de ImageURL pour le front-end
-  const headers = ["IDCategorie", "NomCategorie", "SheetID", "ScriptURL", "ImageURL"];
+  const headers = ["IDCategorie", "NomCategorie", "SheetID", "ScriptURL", "ImageURL", "Numero"];
   sheet.appendRow(headers);
   sheet.setFrozenRows(1);
   sheet.getRange(1, 1, 1, headers.length).setFontWeight("bold");
   
+  const DEFAULT_CONTACT_NUMBER = "+221 76 904 79 99";
   // NOUVEAU: Remplissage automatique à partir de CATEGORY_CONFIG
   const categoriesToInsert = Object.keys(CATEGORY_CONFIG).sort();
   const rows = categoriesToInsert.map((catName, index) => {
     const catId = `CAT-${String(index + 1).padStart(3, '0')}`;
     const placeholderSheetId = `REMPLIR_ID_FEUILLE_${catName.replace(/[^a-zA-Z0-9]/g, '_').toUpperCase()}`;
     const placeholderScriptUrl = `REMPLIR_URL_SCRIPT_${catName.replace(/[^a-zA-Z0-9]/g, '_').toUpperCase()}`;
-    return [catId, catName, placeholderSheetId, placeholderScriptUrl, DEFAULT_LOGO_URL]; // CORRECTION: Utiliser le logo par défaut
+    return [catId, catName, placeholderSheetId, placeholderScriptUrl, DEFAULT_LOGO_URL, DEFAULT_CONTACT_NUMBER];
   });
 
   if (rows.length > 0) {

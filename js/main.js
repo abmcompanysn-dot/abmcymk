@@ -3,7 +3,7 @@ const CONFIG = {
     CLIENT_API_URL: "https://script.google.com/macros/s/AKfycbwi3zpOqK7EKSKDCQ1VTIYvrfesOTTpNBs4vQvh_3BCcSE65KGjlWnLsilUtyvOdsgT/exec",
 
     // URL du script central. On ajoute l'action dans la requête fetch.
-    CENTRAL_API_URL: "https://script.google.com/macros/s/AKfycbxpf_d1-bchSlnJ9jCyNxTU-vvcnx5wrKffsObg74hS3h7ET81prH6Bt361OK5YsX-y/exec",
+    CENTRAL_API_URL: "https://script.google.com/macros/s/AKfycbwBtesagcmH6DiK1ARbUnIsmpNdQRFlBMUy1qnEj4hDygAkZOML5ZPKKMLGmMtQRfMk/exec",
     
     // Autres configurations
     DEFAULT_PRODUCT_IMAGE: "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png",
@@ -65,6 +65,7 @@ async function initializeApp() {
         // Remplir le contenu spécifique à la page actuelle
         if (window.location.pathname.endsWith('recherche.html')) displaySearchResults(catalog);
         if (window.location.pathname.endsWith('categorie.html')) fillCategoryProducts(catalog);
+        if (window.location.pathname.endsWith('categorie.html')) updateWhatsAppLinkForCategory(catalog); // NOUVEAU
         if (window.location.pathname.endsWith('promotion.html')) displayPromotionProducts(catalog);
         if (window.location.pathname.endsWith('produit.html')) loadProductPage(catalog);
         
@@ -677,6 +678,10 @@ function loadProductPage(catalog) {
         const similarProductsContainer = document.getElementById('similar-products-container');
         renderSimilarProducts(product, data.products, similarProductsContainer);
 
+        // NOUVEAU: Mettre à jour le lien WhatsApp avec le numéro de la catégorie du produit
+        const category = data.categories.find(cat => cat.NomCategorie === product.Catégorie);
+        updateWhatsAppLink(category ? category.Numero : null);
+
         // NOUVEAU: Activer le zoom sur l'image principale
         activateInternalZoom("image-zoom-wrapper");
 
@@ -1048,6 +1053,33 @@ async function getFullCatalog() {
     // En cas d'erreur, retourner une structure vide pour ne pas planter le site.
     return { success: false, data: { categories: [], products: [] }, error: error.message };
   }
+}
+
+/**
+ * NOUVEAU: Met à jour le lien du bouton WhatsApp flottant.
+ * @param {string|null} number Le numéro de téléphone à utiliser. Si null, utilise le numéro par défaut.
+ */
+function updateWhatsAppLink(number) {
+    const whatsappButton = document.getElementById('whatsapp-float-btn');
+    if (!whatsappButton) return;
+
+    const defaultNumber = "221769047999";
+    const targetNumber = number && String(number).trim() ? String(number).trim() : defaultNumber;
+    
+    // Nettoyer le numéro pour l'URL (supprimer espaces, +, etc.)
+    const cleanedNumber = targetNumber.replace(/[\s+()-]/g, '');
+
+    whatsappButton.href = `https://wa.me/${cleanedNumber}`;
+}
+
+/**
+ * NOUVEAU: Met à jour le lien WhatsApp spécifiquement pour la page catégorie.
+ */
+function updateWhatsAppLinkForCategory(catalog) {
+    const params = new URLSearchParams(window.location.search);
+    const categoryId = params.get('id');
+    const category = catalog.data.categories.find(cat => cat.IDCategorie === categoryId);
+    updateWhatsAppLink(category ? category.Numero : null);
 }
 
 /**

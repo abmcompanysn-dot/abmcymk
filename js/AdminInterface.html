@@ -187,8 +187,9 @@
           categoriesData.forEach(cat => {
             const count = typeof cat.ProductCount === 'number' ? cat.ProductCount : 0;
             const countText = typeof cat.ProductCount === 'number' ? `${count} produits` : `<span class="text-red-500">${cat.ProductCount}</span>`;
+            const numeroText = cat.Numero ? `<span class="text-xs text-gray-500 ml-2 font-mono">${cat.Numero}</span>` : '';
             totalProducts += count;
-            summaryList += `<li>${cat.NomCategorie}: <span class="font-semibold">${countText}</span></li>`;
+            summaryList += `<li class="flex justify-between items-center"><span>${cat.NomCategorie}: <span class="font-semibold">${countText}</span></span>${numeroText}</li>`;
           });
           summaryList += '</ul>';
           summaryDiv.innerHTML += summaryList;
