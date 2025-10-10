@@ -1083,7 +1083,6 @@ async function getFullCatalog() {
         const categories = allCategories.filter(cat => cat.SheetID && cat.ScriptURL && !cat.ScriptURL.startsWith('REMPLIR_'));
 
         if (categories.length === 0) {
-            console.warn("Aucune catégorie active n'est configurée dans le backend.");
             const catalogData = { success: true, data: { categories: allCategories, products: [] } };
             sessionStorage.setItem('fullCatalog', JSON.stringify(catalogData));
             return catalogData;

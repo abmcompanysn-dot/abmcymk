@@ -247,6 +247,12 @@ function addProduct(productData) {
   });
   
   sheet.appendRow(newRow);
+  
+  // NOUVEAU: Invalider le cache global après l'ajout d'un produit
+  UrlFetchApp.fetch(CENTRAL_ADMIN_API_URL + "?action=invalidateCache", {
+    method: 'get', muteHttpExceptions: true
+  });
+
   return createJsonResponse({ success: true, id: newProductId });
 }
 
