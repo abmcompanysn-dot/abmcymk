@@ -25,13 +25,13 @@ document.addEventListener('DOMContentLoaded', () => {
  * Fonction principale ASYNCHRONE qui initialise l'application.
  */
 async function initializeApp() {
-    // Ces fonctions s'exécutent immédiatement, sans attendre les données des produits
+    // Tâches qui n'ont pas de dépendances, exécutées immédiatement.
     updateCartBadges();
     
-    // Initialisation des éléments qui nécessitent des données du backend
-    await populateCategoryMenu(); // Doit être appelé avant initializeSearch si la recherche utilise les catégories
-    await populateNavLinks(); // NOUVEAU: Remplit les barres de navigation
-    await initializeSearch(); // Peut nécessiter les produits
+    // OPTIMISATION: Exécuter les initialisations en parallèle pour gagner du temps.
+    // Toutes ces fonctions dépendent de getFullCatalog, mais peuvent s'exécuter en même temps.
+    // Promise.all attend que toutes les promesses soient résolues.
+    await Promise.all([populateCategoryMenu(), populateNavLinks(), initializeSearch()]);
 
     // Une fois les données prêtes, on initialise le reste
     // Si nous sommes sur la page panier, on l'affiche

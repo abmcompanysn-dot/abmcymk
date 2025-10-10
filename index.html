@@ -4,8 +4,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- NOUVEAU: Préchargement de l'image principale pour un affichage plus rapide -->
+    <link rel="preload" as="image" href="https://images.pexels.com/photos/3769747/pexels-photo-3769747.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1">
+    
     <title>ABMCY MARKET - Votre Marché en Ligne</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- CORRECTION: Charger TailwindCSS comme une feuille de style pour ne pas bloquer le rendu -->
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link rel="manifest" href="manifest.json">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
@@ -216,7 +220,8 @@
         </div>
     </nav>
 
-    <script src="js/main.js"></script>
+    <!-- OPTIMISATION: L'attribut 'defer' charge le script en parallèle et l'exécute après l'analyse du HTML -->
+    <script src="js/main.js" defer></script>
 
 </body>
 
