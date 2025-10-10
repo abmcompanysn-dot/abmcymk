@@ -233,7 +233,8 @@ function updateCartBadges() {
     const cart = getCart() || [];
     const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
 
-    const badges = document.querySelectorAll('#bottomNavCartBadge'); // Cible tous les badges
+    // CORRECTION: Cible tous les badges par leur classe commune pour une mise à jour fiable.
+    const badges = document.querySelectorAll('.cart-badge');
 
     badges.forEach(badge => {
         if (totalItems > 0) {
