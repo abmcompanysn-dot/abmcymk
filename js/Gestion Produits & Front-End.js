@@ -102,6 +102,23 @@ function showAdminInterface() {
 }
 
 /**
+ * NOUVEAU: Se déclenche à chaque modification de la feuille de calcul centrale.
+ * Si la feuille "Catégories" est modifiée, le cache est invalidé.
+ */
+function onEdit(e) {
+  const sheet = e.source.getActiveSheet();
+  const sheetName = sheet.getName();
+
+  // On ne s'intéresse qu'aux modifications sur la feuille des catégories
+  if (sheetName === "Catégories") {
+    Logger.log(`Modification détectée sur la feuille '${sheetName}'. Invalidation du cache.`);
+    const cache = PropertiesService.getScriptProperties();
+    const newVersion = new Date().getTime().toString();
+    cache.setProperty('cacheVersion', newVersion);
+  }
+}
+
+/**
  * Gère les requêtes OPTIONS pour le pré-vol CORS.
  */
 function doOptions(e) {

@@ -1151,16 +1151,30 @@ function renderProductCard(product) { // This function remains synchronous as it
  * @param {Event} event 
  * @param {string} productId 
  */
-function shareProduct(event, productId) {
+async function shareProduct(event, productId) {
     event.preventDefault();
     event.stopPropagation();
     const productUrl = `${window.location.origin}/produit.html?id=${productId}`;
-    navigator.clipboard.writeText(productUrl).then(() => {
+    const product = (await getCatalogAndRefreshInBackground()).data.products.find(p => p.IDProduit === productId);
+    const shareData = {
+        title: product ? product.Nom : "Superbe produit sur ABMCY MARKET",
+        text: product ? `Découvrez ${product.Nom} sur ABMCY MARKET !` : "Découvrez ce superbe produit sur ABMCY MARKET !",
+        url: productUrl,
+    };
+
+    // Utiliser l'API de partage native si elle est disponible
+    if (navigator.share) {
+        try {
+            await navigator.share(shareData);
+            console.log('Produit partagé avec succès');
+        } catch (err) {
+            console.error('Erreur de partage: ', err);
+        }
+    } else {
+        // Sinon, revenir à la copie dans le presse-papiers
+        navigator.clipboard.writeText(productUrl);
         showToast('Lien du produit copié !');
-    }).catch(err => {
-        console.error('Erreur de copie du lien: ', err);
-        showToast('Impossible de copier le lien.', true);
-    });
+    }
 }
 
 /**
