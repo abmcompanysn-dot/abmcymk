@@ -88,19 +88,41 @@ function getCategorySpecificHeaders(categoryName) {
 
 const PERSONAL_DATA = {
   logoUrl: 'https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png',
-  gallery: Array(5).fill('https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png').join(','),
+  // NOUVEAU: Utilisation de 5 images différentes pour une galerie de test plus réaliste.
+  gallery: [
+    'https://picsum.photos/id/1015/800/800', // Image de paysage
+    'https://picsum.photos/id/1018/800/800', // Image de plage
+    'https://picsum.photos/id/1025/800/800', // Image de chien
+    'https://picsum.photos/id/1040/800/800', // Image de château
+    'https://picsum.photos/id/1060/800/800'  // Image de forêt
+  ].join(','),
   getProducts: function(categoryName) {
+    const specificAttributes = CATEGORY_CONFIG[categoryName] || [];
     let products = [];
-    for (let i = 1; i <= 100; i++) { // MODIFICATION: Génère 100 produits au lieu de 10
+    for (let i = 1; i <= 10; i++) { // MODIFICATION: Génère 10 produits au lieu de 100
         const price = (Math.floor(Math.random() * 20) + 5) * 10000;
-        products.push({
+        const product = {
             nom: `${categoryName} Produit ${i}`, marque: `Marque ${String.fromCharCode(65 + i)}`, categorie: categoryName,
             prixActuel: price, reduction: i % 3 === 0 ? 10 : 0, stock: Math.floor(Math.random() * 50) + 10,
             noteMoyenne: (Math.random() * 1.0 + 4.0).toFixed(1), nombreAvis: Math.floor(Math.random() * 100),
             imageURL: this.logoUrl, galerie: this.gallery,
             description: `Description détaillée pour le produit ${i} de la catégorie ${categoryName}.`,
             tags: `${categoryName.toLowerCase()},nouveau,populaire`
+        };
+
+        // NOUVEAU: Ajoute des valeurs de test pour les attributs spécifiques à la catégorie
+        specificAttributes.forEach(attr => {
+            if (attr.toLowerCase().includes('taille') || attr.toLowerCase().includes('pointure')) {
+                product[attr] = "S,M,L,XL"
+            } else if (attr.toLowerCase().includes('couleur')) {
+                product[attr] = "Rouge,Bleu,Noir";
+            } else if (attr.toLowerCase().includes('matière')) {
+                product[attr] = "Coton,Soie";
+            } else {
+                product[attr] = `Valeur ${attr} ${i}`;
+            }
         });
+        products.push(product);
     }
     return products;
   }
@@ -200,11 +222,28 @@ function addProduct(productData) {
     return createJsonResponse({ success: false, error: "Feuille non initialisée." });
   }
 
-  const prixAncien = (productData.reduction > 0) ? productData.prixActuel / (1 - (productData.reduction / 100)) : productData.prixActuel;
-  
   const newRow = headers.map(header => {
-      if (header === "IDProduit") return newProductId;
-      return productData[header] || ''; // Gère les champs non fournis
+      // CORRECTION: Standardisation de la casse pour correspondre aux en-têtes.
+      switch(header) {
+        case "IDProduit": return newProductId;
+        case "Nom": return productData.nom || '';
+        case "Marque": return productData.marque || '';
+        case "PrixActuel": return productData.prixActuel || 0;
+        case "PrixAncien": 
+          // NOUVEAU: Calculer le prix ancien s'il y a une réduction
+          return (productData.reduction > 0) ? Math.round(productData.prixActuel / (1 - (productData.reduction / 100))) : productData.prixActuel;
+        case "Réduction%": return productData.reduction || 0;
+        case "Stock": return productData.stock || 0;
+        case "ImageURL": return productData.imageURL || '';
+        case "Description": return productData.description || '';
+        case "Tags": return productData.tags || '';
+        case "Actif": return true; // Actif par défaut
+        case "Catégorie": return productData.categorie || '';
+        case "NoteMoyenne": return productData.noteMoyenne || 0;
+        case "NombreAvis": return productData.nombreAvis || 0;
+        case "Galerie": return productData.galerie || '';
+        default: return productData[header] || ''; // Pour les attributs spécifiques
+      }
   });
   
   sheet.appendRow(newRow);
@@ -240,13 +279,17 @@ function setupSheet(categoryName) {
   const sheet = ss.getSheets()[0];
   const headers = getCategorySpecificHeaders(categoryName);
   sheet.clear();
-  sheet.setName(categoryName); // NOUVEAU: Renomme la feuille avec le nom de la catégorie
+  
+  // NOUVEAU: Nettoyer le nom de la catégorie pour qu'il soit valide comme nom de feuille.
+  const safeSheetName = categoryName.replace(/&/g, 'et').replace(/[\\/*?:"<>|]/g, ''); // Remplace '&' et supprime les caractères invalides.
+  sheet.setName(safeSheetName);
+
   sheet.appendRow(headers);
   sheet.setFrozenRows(1);
   sheet.getRange(1, 1, 1, headers.length).setFontWeight("bold");
   
   seedDefaultProducts(categoryName); // NOUVEAU: Ajoute les produits de test automatiquement
-  SpreadsheetApp.getUi().alert(`Feuille initialisée comme "${categoryName}" et remplie avec 100 produits de test.`);
+  SpreadsheetApp.getUi().alert(`Feuille initialisée comme "${categoryName}" et remplie avec 10 produits de test.`);
 }
 
 /**
