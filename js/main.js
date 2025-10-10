@@ -1035,14 +1035,14 @@ function startCountdown() {
 async function checkCacheVersion() {
   try {
     // On appelle l'API centrale pour obtenir la version du cache.
-    // On utilise `action=getPublicData` pour être explicite.
-    const response = await fetch(CONFIG.CENTRAL_API_URL + "?action=getPublicData");
+    // On utilise `action=getPublicCatalog` qui renvoie aussi la version.
+    const response = await fetch(CONFIG.CENTRAL_API_URL + "?action=getPublicCatalog");
     if (!response.ok) throw new Error(`Erreur réseau lors de la vérification de version.`);
     const result = await response.json();
     if (!result.success) throw new Error(result.error || "Impossible de vérifier la version du cache.");
 
     const serverVersion = result.cacheVersion;
-    const localVersion = sessionStorage.getItem('cacheVersion');
+    const localVersion = sessionStorage.getItem('cacheVersion'); // Correction: la variable était déclarée deux fois
 
     if (serverVersion && serverVersion !== localVersion) {
       console.log(`Nouvelle version du cache détectée (${serverVersion}). Vidage du cache local.`);
@@ -1056,54 +1056,42 @@ async function checkCacheVersion() {
 
 /**
  * NEW: Central function to retrieve all public data (products and categories).
+ * NOUVEAU: Fonction centrale pour récupérer toutes les données publiques (produits et catégories).
  * Met en cache les résultats pour améliorer les performances de navigation.
  */
 async function getFullCatalog() {
-    // Étape 1: Vérifier la version du cache. Cette fonction vide le cache si nécessaire.
-    await checkCacheVersion();
+  // Étape 1: Vérifier la version du cache. Cette fonction vide le cache si nécessaire.
+  await checkCacheVersion();
 
-    // Étape 2: Vérifier si les données sont maintenant dans le cache.
-    const cachedItem = sessionStorage.getItem('fullCatalog');
-    if (cachedItem) {
-        console.log("Utilisation du catalogue complet depuis le cache de session.");
-        return JSON.parse(cachedItem);
+  // Étape 2: Vérifier si les données sont maintenant dans le cache de session.
+  const cachedItem = sessionStorage.getItem('fullCatalog');
+  if (cachedItem) {
+    console.log("Utilisation du catalogue complet depuis le cache de session.");
+    return JSON.parse(cachedItem);
+  }
+
+  // Étape 3: Si le cache est vide, faire un SEUL appel à l'API centrale pour tout récupérer.
+  console.log("Chargement du catalogue complet depuis le réseau...");
+  try {
+    const response = await fetch(`${CONFIG.CENTRAL_API_URL}?action=getPublicCatalog`); // Un seul appel ici
+    if (!response.ok) {
+      throw new Error(`Erreur réseau: ${response.statusText}`);
+    }
+    const result = await response.json();
+
+    if (!result.success) {
+      throw new Error(result.error || "L'API a retourné une erreur.");
     }
 
-    // Étape 3: Si le cache est vide, on charge les données depuis le réseau.
-    console.log("Chargement du catalogue complet depuis le réseau...");
-    try {
-        // Étape 3a: Récupérer la liste des catégories depuis l'API centrale.
-        const categoriesResponse = await fetch(CONFIG.CENTRAL_API_URL);
-        if (!categoriesResponse.ok) throw new Error("Impossible de charger l'annuaire des catégories.");
-        const categoriesResult = await categoriesResponse.json();
-        if (!categoriesResult.success) throw new Error(categoriesResult.error || "Erreur lors de la récupération des catégories.");
-
-        // Filtrer pour ne garder que les catégories actives et correctement configurées.
-        const allCategories = categoriesResult.data || [];
-        const categories = allCategories.filter(cat => cat.SheetID && cat.ScriptURL && !cat.ScriptURL.startsWith('REMPLIR_'));
-
-        if (categories.length === 0) {
-            const catalogData = { success: true, data: { categories: allCategories, products: [] } };
-            sessionStorage.setItem('fullCatalog', JSON.stringify(catalogData));
-            return catalogData;
-        }
-
-        // Étape 3b: Lancer toutes les requêtes pour les produits en parallèle.
-        // C'est ROBUSTE: si une requête échoue, les autres continuent.
-        const productFetchPromises = categories.map(cat =>
-            fetch(`${cat.ScriptURL}?action=getProducts`).then(res => res.ok ? res.json() : { success: false, data: [] }).catch(() => ({ success: false, data: [] })) // Ajout d'un .catch pour la robustesse
-        );
-        const productResults = await Promise.all(productFetchPromises);
-        const allProducts = productResults.flatMap(res => (res.success && res.data) ? res.data : []);
-
-        const catalogData = { success: true, data: { categories: allCategories, products: allProducts } };
-        console.log(`Catalogue complet assemblé (${allProducts.length} produits). Mise en cache pour la session.`);
-        sessionStorage.setItem('fullCatalog', JSON.stringify(catalogData));
-        return catalogData;
-    } catch (error) {
-        console.error("Échec du chargement du catalogue complet:", error);
-        return { success: false, data: { categories: [], products: [] }, error: error.message }; // Retourner une structure de données vide en cas d'échec
-    }
+    // Stocker le résultat dans le cache de session pour les navigations futures.
+    console.log(`Catalogue complet assemblé (${result.data.products.length} produits). Mise en cache pour la session.`);
+    sessionStorage.setItem('fullCatalog', JSON.stringify(result));
+    return result;
+  } catch (error) {
+    console.error("Échec du chargement du catalogue complet:", error);
+    // En cas d'erreur, retourner une structure vide pour ne pas planter le site.
+    return { success: false, data: { categories: [], products: [] }, error: error.message };
+  }
 }
 
 /**

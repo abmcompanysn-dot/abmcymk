@@ -10,6 +10,12 @@ const ADMIN_SPREADSHEET_ID = "1kTQsUgcvcWxJNgHuITi4nlMhAqwyVAMhQbzIMIODcBg";
 const CENTRAL_SHEET_ID = "1kTQsUgcvcWxJNgHuITi4nlMhAqwyVAMhQbzIMIODcBg"; // IMPORTANT: ID de la feuille centrale
 const DEFAULT_LOGO_URL = "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png"; // NOUVEAU: URL du logo par défaut
 
+// Liste des origines autorisées pour CORS.
+const ALLOWED_ORIGINS_FRONTEND = [
+  "https://abmcymarket.vercel.app", // URL de production
+  "http://127.0.0.1:5500"          // URL de développement local
+];
+
 // NOUVEAU: Configuration centrale des attributs par catégorie, copiée depuis le template.
 const CATEGORY_CONFIG = {
   "Chaussures": ["Pointure", "Couleur", "Matière", "Type", "Genre", "Semelle", "Usage"],
@@ -96,10 +102,26 @@ function showAdminInterface() {
 }
 
 /**
+ * Gère les requêtes OPTIONS pour le pré-vol CORS.
+ */
+function doOptions(e) {
+  const origin = e.headers ? e.headers.Origin : null;
+  const response = ContentService.createTextOutput('');
+  if (origin && ALLOWED_ORIGINS_FRONTEND.includes(origin)) {
+    response.addHeader('Access-Control-Allow-Origin', origin);
+    response.addHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    response.addHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    response.addHeader('Access-Control-Max-Age', '86400'); // Mettre en cache le pré-vol pendant 24 heures
+  }
+  return response;
+}
+
+/**
  * Fournit la liste des catégories au front-end (AdminInterface.html).
  */
 function doGet(e) {
   try {
+    const origin = e.headers ? e.headers.Origin : null;
     const action = e.parameter.action;
 
     // CORRECTION: Gérer l'invalidation du cache appelée par les feuilles de catégorie
@@ -107,16 +129,21 @@ function doGet(e) {
       const cache = PropertiesService.getScriptProperties();
       const newVersion = new Date().getTime().toString();
       cache.setProperty('cacheVersion', newVersion);
-      return createJsonResponse({ success: true, message: `Cache invalidé. Nouvelle version: ${newVersion}` });
+      return createJsonResponse({ success: true, message: `Cache invalidé. Nouvelle version: ${newVersion}` }, origin);
     }
 
-    // Pour l'action 'getPublicData' ou par défaut, on renvoie la liste des catégories et la version du cache.
-    // Le panneau d'administration utilise getCategoriesWithProductCounts() directement via google.script.run.
-    const categories = getCategories(); // Utiliser la version simple sans décompte pour l'API publique
-    return createJsonResponse({ success: true, data: categories, cacheVersion: PropertiesService.getScriptProperties().getProperty('cacheVersion') });
+    // NOUVEAU: Point d'entrée unique pour le front-end public (main.js)
+    if (action === 'getPublicCatalog') {
+      const catalog = getPublicCatalog();
+      const cacheVersion = PropertiesService.getScriptProperties().getProperty('cacheVersion');
+      return createJsonResponse({ success: true, data: catalog, cacheVersion: cacheVersion }, origin);
+    }
+
+    // Comportement par défaut (peut être utilisé pour des tests ou l'ancienne logique)
+    return createJsonResponse({ success: true, message: "API Centrale ABMCY Market - Active" }, origin);
 
   } catch (error) {
-    return createJsonResponse({ success: false, error: error.message });
+    return createJsonResponse({ success: false, error: error.message }, origin);
   }
 }
 
@@ -185,6 +212,40 @@ function getCategoriesWithProductCounts() {
   });
 
   return categoriesWithCounts;
+}
+
+/**
+ * NOUVEAU: Récupère le catalogue public complet (catégories et tous les produits).
+ * C'est cette fonction qui est appelée par main.js.
+ */
+function getPublicCatalog() {
+  const categories = getCategories();
+  const activeCategories = categories.filter(c => c.ScriptURL && !c.ScriptURL.startsWith('REMPLIR_'));
+  
+  if (activeCategories.length === 0) {
+    return { categories: categories, products: [] };
+  }
+
+  // Utilise UrlFetchApp.fetchAll pour appeler tous les scripts de catégorie en parallèle
+  const requests = activeCategories.map(category => ({
+    url: `${category.ScriptURL}?action=getProducts`,
+    method: 'get',
+    muteHttpExceptions: true // Important: pour ne pas bloquer si une catégorie échoue
+  }));
+
+  const responses = UrlFetchApp.fetchAll(requests);
+  let allProducts = [];
+
+  responses.forEach((response, index) => {
+    if (response.getResponseCode() === 200) {
+      const result = JSON.parse(response.getContentText());
+      if (result.success && Array.isArray(result.data)) {
+        allProducts = allProducts.concat(result.data);
+      }
+    }
+  });
+
+  return { categories: categories, products: allProducts };
 }
 
 /**
@@ -274,9 +335,18 @@ function archiveAllOutOfStock() {
 
 // --- UTILITAIRES ---
 
-function createJsonResponse(data) {
+/**
+ * Crée une réponse JSON standard pour l'API, gérant CORS.
+ * @param {object} data Les données à retourner en JSON.
+ * @param {string} [origin] L'origine de la requête, si disponible.
+ * @returns {GoogleAppsScript.Content.TextOutput} Un objet TextOutput avec le contenu JSON et les en-têtes CORS.
+ */
+function createJsonResponse(data, origin) {
   const jsonResponse = ContentService.createTextOutput(JSON.stringify(data));
   jsonResponse.setMimeType(ContentService.MimeType.JSON);
+  if (origin && ALLOWED_ORIGINS_FRONTEND.includes(origin)) {
+    jsonResponse.addHeader('Access-Control-Allow-Origin', origin);
+  }
   return jsonResponse;
 }
 
