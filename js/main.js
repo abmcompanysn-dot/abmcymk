@@ -3,7 +3,7 @@ const CONFIG = {
     CLIENT_API_URL: "https://script.google.com/macros/s/AKfycbwi3zpOqK7EKSKDCQ1VTIYvrfesOTTpNBs4vQvh_3BCcSE65KGjlWnLsilUtyvOdsgT/exec",
 
     // URL du script central. On ajoute l'action dans la requête fetch.
-    CENTRAL_API_URL: "https://script.google.com/macros/s/AKfycbwXJ7nGrftKjKHaG6r_I1i9HCmcFJHmDk8BEvmW1jbNpBnI7-DjnDw7eLEet9HeHRwF/exec",
+    CENTRAL_API_URL: "https://script.google.com/macros/s/AKfycbxpf_d1-bchSlnJ9jCyNxTU-vvcnx5wrKffsObg74hS3h7ET81prH6Bt361OK5YsX-y/exec",
     
     // Autres configurations
     DEFAULT_PRODUCT_IMAGE: "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png",
@@ -68,6 +68,11 @@ async function initializeApp() {
             renderDailyDealsHomepage(catalog);
             renderAllCategoriesSection(catalog);
             renderHomepageCategorySections(catalog);
+        }
+
+        // NOUVEAU: Si on est sur la page panier, on charge aussi les promos
+        if (document.getElementById('panier-page')) {
+            renderPromoProductsInCart(catalog);
         }
     });
 }
@@ -224,7 +229,34 @@ function addToCart(event, productId, name, price, imageUrl) {
     }
     
     saveCart(cart);
-    alert(`${name} a été ajouté au panier !`); // Message de confirmation simple
+    showToast(`${name} a été ajouté au panier !`); // NOUVEAU: Notification non-bloquante
+}
+
+/**
+ * NOUVEAU: Affiche une notification "toast" en bas de l'écran.
+ * @param {string} message Le message à afficher.
+ * @param {boolean} isError Si true, affiche une notification d'erreur.
+ */
+function showToast(message, isError = false) {
+    const toastContainer = document.getElementById('toast-container');
+    if (!toastContainer) return;
+
+    const toast = document.createElement('div');
+    toast.textContent = message;
+    toast.className = `fixed bottom-20 left-1/2 -translate-x-1/2 px-6 py-3 rounded-full text-white shadow-lg transition-all duration-300 transform translate-y-10 opacity-0 ${isError ? 'bg-red-600' : 'bg-gray-800'}`;
+    
+    toastContainer.appendChild(toast);
+
+    // Animer l'apparition
+    setTimeout(() => {
+        toast.classList.remove('translate-y-10', 'opacity-0');
+    }, 10);
+
+    // Animer la disparition
+    setTimeout(() => {
+        toast.classList.add('translate-y-10', 'opacity-0');
+        setTimeout(() => toast.remove(), 300); // Supprimer l'élément du DOM après l'animation
+    }, 3000); // Le toast reste visible 3 secondes
 }
 
 /**
@@ -329,15 +361,48 @@ function changeQuantity(index, newQuantity) {
  * @param {number} index - L'index de l'article à supprimer.
  */
 function removeFromCart(index) {
-    if (!confirm('Voulez-vous vraiment supprimer cet article du panier ?')) {
-        return;
-    }
-
     const cart = getCart() || [];
     cart.splice(index, 1); // Supprime l'élément à l'index donné
 
     saveCart(cart);
     renderCartPage(); // Ré-affiche la page du panier
+}
+
+/**
+ * NOUVEAU: Affiche une sélection de produits en promotion sur la page du panier.
+ * @param {object} catalog L'objet catalogue complet.
+ */
+function renderPromoProductsInCart(catalog) {
+    const container = document.getElementById('promo-products-in-cart');
+    if (!container) return;
+
+    // Afficher un squelette de chargement
+    const skeletonCard = `
+        <div class="bg-white rounded-lg shadow overflow-hidden animate-pulse">
+            <div class="bg-gray-200 h-40"></div>
+            <div class="p-3 space-y-2"><div class="bg-gray-200 h-4 rounded"></div><div class="bg-gray-200 h-6 w-1/2 rounded"></div></div>
+        </div>`;
+    container.innerHTML = Array(4).fill(skeletonCard).join('');
+
+    try {
+        const allProducts = catalog.data.products || [];
+        const discountedProducts = allProducts.filter(p => p['Réduction%'] && parseFloat(p['Réduction%']) > 0);
+
+        if (discountedProducts.length === 0) {
+            container.parentElement.classList.add('hidden'); // Cacher toute la section s'il n'y a pas de promos
+            return;
+        }
+
+        // Mélanger et prendre les 4 premiers pour un affichage varié
+        const shuffled = discountedProducts.sort(() => 0.5 - Math.random());
+        const selectedProducts = shuffled.slice(0, 4);
+
+        container.innerHTML = selectedProducts.map(product => renderProductCard(product)).join('');
+
+    } catch (error) {
+        console.error("Erreur lors de l'affichage des produits en promotion dans le panier:", error);
+        container.innerHTML = '<p class="col-span-full text-center text-red-500">Impossible de charger les offres.</p>';
+    }
 }
 
 // --- LOGIQUE DE RECHERCHE (MODIFIÉE POUR LE BACKEND) ---
