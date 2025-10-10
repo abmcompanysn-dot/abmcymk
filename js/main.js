@@ -9,6 +9,77 @@ const CONFIG = {
     DEFAULT_PRODUCT_IMAGE: "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png",
 };
 
+// NOUVEAU: Les catégories sont maintenant statiques dans le front-end pour un chargement instantané.
+// Cette liste doit être maintenue à jour avec la feuille "Catégories" du backend.
+const STATIC_CATEGORIES = [
+    { "IDCategorie": "CAT-001", "NomCategorie": "Accessoires", "ImageURL": "https://via.placeholder.com/150/f0f0f0/333333?text=Accessoires" },
+    { "IDCategorie": "CAT-002", "NomCategorie": "Accessoires de voyage", "ImageURL": "https://via.placeholder.com/150/f0f0f0/333333?text=Accessoires%20de%20voyage" },
+    { "IDCategorie": "CAT-003", "NomCategorie": "Alimentation", "ImageURL": "https://via.placeholder.com/150/f0f0f0/333333?text=Alimentation" },
+    { "IDCategorie": "CAT-004", "NomCategorie": "Automobile", "ImageURL": "https://via.placeholder.com/150/f0f0f0/333333?text=Automobile" },
+    { "IDCategorie": "CAT-005", "NomCategorie": "Bagages", "ImageURL": "https://via.placeholder.com/150/f0f0f0/333333?text=Bagages" },
+    { "IDCategorie": "CAT-006", "NomCategorie": "Beauté & soins", "ImageURL": "https://via.placeholder.com/150/f0f0f0/333333?text=Beaut%C3%A9%20&%20soins" },
+    { "IDCategorie": "CAT-007", "NomCategorie": "Bijoux", "ImageURL": "https://via.placeholder.com/150/f0f0f0/333333?text=Bijoux" },
+    { "IDCategorie": "CAT-008", "NomCategorie": "Calligraphie", "ImageURL": "https://via.placeholder.com/150/f0f0f0/333333?text=Calligraphie" },
+    { "IDCategorie": "CAT-009", "NomCategorie": "Camping", "ImageURL": "https://via.placeholder.com/150/f0f0f0/333333?text=Camping" },
+    { "IDCategorie": "CAT-010", "NomCategorie": "Chauffage", "ImageURL": "https://via.placeholder.com/150/f0f0f0/333333?text=Chauffage" },
+    { "IDCategorie": "CAT-011", "NomCategorie": "Chaussures", "SheetID": "1FAIpQLSflf_h3_OqD-g-g_1f_h3_OqD-g-g", "ScriptURL": "https://script.google.com/macros/s/AKfycbz.../exec", "ImageURL": "https://via.placeholder.com/150/f0f0f0/333333?text=Chaussures" },
+    { "IDCategorie": "CAT-012", "NomCategorie": "Climatisation", "ImageURL": "https://via.placeholder.com/150/f0f0f0/333333?text=Climatisation" },
+    { "IDCategorie": "CAT-013", "NomCategorie": "Compléments alimentaires", "ImageURL": "https://via.placeholder.com/150/f0f0f0/333333?text=Compl%C3%A9ments%20alimentaires" },
+    { "IDCategorie": "CAT-014", "NomCategorie": "Couture & tricot", "ImageURL": "https://via.placeholder.com/150/f0f0f0/333333?text=Couture%20&%20tricot" },
+    { "IDCategorie": "CAT-015", "NomCategorie": "Cuisine équipée", "ImageURL": "https://via.placeholder.com/150/f0f0f0/333333?text=Cuisine%20%C3%A9quip%C3%A9e" },
+    { "IDCategorie": "CAT-016", "NomCategorie": "Décoration", "ImageURL": "https://via.placeholder.com/150/f0f0f0/333333?text=D%C3%A9coration" },
+    { "IDCategorie": "CAT-017", "NomCategorie": "Films & séries", "ImageURL": "https://via.placeholder.com/150/f0f0f0/333333?text=Films%20&%20s%C3%A9ries" },
+    { "IDCategorie": "CAT-018", "NomCategorie": "Fournitures scolaires", "ImageURL": "https://via.placeholder.com/150/f0f0f0/333333?text=Fournitures%20scolaires" },
+    { "IDCategorie": "CAT-019", "NomCategorie": "Gaming", "ImageURL": "https://via.placeholder.com/150/f0f0f0/333333?text=Gaming" },
+    { "IDCategorie": "CAT-020", "NomCategorie": "Guides touristiques", "ImageURL": "https://via.placeholder.com/150/f0f0f0/333333?text=Guides%20touristiques" },
+    { "IDCategorie": "CAT-021", "NomCategorie": "Huiles essentielles", "ImageURL": "https://via.placeholder.com/150/f0f0f0/333333?text=Huiles%20essentielles" },
+    { "IDCategorie": "CAT-022", "NomCategorie": "Informatique", "ImageURL": "https://via.placeholder.com/150/f0f0f0/333333?text=Informatique" },
+    { "IDCategorie": "CAT-023", "NomCategorie": "Instruments de musique", "ImageURL": "https://via.placeholder.com/150/f0f0f0/333333?text=Instruments%20de%20musique" },
+    { "IDCategorie": "CAT-024", "NomCategorie": "Jardin", "ImageURL": "https://via.placeholder.com/150/f0f0f0/333333?text=Jardin" },
+    { "IDCategorie": "CAT-025", "NomCategorie": "Jeux & jouets", "ImageURL": "https://via.placeholder.com/150/f0f0f0/333333?text=Jeux%20&%20jouets" },
+    { "IDCategorie": "CAT-026", "NomCategorie": "Jeux éducatifs", "ImageURL": "https://via.placeholder.com/150/f0f0f0/333333?text=Jeux%20%C3%A9ducatifs" },
+    { "IDCategorie": "CAT-027", "NomCategorie": "Literie", "ImageURL": "https://via.placeholder.com/150/f0f0f0/333333?text=Literie" },
+    { "IDCategorie": "CAT-028", "NomCategorie": "Livres", "ImageURL": "https://via.placeholder.com/150/f0f0f0/333333?text=Livres" },
+    { "IDCategorie": "CAT-029", "NomCategorie": "Livres jeunesse", "ImageURL": "https://via.placeholder.com/150/f0f0f0/333333?text=Livres%20jeunesse" },
+    { "IDCategorie": "CAT-030", "NomCategorie": "Loisirs créatifs", "ImageURL": "https://via.placeholder.com/150/f0f0f0/333333?text=Loisirs%20cr%C3%A9atifs" },
+    { "IDCategorie": "CAT-031", "NomCategorie": "Luminaires", "ImageURL": "https://via.placeholder.com/150/f0f0f0/333333?text=Luminaires" },
+    { "IDCategorie": "CAT-032", "NomCategorie": "Lunettes", "ImageURL": "https://via.placeholder.com/150/f0f0f0/333333?text=Lunettes" },
+    { "IDCategorie": "CAT-033", "NomCategorie": "Matériel artistique", "ImageURL": "https://via.placeholder.com/150/f0f0f0/333333?text=Mat%C3%A9riel%20artistique" },
+    { "IDCategorie": "CAT-034", "NomCategorie": "Matériel médical", "ImageURL": "https://via.placeholder.com/150/f0f0f0/333333?text=Mat%C3%A9riel%20m%C3%A9dical" },
+    { "IDCategorie": "CAT-035", "NomCategorie": "Matériaux", "ImageURL": "https://via.placeholder.com/150/f0f0f0/333333?text=Mat%C3%A9riaux" },
+    { "IDCategorie": "CAT-036", "NomCategorie": "Meubles", "ImageURL": "https://via.placeholder.com/150/f0f0f0/333333?text=Meubles" },
+    { "IDCategorie": "CAT-037", "NomCategorie": "Mobilité urbaine", "ImageURL": "https://via.placeholder.com/150/f0f0f0/333333?text=Mobilit%C3%A9%20urbaine" },
+    { "IDCategorie": "CAT-038", "NomCategorie": "Mobilier enfant", "ImageURL": "https://via.placeholder.com/150/f0f0f0/333333?text=Mobilier%20enfant" },
+    { "IDCategorie": "CAT-039", "NomCategorie": "Modélisme", "ImageURL": "https://via.placeholder.com/150/f0f0f0/333333?text=Mod%C3%A9lisme" },
+    { "IDCategorie": "CAT-040", "NomCategorie": "Montres", "ImageURL": "https://via.placeholder.com/150/f0f0f0/333333?text=Montres" },
+    { "IDCategorie": "CAT-041", "NomCategorie": "Moto & vélo", "ImageURL": "https://via.placeholder.com/150/f0f0f0/333333?text=Moto%20&%20v%C3%A9lo" },
+    { "IDCategorie": "CAT-042", "NomCategorie": "Musique", "ImageURL": "https://via.placeholder.com/150/f0f0f0/333333?text=Musique" },
+    { "IDCategorie": "CAT-043", "NomCategorie": "Outillage", "ImageURL": "https://via.placeholder.com/150/f0f0f0/333333?text=Outillage" },
+    { "IDCategorie": "CAT-044", "NomCategorie": "Parfums", "ImageURL": "https://via.placeholder.com/150/f0f0f0/333333?text=Parfums" },
+    { "IDCategorie": "CAT-045", "NomCategorie": "Photographie", "ImageURL": "https://via.placeholder.com/150/f0f0f0/333333?text=Photographie" },
+    { "IDCategorie": "CAT-046", "NomCategorie": "Plomberie", "ImageURL": "https://via.placeholder.com/150/f0f0f0/333333?text=Plomberie" },
+    { "IDCategorie": "CAT-047", "NomCategorie": "Produits d’hygiène", "ImageURL": "https://via.placeholder.com/150/f0f0f0/333333?text=Produits%20d%E2%80%99hygi%C3%A8ne" },
+    { "IDCategorie": "CAT-048", "NomCategorie": "Puériculture", "ImageURL": "https://via.placeholder.com/150/f0f0f0/333333?text=Pu%C3%A9riculture" },
+    { "IDCategorie": "CAT-049", "NomCategorie": "Quincaillerie", "ImageURL": "https://via.placeholder.com/150/f0f0f0/333333?text=Quincaillerie" },
+    { "IDCategorie": "CAT-050", "NomCategorie": "Randonnée", "ImageURL": "https://via.placeholder.com/150/f0f0f0/333333?text=Randonn%C3%A9e" },
+    { "IDCategorie": "CAT-051", "NomCategorie": "Rangement", "ImageURL": "https://via.placeholder.com/150/f0f0f0/333333?text=Rangement" },
+    { "IDCategorie": "CAT-052", "NomCategorie": "Rideaux & stores", "ImageURL": "https://via.placeholder.com/150/f0f0f0/333333?text=Rideaux%20&%20stores" },
+    { "IDCategorie": "CAT-053", "NomCategorie": "Sacs", "ImageURL": "https://via.placeholder.com/150/f0f0f0/333333?text=Sacs" },
+    { "IDCategorie": "CAT-054", "NomCategorie": "Salle de bain", "ImageURL": "https://via.placeholder.com/150/f0f0f0/333333?text=Salle%20de%20bain" },
+    { "IDCategorie": "CAT-055", "NomCategorie": "Scrapbooking", "ImageURL": "https://via.placeholder.com/150/f0f0f0/333333?text=Scrapbooking" },
+    { "IDCategorie": "CAT-056", "NomCategorie": "Soins capillaires", "ImageURL": "https://via.placeholder.com/150/f0f0f0/333333?text=Soins%20capillaires" },
+    { "IDCategorie": "CAT-057", "NomCategorie": "Sport & fitness", "ImageURL": "https://via.placeholder.com/150/f0f0f0/333333?text=Sport%20&%20fitness" },
+    { "IDCategorie": "CAT-058", "NomCategorie": "Ustensiles de cuisine", "ImageURL": "https://via.placeholder.com/150/f0f0f0/333333?text=Ustensiles%20de%20cuisine" },
+    { "IDCategorie": "CAT-059", "NomCategorie": "Vaisselle", "ImageURL": "https://via.placeholder.com/150/f0f0f0/333333?text=Vaisselle" },
+    { "IDCategorie": "CAT-060", "NomCategorie": "Vêtements", "ImageURL": "https://via.placeholder.com/150/f0f0f0/333333?text=V%C3%AAtements" },
+    { "IDCategorie": "CAT-061", "NomCategorie": "Vêtements bébé", "ImageURL": "https://via.placeholder.com/150/f0f0f0/333333?text=V%C3%AAtements%20b%C3%A9b%C3%A9" },
+    { "IDCategorie": "CAT-062", "NomCategorie": "Yoga & méditation", "ImageURL": "https://via.placeholder.com/150/f0f0f0/333333?text=Yoga%20&%20m%C3%A9ditation" },
+    { "IDCategorie": "CAT-063", "NomCategorie": "Électricité", "ImageURL": "https://via.placeholder.com/150/f0f0f0/333333?text=%C3%89lectricit%C3%A9" },
+    { "IDCategorie": "CAT-064", "NomCategorie": "Électronique", "ImageURL": "https://via.placeholder.com/150/f0f0f0/333333?text=%C3%89lectronique" },
+    { "IDCategorie": "CAT-065", "NomCategorie": "Équipements de chantier", "ImageURL": "https://via.placeholder.com/150/f0f0f0/333333?text=%C3%89quipements%20de%20chantier" },
+    { "IDCategorie": "CAT-066", "NomCategorie": "Équipements de protection", "ImageURL": "https://via.placeholder.com/150/f0f0f0/333333?text=%C3%89quipements%20de%20protection" }
+];
+
 // Variables globales pour le chargement progressif de la page d'accueil
 let categoryDirectory = []; // Stocke la liste des catégories et leurs URLs
 let allLoadedProducts = []; // Stocke tous les produits déjà chargés
@@ -96,44 +167,42 @@ function toggleMobileMenu() {
 /**
  * Remplit dynamiquement le menu des catégories à partir du fichier categories.js.
  */
-async function populateCategoryMenu() {
+function populateCategoryMenu() {
     const menu = document.getElementById('mobileMenu');
     if (!menu) return; // S'assure que l'élément existe
     const boutiquesMenu = document.getElementById('boutiques-menu');
     let menuHTML = ''; // Initialiser la variable ici
-    const errorHTML = '<p class="px-4 py-2 text-sm text-red-500">Erreur de chargement.</p>';
 
     try {
-        // On récupère les données depuis la nouvelle fonction centrale
-        const { data } = await getFullCatalog();
-        const categories = data.categories || [];
+        // NOUVEAU: Utilisation de la liste statique
+        const categories = (STATIC_CATEGORIES || []).filter(cat => cat.SheetID && cat.ScriptURL && !cat.ScriptURL.startsWith('REMPLIR_'));
 
         // Ajout d'un titre pour le menu déroulant
         menuHTML = `<div class="p-2 border-b"><h3 class="font-semibold text-sm text-gray-500 px-2">Toutes les catégories</h3></div>`;
 
-        menuHTML += categories.map(cat => 
-        // Lien vers la page de catégorie
-        `<a href="categorie.html?id=${cat.IDCategorie}&name=${encodeURIComponent(cat.NomCategorie)}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">${cat.NomCategorie}</a>`
-        ).join('');
-        // Ajout du lien vers les promotions
+        if (categories.length > 0) {
+            menuHTML += categories.map(cat =>
+            // Lien vers la page de catégorie
+            `<a href="categorie.html?id=${cat.IDCategorie}&name=${encodeURIComponent(cat.NomCategorie)}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">${cat.NomCategorie}</a>`
+            ).join('');
+        }
+        // Ajout du lien vers les promotions (toujours visible)
         menuHTML += '<a href="promotion.html" class="block px-4 py-2 text-sm text-red-600 font-semibold hover:bg-gray-100">Promotions</a>';
+        
+        menu.innerHTML = menuHTML;
+        if (boutiquesMenu) boutiquesMenu.innerHTML = menuHTML;
     } catch (error) {
         console.error("Erreur lors du chargement des menus de catégories:", error);
+        const errorHTML = '<p class="px-4 py-2 text-sm text-red-500">Erreur de chargement.</p>';
         menu.innerHTML = errorHTML;
         if (boutiquesMenu) boutiquesMenu.innerHTML = errorHTML;
-        return; // Sortir en cas d'erreur
-    }
-
-    menu.innerHTML = menuHTML;
-    if (boutiquesMenu) {
-        boutiquesMenu.innerHTML = menuHTML; // On utilise le même contenu pour les deux menus
     }
 }
 
 /**
  * NOUVEAU: Remplit dynamiquement les liens de navigation principaux et de la bannière.
  */
-async function populateNavLinks() {
+function populateNavLinks() {
     const mainLinksContainer = document.getElementById('main-nav-links');
     const bannerLinksContainer = document.getElementById('banner-nav-links');
 
@@ -141,8 +210,8 @@ async function populateNavLinks() {
     if (!mainLinksContainer) return;
 
     try {
-        const { data } = await getFullCatalog();
-        const categories = data.categories || [];
+        // NOUVEAU: Utilisation de la liste statique
+        const categories = (STATIC_CATEGORIES || []).filter(cat => cat.SheetID && cat.ScriptURL && !cat.ScriptURL.startsWith('REMPLIR_'));
         const MANY_CATEGORIES_THRESHOLD = 8;
 
         let mainNavCategories = [];
@@ -440,9 +509,8 @@ async function displayCategoryProducts() {
     resultsContainer.innerHTML = Array(8).fill(skeletonCard).join('');
 
     try {
-        const { data } = await getFullCatalog();
-        const allProducts = data.products || [];
-        const allCategories = data.categories || [];
+        const allProducts = (await getFullCatalog()).data.products || [];
+        const allCategories = STATIC_CATEGORIES; // Utilisation de la liste statique
 
         // CORRECTION: Le produit n'a pas d'IDCategorie, mais un nom de catégorie.
         // On trouve la catégorie correspondante à l'ID de l'URL pour obtenir son nom.
@@ -525,8 +593,8 @@ async function loadProductPage() { // Make it async
     }
 
     try {
-        const { data } = await getFullCatalog();
-        const product = data.products.find(p => p.IDProduit == productId);
+        const products = (await getFullCatalog()).data.products || [];
+        const product = products.find(p => p.IDProduit == productId);
 
         if (!product) {
             throw new Error("Produit non trouvé.");
@@ -952,8 +1020,8 @@ async function renderDailyDealsHomepage() {
     // On lance le chargement des données. getFullCatalog est déjà optimisé avec un cache.
     try {
         // --- Étape 3: Charger le catalogue complet ---
-        const { data } = await getFullCatalog();
-        const categories = data.categories || [];
+        const categories = (STATIC_CATEGORIES || []).filter(cat => cat.SheetID && cat.ScriptURL && !cat.ScriptURL.startsWith('REMPLIR_'));
+        const { data } = await getFullCatalog(); // On charge les produits
         const products = data.products || [];
 
         // --- Étape 4: Remplir la section "Nos Boutiques" dès que les catégories sont prêtes ---
@@ -1073,14 +1141,16 @@ async function getFullCatalog() {
     // Étape 3: Si le cache est vide, on charge les données depuis le réseau.
     console.log("Chargement du catalogue complet depuis le réseau...");
     try {
-        const response = await fetch(CONFIG.CENTRAL_API_URL + "?action=getPublicData");
-        if (!response.ok) throw new Error(`Erreur réseau lors de la récupération des catégories.`);
-        const publicData = await response.json();
-        if (!publicData.success) throw new Error(publicData.error || "Impossible de charger la liste des catégories.");
+        // NOUVEAU: On utilise la liste statique des catégories pour construire les requêtes
+        const categories = (STATIC_CATEGORIES || []).filter(cat => cat.SheetID && cat.ScriptURL && !cat.ScriptURL.startsWith('REMPLIR_'));
 
-        const categories = publicData.data || [];
+        if (categories.length === 0) {
+            console.warn("Aucune catégorie active n'est configurée dans STATIC_CATEGORIES.");
+            return { success: true, data: { categories: [], products: [] } };
+        }
+
         const productFetchPromises = categories.map(cat =>
-            fetch(`${cat.ScriptURL}?action=getProducts`).then(res => res.json()).catch(() => ({ success: false, data: [] })) // Ajout d'un .catch pour la robustesse
+            fetch(`${cat.ScriptURL}?action=getProducts`).then(res => res.ok ? res.json() : { success: false, data: [] }).catch(() => ({ success: false, data: [] })) // Ajout d'un .catch pour la robustesse
         );
         const productResults = await Promise.all(productFetchPromises);
         const allProducts = productResults.flatMap(res => (res.success && res.data) ? res.data : []);
@@ -1091,7 +1161,7 @@ async function getFullCatalog() {
         return catalogData;
     } catch (error) {
         console.error("Échec du chargement du catalogue complet:", error);
-        return { success: false, data: { categories: [], products: [] }, error: error.message }; // Retourner une structure de données vide en cas d'échec
+        return { success: false, data: { categories: STATIC_CATEGORIES, products: [] }, error: error.message }; // Retourner une structure de données vide en cas d'échec
     }
 }
 
@@ -1144,8 +1214,8 @@ async function renderHomepageCategorySections() {
 
     try {
         // Étape 2: Récupérer toutes les données (depuis le cache si possible).
+        const categories = (STATIC_CATEGORIES || []).filter(cat => cat.SheetID && cat.ScriptURL && !cat.ScriptURL.startsWith('REMPLIR_'));
         const { data } = await getFullCatalog();
-        const categories = data.categories || [];
         const products = data.products || [];
 
         // Étape 3: OPTIMISATION - Regrouper tous les produits par catégorie en une seule passe.
@@ -1201,8 +1271,8 @@ async function renderAllCategoriesSection() {
         '</div>';
 
     try {
-        const { data } = await getFullCatalog();
-        const categories = data.categories || [];
+        // NOUVEAU: Utilisation de la liste statique
+        const categories = (STATIC_CATEGORIES || []).filter(cat => cat.SheetID && cat.ScriptURL && !cat.ScriptURL.startsWith('REMPLIR_'));
 
         if (categories.length === 0) {
             container.innerHTML = '<p class="text-gray-500">Aucune catégorie à afficher pour le moment.</p>';
