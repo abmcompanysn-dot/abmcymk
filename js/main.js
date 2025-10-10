@@ -3,7 +3,7 @@ const CONFIG = {
     CLIENT_API_URL: "https://script.google.com/macros/s/AKfycbwi3zpOqK7EKSKDCQ1VTIYvrfesOTTpNBs4vQvh_3BCcSE65KGjlWnLsilUtyvOdsgT/exec",
 
     // URL du script central. On ajoute l'action dans la requête fetch.
-    CENTRAL_API_URL: "https://script.google.com/macros/s/AKfycbz3Tpo9pvPu0uYkhgvFG9OgvX93QBi1Ka_qPMZipqj4xNJ20Iw3rYRfgC39bkMxdL9H/exec",
+    CENTRAL_API_URL: "https://script.google.com/macros/s/AKfycbx5TAYHbtKpp08C5fBy4WnRHfMW57OQhL90D0Z4E7vUIUaPdRh7F2v-VJmnsSYp888C/exec",
     
     // Autres configurations
     DEFAULT_PRODUCT_IMAGE: "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png",
@@ -1030,64 +1030,39 @@ function startCountdown() {
 }
 
 /**
- * NEW: Central function to retrieve all public data (products and categories).
- * Met en cache les résultats pour améliorer les performances de navigation.
- */
-async function checkCacheVersion() {
-  try {
-    // On appelle l'API centrale pour obtenir la version du cache.
-    // On utilise `action=getPublicCatalog` qui renvoie aussi la version.
-    const response = await fetch(CONFIG.CENTRAL_API_URL + "?action=getPublicCatalog");
-    if (!response.ok) throw new Error(`Erreur réseau lors de la vérification de version.`);
-    const result = await response.json();
-    if (!result.success) throw new Error(result.error || "Impossible de vérifier la version du cache.");
-
-    const serverVersion = result.cacheVersion;
-    const localVersion = sessionStorage.getItem('cacheVersion'); // Correction: la variable était déclarée deux fois
-
-    if (serverVersion && serverVersion !== localVersion) {
-      console.log(`Nouvelle version du cache détectée (${serverVersion}). Vidage du cache local.`);
-      sessionStorage.removeItem('fullCatalog');
-      sessionStorage.setItem('cacheVersion', serverVersion);
-    }
-  } catch (error) {
-    console.error("Impossible de vérifier la version du cache, utilisation des données locales si disponibles.", error);
-  }
-}
-
-/**
- * NEW: Central function to retrieve all public data (products and categories).
  * NOUVEAU: Fonction centrale pour récupérer toutes les données publiques (produits et catégories).
  * Met en cache les résultats pour améliorer les performances de navigation.
  */
 async function getFullCatalog() {
-  // Étape 1: Vérifier la version du cache. Cette fonction vide le cache si nécessaire.
-  await checkCacheVersion();
-
-  // Étape 2: Vérifier si les données sont maintenant dans le cache de session.
-  const cachedItem = sessionStorage.getItem('fullCatalog');
-  if (cachedItem) {
-    console.log("Utilisation du catalogue complet depuis le cache de session.");
-    return JSON.parse(cachedItem);
-  }
-
-  // Étape 3: Si le cache est vide, faire un SEUL appel à l'API centrale pour tout récupérer.
-  console.log("Chargement du catalogue complet depuis le réseau...");
   try {
-    const response = await fetch(`${CONFIG.CENTRAL_API_URL}?action=getPublicCatalog`); // Un seul appel ici
-    if (!response.ok) {
-      throw new Error(`Erreur réseau: ${response.statusText}`);
-    }
-    const result = await response.json();
+    // Étape 1: Récupérer la liste des catégories depuis l'API centrale.
+    const categoriesResponse = await fetch(CONFIG.CENTRAL_API_URL + "?action=getPublicCatalog");
+    if (!categoriesResponse.ok) throw new Error("Impossible de charger l'annuaire des catégories.");
+    const categoriesResult = await categoriesResponse.json();
+    if (!categoriesResult.success) throw new Error(categoriesResult.error || "Erreur lors de la récupération des catégories.");
 
-    if (!result.success) {
-      throw new Error(result.error || "L'API a retourné une erreur.");
+    // Filtrer pour ne garder que les catégories actives et correctement configurées.
+    const allCategories = (categoriesResult.data && categoriesResult.data.categories) ? categoriesResult.data.categories : [];
+    const categories = allCategories.filter(cat => cat.SheetID && cat.ScriptURL && !cat.ScriptURL.startsWith('REMPLIR_'));
+
+    if (categories.length === 0) {
+      return { success: true, data: { categories: allCategories, products: [] } };
     }
 
-    // Stocker le résultat dans le cache de session pour les navigations futures.
-    console.log(`Catalogue complet assemblé (${result.data.products.length} produits). Mise en cache pour la session.`);
-    sessionStorage.setItem('fullCatalog', JSON.stringify(result));
-    return result;
+    // Étape 2: Lancer toutes les requêtes pour les produits en parallèle.
+    // C'est ROBUSTE: si une requête échoue, les autres continuent.
+    const productFetchPromises = categories.map(cat =>
+      fetch(`${cat.ScriptURL}?action=getProducts`)
+        .then(res => res.ok ? res.json() : { success: false, data: [] })
+        .catch(() => ({ success: false, data: [] })) // Ajout d'un .catch pour la robustesse
+    );
+    const productResults = await Promise.all(productFetchPromises);
+    const allProducts = productResults.flatMap(res => (res.success && res.data) ? res.data : []);
+
+    const catalogData = { success: true, data: { categories: allCategories, products: allProducts } };
+    console.log(`Catalogue complet assemblé (${allProducts.length} produits).`);
+    return catalogData;
+
   } catch (error) {
     console.error("Échec du chargement du catalogue complet:", error);
     // En cas d'erreur, retourner une structure vide pour ne pas planter le site.

@@ -105,23 +105,20 @@ function showAdminInterface() {
  * Gère les requêtes OPTIONS pour le pré-vol CORS.
  */
 function doOptions(e) {
-  const origin = e.headers ? e.headers.Origin : null;
-  const response = ContentService.createTextOutput('');
-  if (origin && ALLOWED_ORIGINS_FRONTEND.includes(origin)) {
-    response.addHeader('Access-Control-Allow-Origin', origin);
-    response.addHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    response.addHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-    response.addHeader('Access-Control-Max-Age', '86400'); // Mettre en cache le pré-vol pendant 24 heures
-  }
-  return response;
+  // Autorise toutes les origines pour les requêtes de pré-vol.
+  return ContentService.createTextOutput()
+    .addHeader('Access-Control-Allow-Origin', '*')
+    .addHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+    .addHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 }
 
 /**
  * Fournit la liste des catégories au front-end (AdminInterface.html).
  */
 function doGet(e) {
+  // CORRECTION: Déclarer 'origin' ici pour qu'il soit accessible dans les blocs try et catch.
+  const origin = e.headers ? e.headers.Origin : null;
   try {
-    const origin = e.headers ? e.headers.Origin : null;
     const action = e.parameter.action;
 
     // CORRECTION: Gérer l'invalidation du cache appelée par les feuilles de catégorie
@@ -144,7 +141,7 @@ function doGet(e) {
 
   } catch (error) {
     return createJsonResponse({ success: false, error: error.message }, origin);
-  }
+  } 
 }
 
 /**
@@ -313,6 +310,33 @@ function updateProduct(productData) {
 }
 
 /**
+ * NOUVEAU: Supprime un produit en appelant le script de la bonne catégorie.
+ * Appelée par l'UI via google.script.run.
+ */
+function deleteProduct(productData) {
+  const categories = getCategories(); // Utilise la version simple sans décompte
+  const targetCategory = categories.find(c => c.NomCategorie === productData.Catégorie);
+
+  if (!targetCategory || !targetCategory.ScriptURL) {
+    throw new Error(`Catégorie ou URL de script introuvable pour "${productData.Catégorie}"`);
+  }
+
+  const payload = {
+    action: 'deleteProduct',
+    data: { IDProduit: productData.IDProduit } // On a seulement besoin de l'ID
+  };
+
+  const response = UrlFetchApp.fetch(targetCategory.ScriptURL, {
+    method: 'post',
+    contentType: 'application/json',
+    payload: JSON.stringify(payload),
+    muteHttpExceptions: true // Pour gérer les erreurs
+  });
+
+  return JSON.parse(response.getContentText());
+}
+
+/**
  * Déclenche l'archivage des produits épuisés dans toutes les catégories.
  */
 function archiveAllOutOfStock() {
@@ -342,12 +366,11 @@ function archiveAllOutOfStock() {
  * @returns {GoogleAppsScript.Content.TextOutput} Un objet TextOutput avec le contenu JSON et les en-têtes CORS.
  */
 function createJsonResponse(data, origin) {
-  const jsonResponse = ContentService.createTextOutput(JSON.stringify(data));
-  jsonResponse.setMimeType(ContentService.MimeType.JSON);
-  if (origin && ALLOWED_ORIGINS_FRONTEND.includes(origin)) {
-    jsonResponse.addHeader('Access-Control-Allow-Origin', origin);
-  }
-  return jsonResponse;
+  // CORRECTION DÉFINITIVE : On crée l'objet, on définit son type, et on retourne.
+  // L'en-tête CORS est géré par la fonction doOptions et la réponse globale.
+  const output = ContentService.createTextOutput(JSON.stringify(data));
+  output.setMimeType(ContentService.MimeType.JSON);
+  return output;
 }
 
 /**

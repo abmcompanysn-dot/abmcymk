@@ -238,7 +238,7 @@
                     <td class="px-4 py-2">${p.Stock}</td>
                     <td class="px-4 py-2 space-x-2">
                       <button onclick="openEditModal('${p.IDProduit}')" class="text-blue-600 hover:underline">Modifier</button>
-                      <button class="text-red-600 hover:underline">Supprimer</button>
+                      <button onclick="deleteProduct('${p.IDProduit}')" class="text-red-600 hover:underline">Supprimer</button>
                     </td>
                   </tr>
                 `).join('')}
@@ -363,10 +363,30 @@
 
       function onProductUpdated(response) {
         if (response.success) {
+          document.getElementById('status').innerHTML = `<p class="text-green-600">Produit ${response.id} mis à jour avec succès.</p>`;
           closeEditModal();
-          document.getElementById('status').innerHTML = `<p class="text-green-600">Produit ${response.id} mis à jour. Rechargez la liste pour voir les changements.</p>`;
+          loadAllProducts(); // Recharger la liste pour voir les changements
         } else {
           onFailure(response);
+        }
+      }
+
+      function deleteProduct(productId) {
+        const product = allProductsData.find(p => p.IDProduit === productId);
+        if (!product) return;
+
+        if (confirm(`Êtes-vous sûr de vouloir supprimer le produit "${product.Nom}" ?`)) {
+          const statusDiv = document.getElementById('status');
+          statusDiv.innerHTML = '<div class="loader mx-auto"></div>';
+          google.script.run
+            .withSuccessHandler(response => {
+              if (response.success) {
+                statusDiv.innerHTML = `<p class="text-green-600">Produit ${response.id} supprimé.</p>`;
+                loadAllProducts(); // Recharger la liste
+              } else { onFailure(response); }
+            })
+            .withFailureHandler(onFailure)
+            .deleteProduct({ IDProduit: product.IDProduit, Catégorie: product.Catégorie });
         }
       }
 

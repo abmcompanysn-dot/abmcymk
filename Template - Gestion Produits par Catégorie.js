@@ -182,28 +182,70 @@ function onEdit(e) {
     method: 'get', muteHttpExceptions: true
   });
 }
+
+/**
+ * Gère les requêtes OPTIONS pour le pré-vol CORS. Essentiel pour les requêtes POST.
+ */
+function doOptions(e) {
+  return ContentService.createTextOutput()
+    .addHeader('Access-Control-Allow-Origin', '*')
+    .addHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+    .addHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+}
+
 /**
  * Point d'entrée pour les requêtes GET (ex: obtenir le nombre/liste de produits).
  */
 function doGet(e) {
+  const origin = e.headers ? e.headers.Origin : null;
   try {
     const action = e.parameter.action;
     if (action === 'getProductCount') {
       const ss = SpreadsheetApp.getActiveSpreadsheet();
       const sheet = ss.getSheets()[0];
       const productCount = sheet.getLastRow() > 1 ? sheet.getLastRow() - 1 : 0; // Soustraire la ligne d'en-tête
-      return createJsonResponse({ success: true, count: productCount });
+      return createJsonResponse({ success: true, count: productCount }, origin);
     }
     if (action === 'getProducts') {
       const products = sheetToJSON(SpreadsheetApp.getActiveSpreadsheet().getSheets()[0]);
       Logger.log("Données des produits à envoyer : " + JSON.stringify(products, null, 2)); // Log pour vérifier les données
       const responseData = { success: true, data: products };
-      return createJsonResponse(responseData);
+      return createJsonResponse(responseData, origin);
     }
-    return createJsonResponse({ success: false, error: "Action GET non reconnue." });
+    return createJsonResponse({ success: false, error: "Action GET non reconnue." }, origin);
   } catch (error) {
     Logger.log("ERREUR dans la fonction doGet : " + error.toString()); // Log en cas d'erreur
-    return createJsonResponse({ success: false, error: error.message });
+    return createJsonResponse({ success: false, error: error.message }, origin);
+  }
+}
+
+/**
+ * NOUVEAU: Point d'entrée pour les requêtes POST (modifier, supprimer, etc.).
+ */
+function doPost(e) {
+  const origin = e.headers ? e.headers.Origin : null;
+  try {
+    const request = JSON.parse(e.postData.contents);
+    const action = request.action;
+    const data = request.data;
+
+    if (!action) {
+      return createJsonResponse({ success: false, error: 'Action non spécifiée.' }, origin);
+    }
+
+    switch (action) {
+      case 'ajouterProduit':
+        return addProduct(data, origin);
+      case 'updateProduct':
+        return updateProduct(data, origin);
+      case 'deleteProduct':
+        return deleteProduct(data, origin);
+      default:
+        return createJsonResponse({ success: false, error: `Action POST non reconnue: ${action}` }, origin);
+    }
+  } catch (error) {
+    Logger.log("ERREUR dans la fonction doPost : " + error.toString());
+    return createJsonResponse({ success: false, error: error.message }, origin);
   }
 }
 
@@ -211,7 +253,7 @@ function doGet(e) {
 /**
  * Logique partagée pour ajouter un produit à la feuille de calcul.
  */
-function addProduct(productData) {
+function addProduct(productData, origin) { // La fonction addProduct existe déjà, on s'assure qu'elle a le paramètre 'origin'
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getActiveSheet();
   const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
@@ -219,7 +261,7 @@ function addProduct(productData) {
 
   if (sheet.getLastRow() === 0) {
     // Ne devrait pas arriver si setupSheet est utilisé
-    return createJsonResponse({ success: false, error: "Feuille non initialisée." });
+    return createJsonResponse({ success: false, error: "Feuille non initialisée." }, origin);
   }
 
   const newRow = headers.map(header => {
@@ -253,7 +295,65 @@ function addProduct(productData) {
     method: 'get', muteHttpExceptions: true
   });
 
-  return createJsonResponse({ success: true, id: newProductId });
+  return createJsonResponse({ success: true, id: newProductId }, origin);
+}
+
+/**
+ * NOUVEAU: Met à jour un produit existant dans la feuille.
+ */
+function updateProduct(productData, origin) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheets()[0];
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  const idColumn = headers.indexOf("IDProduit") + 1;
+
+  if (idColumn === 0) {
+    return createJsonResponse({ success: false, error: "Colonne 'IDProduit' introuvable." }, origin);
+  }
+
+  const data = sheet.getDataRange().getValues();
+  const rowIndex = data.findIndex(row => row[idColumn - 1] === productData.IDProduit);
+
+  if (rowIndex === -1) {
+    return createJsonResponse({ success: false, error: `Produit avec ID ${productData.IDProduit} non trouvé.` }, origin);
+  }
+
+  // Mettre à jour les valeurs dans la ligne trouvée
+  headers.forEach((header, colIndex) => {
+    if (productData.hasOwnProperty(header)) {
+      sheet.getRange(rowIndex + 1, colIndex + 1).setValue(productData[header]);
+    }
+  });
+
+  invalidateGlobalCache();
+  return createJsonResponse({ success: true, id: productData.IDProduit }, origin);
+}
+
+/**
+ * NOUVEAU: Supprime un produit de la feuille.
+ */
+function deleteProduct(productData, origin) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheets()[0];
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  const idColumn = headers.indexOf("IDProduit") + 1;
+
+  if (idColumn === 0) {
+    return createJsonResponse({ success: false, error: "Colonne 'IDProduit' introuvable." }, origin);
+  }
+
+  const data = sheet.getDataRange().getValues();
+  const rowIndex = data.findIndex(row => row[idColumn - 1] === productData.IDProduit);
+
+  if (rowIndex === -1) {
+    return createJsonResponse({ success: false, error: `Produit avec ID ${productData.IDProduit} non trouvé.` }, origin);
+  }
+
+  // La première ligne de données est à l'index 1, mais dans la feuille c'est la ligne 2.
+  sheet.deleteRow(rowIndex + 1);
+
+  invalidateGlobalCache();
+  return createJsonResponse({ success: true, id: productData.IDProduit }, origin);
 }
 
 /**
@@ -318,6 +418,16 @@ function invalidateCategoryCache() {
 }
 
 /**
+ * NOUVEAU: Utilitaire pour invalider le cache global
+ */
+function invalidateGlobalCache() {
+  // Appelle le script central pour lui dire de mettre à jour la version du cache.
+  UrlFetchApp.fetch(CENTRAL_ADMIN_API_URL + "?action=invalidateCache", {
+    method: 'get', muteHttpExceptions: true
+  });
+}
+
+/**
  * Remplit la feuille avec 100 produits de test pour la catégorie donnée.
  */
 function seedDefaultProducts(categoryName) {
@@ -331,13 +441,11 @@ function seedDefaultProducts(categoryName) {
 /**
  * Crée une réponse JSON standard.
  */
-function createJsonResponse(data) {
-  const jsonResponse = ContentService.createTextOutput(JSON.stringify(data))
-    .setMimeType(ContentService.MimeType.JSON)
-    // NOUVEAU: Ajout de l'en-tête CORS pour autoriser explicitement votre site.
-    .withHeaders({'Access-Control-Allow-Origin': 'https://abmcymarket.vercel.app'});
-    
-  return jsonResponse;
+function createJsonResponse(data, origin) { // Ajout de 'origin' pour la cohérence
+  // CORRECTION DÉFINITIVE : On crée l'objet, on définit son type, et on retourne.
+  const output = ContentService.createTextOutput(JSON.stringify(data));
+  output.setMimeType(ContentService.MimeType.JSON);
+  return output;
 }
 
 /**
