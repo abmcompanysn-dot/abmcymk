@@ -8,6 +8,7 @@
 // --- CONFIGURATION ---
 const ADMIN_SPREADSHEET_ID = "1kTQsUgcvcWxJNgHuITi4nlMhAqwyVAMhQbzIMIODcBg";
 const CENTRAL_SHEET_ID = "1kTQsUgcvcWxJNgHuITi4nlMhAqwyVAMhQbzIMIODcBg"; // IMPORTANT: ID de la feuille centrale
+const DEFAULT_LOGO_URL = "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png"; // NOUVEAU: URL du logo par défaut
 
 // NOUVEAU: Configuration centrale des attributs par catégorie, copiée depuis le template.
 const CATEGORY_CONFIG = {
@@ -307,8 +308,7 @@ function setupCentralSheet() {
     const catId = `CAT-${String(index + 1).padStart(3, '0')}`;
     const placeholderSheetId = `REMPLIR_ID_FEUILLE_${catName.replace(/[^a-zA-Z0-9]/g, '_').toUpperCase()}`;
     const placeholderScriptUrl = `REMPLIR_URL_SCRIPT_${catName.replace(/[^a-zA-Z0-9]/g, '_').toUpperCase()}`;
-    const placeholderImageUrl = `https://via.placeholder.com/150/f0f0f0/333333?text=${encodeURIComponent(catName)}`;
-    return [catId, catName, placeholderSheetId, placeholderScriptUrl, placeholderImageUrl];
+    return [catId, catName, placeholderSheetId, placeholderScriptUrl, DEFAULT_LOGO_URL]; // CORRECTION: Utiliser le logo par défaut
   });
 
   if (rows.length > 0) {
