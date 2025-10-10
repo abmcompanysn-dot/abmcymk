@@ -38,6 +38,11 @@ async function initializeApp() {
     if (document.getElementById('panier-page')) {
         renderCartPage(); // Le panier lit depuis le localStorage, pas besoin d'attendre l'API.
     }
+    // NOUVEAU: Initialiser immédiatement le squelette de la page catégorie si on y est.
+    if (window.location.pathname.endsWith('categorie.html')) {
+        initializeCategoryPage();
+    }
+
     if (document.getElementById('countdown')) {
         startCountdown(); // Le compte à rebours est indépendant.
     }
@@ -59,7 +64,7 @@ async function initializeApp() {
 
         // Remplir le contenu spécifique à la page actuelle
         if (window.location.pathname.endsWith('recherche.html')) displaySearchResults(catalog);
-        if (window.location.pathname.endsWith('categorie.html')) displayCategoryProducts(catalog);
+        if (window.location.pathname.endsWith('categorie.html')) fillCategoryProducts(catalog);
         if (window.location.pathname.endsWith('promotion.html')) displayPromotionProducts(catalog);
         if (window.location.pathname.endsWith('produit.html')) loadProductPage(catalog);
         
@@ -480,28 +485,39 @@ async function displaySearchResults(catalog) {
 }
 
 /**
- * NOUVEAU: Affiche les produits pour une catégorie donnée.
+ * NOUVEAU: Initialise l'affichage de la page catégorie avec des squelettes.
+ * Cette fonction est appelée immédiatement au chargement de la page.
  */
-function displayCategoryProducts(catalog) {
+function initializeCategoryPage() {
     const params = new URLSearchParams(window.location.search);
-    const categoryId = params.get('id');
     const categoryName = params.get('name');
-
     const nameDisplay = document.getElementById('category-name-display');
     const resultsContainer = document.getElementById('category-results-container');
-    const resultsCount = document.getElementById('category-results-count');
 
-    if (!categoryId || !resultsContainer) return;
+    if (!nameDisplay || !resultsContainer) return;
 
+    // Afficher le nom de la catégorie immédiatement
     nameDisplay.textContent = categoryName || "Catégorie";
 
-    // NOUVEAU: Afficher le squelette de chargement
+    // Afficher le squelette de chargement
     const skeletonCard = `
         <div class="bg-white rounded-lg shadow overflow-hidden animate-pulse">
             <div class="bg-gray-200 h-40"></div>
             <div class="p-3 space-y-2"><div class="bg-gray-200 h-4 rounded"></div><div class="bg-gray-200 h-6 w-1/2 rounded"></div></div>
         </div>`;
     resultsContainer.innerHTML = Array(8).fill(skeletonCard).join('');
+}
+
+/**
+ * NOUVEAU: Remplit la page catégorie avec les produits réels une fois les données chargées.
+ */
+function fillCategoryProducts(catalog) {
+    const params = new URLSearchParams(window.location.search);
+    const categoryId = params.get('id');
+    const resultsContainer = document.getElementById('category-results-container');
+    const resultsCount = document.getElementById('category-results-count');
+
+    if (!categoryId || !resultsContainer) return;
 
     try {
         const { data } = catalog;
