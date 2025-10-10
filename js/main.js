@@ -44,7 +44,7 @@ async function initializeApp() {
 
     // --- ÉTAPE 2: Lancer le chargement des données en arrière-plan ---
     // On ne bloque PAS le reste de l'exécution de la page.
-    const catalogPromise = getFullCatalog();
+    const catalogPromise = getCatalogAndRefreshInBackground();
 
     // --- ÉTAPE 3: Remplir les sections qui dépendent des données une fois qu'elles sont prêtes ---
     catalogPromise.then(catalog => {
@@ -656,7 +656,7 @@ function loadProductPage(catalog) {
         });
 
         // NOUVEAU: Afficher les détails spécifiques à la catégorie
-        renderCategorySpecificDetails(product, variantsContainer, specsContainer);
+        renderCategorySpecificDetails(product, variantsContainer, specsContainer, catalog);
 
         // Mettre à jour le bouton "Ajouter au panier"
         addToCartButton.setAttribute('onclick', `addToCart(event, '${product.IDProduit}', '${product.Nom}', ${product.PrixActuel}, '${product.ImageURL || CONFIG.DEFAULT_PRODUCT_IMAGE}')`);
@@ -725,7 +725,7 @@ function activateInternalZoom(wrapperId) {
  * @param {HTMLElement} variantsContainer Le conteneur pour les options (taille, couleur...).
  * @param {HTMLElement} specsContainer Le conteneur pour les spécifications techniques.
  */
-function renderCategorySpecificDetails(product, variantsContainer, specsContainer) {
+function renderCategorySpecificDetails(product, variantsContainer, specsContainer, catalog) {
     variantsContainer.innerHTML = '';
     specsContainer.innerHTML = '';
 
@@ -1008,47 +1008,12 @@ function startCountdown() {
 }
 
 /**
- * NOUVEAU: Vérifie si le cache local est à jour par rapport au serveur.
- * Si le cache n'est pas à jour, il est vidé.
- */
-async function checkCacheVersion() {
-  try {
-    // On fait un appel très léger pour juste récupérer la version du cache côté serveur.
-    const response = await fetch(CONFIG.CENTRAL_API_URL + "?action=getCacheVersion");
-    if (!response.ok) throw new Error(`Erreur réseau lors de la vérification de version.`);
-    const result = await response.json();
-    if (!result.success) throw new Error(result.error || "Impossible de vérifier la version du cache.");
-
-    const serverVersion = result.cacheVersion;
-    const localVersion = sessionStorage.getItem('abmcyCacheVersion');
-
-    if (serverVersion && serverVersion !== localVersion) {
-      console.log(`Nouvelle version des données détectée (${serverVersion}). Vidage du cache local.`);
-      sessionStorage.removeItem('abmcyFullCatalog');
-      sessionStorage.setItem('abmcyCacheVersion', serverVersion);
-    } else if (!localVersion && serverVersion) {
-      // Si on n'a pas de version locale, on la stocke.
-      sessionStorage.setItem('abmcyCacheVersion', serverVersion);
-    }
-  } catch (error) {
-    console.error("Impossible de vérifier la version du cache, utilisation des données locales si disponibles.", error);
-  }
-}
-
-/**
  * NOUVEAU: Fonction centrale pour récupérer toutes les données publiques.
  * Met en cache les résultats pour améliorer les performances de navigation.
  */
 async function getFullCatalog() {
   // Étape 1: Vérifier la version du cache. Cette fonction vide le cache si nécessaire.
   await checkCacheVersion();
-
-  // Étape 2: Essayer de récupérer les données depuis le cache de session.
-  const cachedItem = sessionStorage.getItem('abmcyFullCatalog');
-  if (cachedItem) {
-    console.log("Utilisation du catalogue complet depuis le cache de session.");
-    return JSON.parse(cachedItem);
-  }
 
   // Étape 3: Si le cache est vide, faire un SEUL appel à l'API centrale pour tout récupérer.
   console.log("Chargement du catalogue complet depuis le réseau...");
@@ -1074,6 +1039,54 @@ async function getFullCatalog() {
     // En cas d'erreur, retourner une structure vide pour ne pas planter le site.
     return { success: false, data: { categories: [], products: [] }, error: error.message };
   }
+}
+
+/**
+ * NOUVEAU: Stratégie "Stale-While-Revalidate".
+ * 1. Retourne immédiatement les données du cache si elles existent.
+ * 2. En arrière-plan, vérifie si une mise à jour est nécessaire et la télécharge.
+ */
+async function getCatalogAndRefreshInBackground() {
+    const CACHE_KEY = 'abmcyFullCatalog';
+    const VERSION_KEY = 'abmcyCacheVersion';
+    const TIMESTAMP_KEY = 'abmcyCacheTimestamp';
+    const CACHE_LIFETIME = 5 * 60 * 1000; // 5 minutes en millisecondes
+
+    const cachedData = sessionStorage.getItem(CACHE_KEY);
+    const cacheTimestamp = sessionStorage.getItem(TIMESTAMP_KEY);
+
+    // Fonction pour récupérer les nouvelles données du réseau
+    const fetchAndUpdateCache = async () => {
+        console.log("Mise à jour du cache en arrière-plan...");
+        try {
+            const response = await fetch(`${CONFIG.CENTRAL_API_URL}?action=getPublicCatalog`);
+            if (!response.ok) return; // Échoue silencieusement
+            const result = await response.json();
+            if (result.success) {
+                sessionStorage.setItem(CACHE_KEY, JSON.stringify(result));
+                sessionStorage.setItem(VERSION_KEY, result.cacheVersion);
+                sessionStorage.setItem(TIMESTAMP_KEY, Date.now().toString());
+                console.log("Cache mis à jour avec succès en arrière-plan.");
+            }
+        } catch (error) {
+            console.error("Échec de la mise à jour du cache en arrière-plan:", error);
+        }
+    };
+
+    if (cachedData) {
+        console.log("Utilisation des données du cache pour un affichage instantané.");
+        const isCacheStale = !cacheTimestamp || (Date.now() - parseInt(cacheTimestamp) > CACHE_LIFETIME);
+        
+        if (isCacheStale) {
+            // Le cache est "périmé", on lance une mise à jour en arrière-plan sans attendre la réponse.
+            fetchAndUpdateCache();
+        }
+        // On retourne immédiatement les données du cache, qu'elles soient périmées ou non.
+        return JSON.parse(cachedData);
+    } else {
+        // Si pas de cache, on fait un premier chargement bloquant.
+        return await getFullCatalog();
+    }
 }
 
 /**
