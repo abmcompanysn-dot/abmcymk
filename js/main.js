@@ -1214,6 +1214,35 @@ async function shareProduct(event, productId) {
 }
 
 /**
+ * NOUVEAU: Partage le lien du site via l'API native.
+ */
+async function shareSite() {
+    const shareData = {
+        title: "ABMCY MARKET",
+        text: "J'ai trouvé une super boutique en ligne, ABMCY MARKET, jette un oeil !",
+        url: window.location.origin,
+    };
+    try {
+        await navigator.share(shareData);
+    } catch (err) {
+        console.error('Erreur de partage: ', err);
+        // Si le partage échoue, on copie le lien
+        copySiteLink();
+    }
+}
+
+/**
+ * NOUVEAU: Copie le lien du site dans le presse-papiers.
+ */
+function copySiteLink() {
+    navigator.clipboard.writeText(window.location.origin).then(() => {
+        showToast('Lien de la boutique copié !');
+    }).catch(err => {
+        showToast('Impossible de copier le lien.', true);
+    });
+}
+
+/**
  * NOUVEAU: Affiche des sections de produits pour chaque catégorie sur la page d'accueil.
  */
 function renderHomepageCategorySections(catalog) {
