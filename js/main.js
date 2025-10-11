@@ -18,24 +18,24 @@ const CATEGORIES_PER_LOAD = 3;
 // NOUVEAU: Structure de données pour les options de livraison
 const DELIVERY_OPTIONS = {
     "Dakar": {
-        "Dakar - Plateau": { "Standard": 1500, "ABMCY Express": 2500 },
-        "Dakar - Yoff": { "Standard": 2000, "ABMCY Express": 3000 },
-        "Dakar - Pikine": { "Standard": 2500, "ABMCY Express": 3500 },
-        "Rufisque": { "Standard": 3000, "ABMCY Express": 4000 }
+        "Dakar - Plateau": { "Standard": 1500, "ABMCY Express": 2500, "Livraison par Yango": 0, "Livraison au point de relais": 0, "Livraison en agence": 0 },
+        "Dakar - Yoff": { "Standard": 2000, "ABMCY Express": 3000, "Livraison par Yango": 0, "Livraison au point de relais": 0, "Livraison en agence": 0 },
+        "Dakar - Pikine": { "Standard": 2500, "ABMCY Express": 3500, "Livraison par Yango": 0, "Livraison au point de relais": 0, "Livraison en agence": 0 },
+        "Rufisque": { "Standard": 3000, "ABMCY Express": 4000, "Livraison par Yango": 0, "Livraison au point de relais": 0, "Livraison en agence": 0 }
     },
     "Thiès": {
-        "Thiès Ville": { "Standard": 3500, "ABMCY Express": 5000 },
-        "Mbour": { "Standard": 4000, "ABMCY Express": 6000 },
-        "Saly": { "Standard": 4500, "ABMCY Express": 6500 }
+        "Thiès Ville": { "Standard": 3500, "ABMCY Express": 5000, "Livraison au point de relais": 0, "Livraison en agence": 0 },
+        "Mbour": { "Standard": 4000, "ABMCY Express": 6000, "Livraison au point de relais": 0, "Livraison en agence": 0 },
+        "Saly": { "Standard": 4500, "ABMCY Express": 6500, "Livraison au point de relais": 0, "Livraison en agence": 0 }
     },
     "Saint-Louis": {
-        "Saint-Louis Ville": { "Standard": 5000 }
+        "Saint-Louis Ville": { "Standard": 5000, "Livraison au point de relais": 0, "Livraison en agence": 0 }
     },
     "Ziguinchor": {
-        "Ziguinchor Ville": { "Standard": 6000 }
+        "Ziguinchor Ville": { "Standard": 6000, "Livraison au point de relais": 0, "Livraison en agence": 0 }
     },
     "Kaolack": {
-        "Kaolack Ville": { "Standard": 4500 }
+        "Kaolack Ville": { "Standard": 4500, "Livraison au point de relais": 0, "Livraison en agence": 0 }
     }
     // ... Ajouter d'autres régions et villes
 };
@@ -379,20 +379,27 @@ function updateCartSummary() {
     if (!document.getElementById('summary-subtotal')) return;
 
     const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    
-    // NOUVEAU: Calcul dynamique des frais de livraison
-    const shippingCost = cart.reduce((sum, item) => {
+
+    // Calcul initial des frais de livraison
+    let shippingCost = cart.reduce((sum, item) => {
         const location = item.delivery.location;
         // Si la livraison est gratuite pour cet article, on n'ajoute rien au coût.
         if (item.delivery.cost === 0) {
             return sum;
         }
-
         const method = item.delivery.method;
         const region = Object.keys(DELIVERY_OPTIONS).find(r => DELIVERY_OPTIONS[r][location]);
         const cost = region ? (DELIVERY_OPTIONS[region][location][method] || DELIVERY_OPTIONS[region][location]['Standard'] || 0) : 0;
         return sum + cost;
     }, 0);
+
+    // NOUVEAU: Appliquer la règle de livraison gratuite pour Dakar
+    const dakarLocations = Object.keys(DELIVERY_OPTIONS["Dakar"]);
+    const isAllDakar = cart.length > 0 && cart.every(item => dakarLocations.includes(item.delivery.location));
+
+    if (isAllDakar && subtotal > 50000) {
+        shippingCost = 0;
+    }
 
     const total = subtotal + shippingCost;
 
