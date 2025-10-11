@@ -7,7 +7,7 @@
 
 // --- CONFIGURATION ---
 const CLIENT_SPREADSHEET_ID = "1pGx-1uFUdS61fL4eh4HhQaHQSX6UzmPXiMQY0i71ZpU"; // IMPORTANT: Mettez ici l'ID de votre 2ème Google Sheet
-const ADMIN_API_URL = "https://script.google.com/macros/s/AKfycby5EHJj-ZavcEksqGGJ-Q3VALar-CjEMA_yNMynwCTXzOQYZxSxePeTZtxQi_IgylM/exec"; // URL de l'API Admin
+const ADMIN_API_URL = "https://script.google.com/macros/s/AKfycbwBtesagcmH6DiK1ARbUnIsmpNdQRFlBMUy1qnEj4hDygAkZOML5ZPKKMLGmMtQRfMk/exec"; // URL de l'API Admin
 const SCRIPT_NAME = "API-Client";
 
 const SHEET_NAMES = {
@@ -64,6 +64,16 @@ function doGet(e) {
   return createJsonResponse({ success: true, message: 'API Client ABMCY Market - Active' });
 }
 
+/**
+ * NOUVEAU: Gère les requêtes OPTIONS pour le pré-vol CORS. Essentiel pour les requêtes POST.
+ */
+function doOptions(e) {
+  return ContentService.createTextOutput()
+    .addHeader('Access-Control-Allow-Origin', '*')
+    .addHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+    .addHeader('Access-Control-Allow-Headers', 'Content-Type');
+}
+
 function doPost(e) {
   try {
     // Sécurité : Vérifier l'origine de la requête
@@ -94,6 +104,8 @@ function doPost(e) {
         return getRecentOrders(data, ctx);
       case 'updateFavorites': // NOUVELLE ACTION
         return updateFavorites(data, ctx);
+      case 'getOrdersByClientId': // NOUVELLE ACTION
+        return getOrdersByClientId(data, ctx);
       default:
         logAction('doPost', { error: 'Action non reconnue', action: action });
         return createJsonResponse({ success: false, error: `Action non reconnue: ${action}` });
@@ -272,9 +284,12 @@ function getFavorites(clientId) {
 /**
  * Crée une réponse standard au format JSON pour l'API.
  */
-function createJsonResponse(data) {
-  return ContentService.createTextOutput(JSON.stringify(data))
-    .setMimeType(ContentService.MimeType.JSON);
+function createJsonResponse(data, origin) {
+  // CORRECTION DÉFINITIVE : On crée l'objet, on définit son type, et on retourne.
+  // L'en-tête CORS est géré par la fonction doOptions et la réponse globale.
+  const output = ContentService.createTextOutput(JSON.stringify(data));
+  output.setMimeType(ContentService.MimeType.JSON);
+  return output;
 }
 
 // La fonction enregistrerPaiement et autres fonctions de gestion (livraison, SAV)
