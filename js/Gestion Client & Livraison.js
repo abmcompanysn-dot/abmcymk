@@ -407,7 +407,7 @@ function updateSystem_Client() {
 
   try {
     const sheetConfigs = { // NOUVEAU: Ajout de la colonne Favoris
-      [SHEET_NAMES.USERS]: ["IDClient", "Nom", "Email", "MotDePasseHash", "Salt", "Adresse", "Téléphone", "DateInscription", "Statut", "Rôle"],
+      [SHEET_NAMES.USERS]: ["IDClient", "Nom", "Email", "MotDePasseHash", "Salt", "Adresse", "Téléphone", "DateInscription", "Statut", "Rôle", "Favoris"],
       [SHEET_NAMES.ORDERS]: ["IDCommande", "IDClient", "Date", "Produits", "Quantités", "Total", "Statut", "MoyenPaiement", "AdresseLivraison", "Notes"],
       [SHEET_NAMES.PAYMENTS]: ["IDCommande", "Montant", "MoyenPaiement", "Statut", "Date", "TransactionID", "PreuvePaiement"],
       [SHEET_NAMES.LOGS]: ["Date", "Script", "Action", "Détails"]
