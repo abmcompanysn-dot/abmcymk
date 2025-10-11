@@ -75,10 +75,8 @@ function doOptions(e) {
 }
 
 function doPost(e) {
-  try {
-    const request = JSON.parse(e.postData.contents);
-    const action = request.action;
-    const data = request.data;
+    try {
+        const request = JSON.parse(e.postData.contents);
 
     if (!action) {
       return createJsonResponse({ success: false, error: 'Action non spécifiée.' });
@@ -282,17 +280,16 @@ function getFavorites(clientId) {
  * @returns {GoogleAppsScript.Content.TextOutput} Un objet TextOutput avec le contenu JSON et les en-têtes CORS.
  */
 function createJsonResponse(data, origin) {
-  // CORRECTION: Utiliser ContentService.createTextOutput est la méthode standard et robuste
-  // pour créer une réponse JSON. Elle retourne un objet TextOutput qui possède la méthode .addHeader(),
-  // essentielle pour autoriser les requêtes cross-domain (CORS).
-  const output = ContentService.createTextOutput(JSON.stringify(data));
-  output.setMimeType(ContentService.MimeType.JSON);
-  // Autoriser toutes les origines à recevoir la réponse
-  // C'est essentiel pour que le navigateur ne bloque pas la réponse de l'API.
-  output.addHeader('Access-Control-Allow-Origin', '*');
-  return output;
-}
+    const output = ContentService.createTextOutput(JSON.stringify(data));
+    output.setMimeType(ContentService.MimeType.JSON);
 
+    // 🔐 Gestion CORS : Autoriser l'origine si elle est dans la liste, sinon ne rien retourner pour la sécurité.
+    if (ALLOWED_ORIGINS.includes(origin)) {
+        output.addHeader('Access-Control-Allow-Origin', origin);
+    }
+
+    return output;
+}
 
 // La fonction enregistrerPaiement et autres fonctions de gestion (livraison, SAV)
 // restent conceptuellement les mêmes, mais devraient aussi utiliser le nouveau système de logging.
