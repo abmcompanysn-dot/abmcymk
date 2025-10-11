@@ -819,13 +819,15 @@ function updateDeliveryCost() {
     const locationSelect = document.getElementById('delivery-location');
     const methodSelect = document.getElementById('delivery-method');
     const costEstimateEl = document.getElementById('delivery-cost-estimate');
+    const methodDetailsEl = document.getElementById('delivery-method-details');
 
-    if (!locationSelect || !methodSelect || !costEstimateEl) return;
+    if (!locationSelect || !methodSelect || !costEstimateEl || !methodDetailsEl) return;
 
     const selectedLocation = locationSelect.value;
     if (!selectedLocation) {
         methodSelect.innerHTML = '<option value="">-- D\'abord choisir une localité --</option>';
         costEstimateEl.textContent = 'Veuillez sélectionner une option';
+        methodDetailsEl.innerHTML = ''; // Vider les détails
         return;
     }
 
@@ -838,6 +840,16 @@ function updateDeliveryCost() {
     const cost = methods[selectedMethod];
 
     costEstimateEl.textContent = `${cost.toLocaleString('fr-FR')} F CFA`;
+
+    // NOUVEAU: Afficher les détails pour Yango
+    if (selectedMethod === "Livraison par Yango") {
+        methodDetailsEl.innerHTML = `
+            <p class="font-semibold">Info: Les frais Yango sont à votre charge à la réception.</p>
+            <p>Le colis sera déposé à notre point relais de Dakar Marché Tilène.</p>
+        `;
+    } else {
+        methodDetailsEl.innerHTML = ''; // Vider les détails pour les autres méthodes
+    }
 }
 
 /**
