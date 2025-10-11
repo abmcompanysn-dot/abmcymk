@@ -588,20 +588,74 @@ function fillCategoryProducts(catalog) {
         // On trouve la catégorie correspondante à l'ID de l'URL pour obtenir son nom.
         const targetCategory = allCategories.find(cat => cat.IDCategorie == categoryId);
         if (!targetCategory) throw new Error("Catégorie introuvable.");
-
-        const filteredProducts = allProducts.filter(product => {
+        
+        const categoryProducts = allProducts.filter(product => {
             return product.Catégorie === targetCategory.NomCategorie;
         });
 
-        resultsCount.textContent = `${filteredProducts.length} produit(s) dans cette catégorie.`;
+        resultsCount.textContent = `${categoryProducts.length} produit(s) dans cette catégorie.`;
 
-        if (filteredProducts.length === 0) {
+        if (categoryProducts.length === 0) {
             resultsContainer.innerHTML = `<p class="col-span-full text-center text-gray-500">Aucun produit dans cette catégorie pour le moment.</p>`;
             return;
         }
 
-        const resultsHTML = filteredProducts.map(product => renderProductCard(product)).join('');
-        resultsContainer.innerHTML = resultsHTML;
+        // NOUVEAU: Logique pour insérer des carrousels
+        const otherProducts = allProducts.filter(p => p.Catégorie !== targetCategory.NomCategorie);
+        let finalHTML = '';
+        const productsPerCarousel = 4;
+        const productsPerRow = 6;
+
+        for (let i = 0; i < categoryProducts.length; i += productsPerRow) {
+            const productChunk = categoryProducts.slice(i, i + productsPerRow);
+            
+            // Ajouter la grille de produits
+            finalHTML += `<div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">${productChunk.map(p => renderProductCard(p)).join('')}</div>`;
+
+            // Ajouter un carrousel après la ligne, s'il reste des produits à afficher
+            if (i + productsPerRow < categoryProducts.length && otherProducts.length > 0) {
+                const carouselId = `category-promo-carousel-${i}`;
+                // Sélectionner des produits aléatoires parmi les autres catégories
+                const shuffledOtherProducts = otherProducts.sort(() => 0.5 - Math.random());
+                const carouselProducts = shuffledOtherProducts.slice(0, productsPerCarousel);
+
+                if (carouselProducts.length > 0) {
+                    const dotsHTML = `<div class="carousel-dots absolute left-1/2 -translate-x-1/2 flex space-x-2">${carouselProducts.map((_, idx) => `<div class="carousel-dot" data-index="${idx}"></div>`).join('')}</div>`;
+                    finalHTML += `
+                        <section class="my-12 relative pb-8">
+                            <h3 class="text-3xl font-extrabold text-center text-gray-800 mb-2">Ne manquez pas nos autres trésors</h3>
+                            <p class="text-center text-gray-500 mb-6">Explorez et laissez-vous surprendre.</p>
+                            <div id="${carouselId}" class="promo-carousel flex overflow-x-auto snap-x-mandatory">
+                                ${carouselProducts.map(p => `
+                                    <div class="promo-carousel-item flex-shrink-0 w-full bg-white rounded-lg overflow-hidden p-4">
+                                        <a href="produit.html?id=${p.IDProduit}" class="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+                                            <div class="h-64 bg-gray-100 rounded-lg flex items-center justify-center">
+                                                <img src="${p.ImageURL || CONFIG.DEFAULT_PRODUCT_IMAGE}" alt="${p.Nom}" class="max-h-full max-w-full object-contain">
+                                            </div>
+                                            <div class="text-center md:text-left">
+                                                <p class="text-sm text-gray-500">${p.Catégorie}</p>
+                                                <h4 class="text-2xl font-bold text-gray-800 my-2">${p.Nom}</h4>
+                                                <p class="font-bold text-3xl text-gold">${p.PrixActuel.toLocaleString('fr-FR')} F CFA</p>
+                                                ${p.PrixAncien > p.PrixActuel ? `<p class="text-lg text-gray-400 line-through">${p.PrixAncien.toLocaleString('fr-FR')} F CFA</p>` : ''}
+                                                <button class="mt-4 bg-black text-white font-bold py-3 px-8 rounded-lg hover:bg-gray-800 transition">
+                                                    Découvrir
+                                                </button>
+                                            </div>
+                                        </a>
+                                    </div>
+                                `).join('')}
+                            </div>
+                            ${dotsHTML}
+                        </section>
+                    `;
+                }
+            }
+        }
+
+        resultsContainer.innerHTML = finalHTML;
+
+        // Initialiser tous les nouveaux carrousels
+        document.querySelectorAll('.promo-carousel').forEach(carousel => initializePromoCarousel(carousel.id));
 
     } catch (error) {
         console.error("Erreur lors de l'affichage des produits de la catégorie:", error);
