@@ -26,13 +26,17 @@
     </div>
 
     <script>
-        const LOG_KEY = 'abmcyAppLogs';
+        // NOUVEAU: L'URL de l'API client pour récupérer les logs
+        const CLIENT_API_URL = "https://script.google.com/macros/s/AKfycbwAadXqAEm_6opHQF53xBPpDThWOOsKkJTmuxlI-bIbBAWclq1QRGUgW8BHQSyJmffd/exec";
 
         function getErrorExplanation(log) {
-            if (log.type === 'FETCH_ERROR' && log.error.includes('Failed to fetch')) {
+            const logType = log[2]; // La colonne "Action"
+            const logDetails = JSON.parse(log[3] || '{}');
+
+            if (logType === 'FETCH_ERROR' && logDetails.error && logDetails.error.includes('Failed to fetch')) {
                 return {
                     title: "Erreur de réseau ou de CORS",
-                    explanation: `Le navigateur a bloqué la requête vers <strong>${log.url}</strong>. Cela se produit généralement pour deux raisons :<br>
+                    explanation: `Le navigateur a bloqué la requête vers <strong>${logDetails.url}</strong>. Cela se produit généralement pour deux raisons :<br>
                                  1. <strong>Problème de réseau :</strong> L'appareil n'a pas de connexion Internet ou le serveur est inaccessible.<br>
                                  2. <strong>Erreur CORS (Cross-Origin Resource Sharing) :</strong> Le serveur (votre script Google) n'a pas donné la permission à votre site (Vercel) de lui parler. C'est le cas le plus fréquent.`,
                     solution: `Vérifiez les points suivants dans votre script Google Apps :<br>
@@ -43,62 +47,87 @@
                                </ul>`
                 };
             }
-            if (log.type === 'API_ERROR') {
+            if (logType === 'API_ERROR') {
                  return {
                     title: "Erreur renvoyée par l'API",
-                    explanation: `Le serveur a bien reçu la requête, mais a rencontré une erreur en la traitant. Le message d'erreur du serveur est : <strong>"${log.error}"</strong>.`,
-                    solution: `Regardez le code de l'action <code>${log.payload.action}</code> dans votre script Google Apps pour comprendre pourquoi cette erreur se produit. Vérifiez les journaux d'exécution dans l'éditeur de script Google pour plus de détails.`
+                    explanation: `Le serveur a bien reçu la requête, mais a rencontré une erreur en la traitant. Le message d'erreur du serveur est : <strong>"${logDetails.error}"</strong>.`,
+                    solution: `Regardez le code de l'action <code>${logDetails.payload.action}</code> dans votre script Google Apps pour comprendre pourquoi cette erreur se produit. Vérifiez les journaux d'exécution dans l'éditeur de script Google pour plus de détails.`
                 };
             }
             return null;
         }
 
-        function renderLogs() {
+        async function renderLogs() {
             const container = document.getElementById('logs-container');
-            const logs = JSON.parse(localStorage.getItem(LOG_KEY)) || [];
+            container.innerHTML = '<p class="text-center text-gray-500 py-8">Chargement des journaux depuis le serveur...</p>';
 
-            if (logs.length === 0) {
-                container.innerHTML = '<p class="text-center text-gray-500 py-8">Aucun événement enregistré pour le moment.</p>';
-                return;
+            try {
+                const response = await fetch(`${CLIENT_API_URL}?action=getAppLogs`);
+                const result = await response.json();
+
+                if (!result.success || !result.logs) {
+                    throw new Error(result.error || "Réponse invalide du serveur.");
+                }
+
+                const logs = result.logs;
+
+                if (logs.length === 0) {
+                    container.innerHTML = '<p class="text-center text-gray-500 py-8">Aucun événement enregistré sur le serveur.</p>';
+                    return;
+                }
+
+                container.innerHTML = logs.map(log => {
+                    // log est un tableau: [Date, Script, Action, Détails]
+                    const timestamp = log[0];
+                    const source = log[1];
+                    const type = log[2];
+                    const detailsStr = log[3];
+                    let details = {};
+                    try {
+                        details = JSON.parse(detailsStr);
+                    } catch(e) {
+                        details = { raw: detailsStr };
+                    }
+
+                    const explanation = getErrorExplanation(log);
+                    const isError = type.includes('ERROR') || type.includes('REJECTED');
+                    const bgColor = isError ? 'bg-red-50' : 'bg-green-50';
+                    const borderColor = isError ? 'border-red-500' : 'border-green-500';
+
+                    return `
+                        <div class="log-entry border-l-4 ${borderColor} p-4 rounded-r-lg ${bgColor}">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <span class="font-bold text-sm ${isError ? 'text-red-800' : 'text-green-800'}">${type}</span>
+                                    <p class="text-xs text-gray-500">${new Date(timestamp).toLocaleString('fr-FR')} | Source: ${source}</p>
+                                </div>
+                            </div>
+                            <div class="mt-2 text-sm text-gray-700 break-words">
+                                ${details.message ? `<p><strong>Message:</strong> ${details.message}</p>` : ''}
+                                ${details.url ? `<p><strong>URL:</strong> ${details.url}</p>` : ''}
+                                ${details.origin ? `<p><strong>Origine:</strong> ${details.origin}</p>` : ''}
+                                ${details.error ? `<p><strong>Détail Erreur:</strong> <code class="text-xs bg-gray-200 p-1 rounded">${details.error}</code></p>` : ''}
+                                ${details.raw ? `<p><strong>Détails bruts:</strong> <code class="text-xs bg-gray-200 p-1 rounded">${details.raw}</code></p>` : ''}
+                            </div>
+                            ${explanation ? `
+                                <div class="mt-4 border-t pt-3">
+                                    <h4 class="font-semibold text-gray-900">${explanation.title}</h4>
+                                    <p class="text-sm mt-1">${explanation.explanation}</p>
+                                    <h5 class="font-semibold text-gray-900 mt-3 text-sm">💡 Comment corriger :</h5>
+                                    <div class="text-sm mt-1 p-3 bg-gray-100 rounded-md">${explanation.solution}</div>
+                                </div>
+                            ` : ''}
+                        </div>
+                    `;
+                }).join('');
+
+            } catch (error) {
+                container.innerHTML = `<p class="text-center text-red-500 py-8"><strong>Erreur lors du chargement des journaux :</strong> ${error.message}</p>`;
             }
-
-            container.innerHTML = logs.reverse().map(log => {
-                const explanation = getErrorExplanation(log);
-                const isError = log.type.includes('ERROR');
-                const bgColor = isError ? 'bg-red-50' : 'bg-green-50';
-                const borderColor = isError ? 'border-red-500' : 'border-green-500';
-
-                return `
-                    <div class="log-entry border-l-4 ${borderColor} p-4 rounded-r-lg ${bgColor}">
-                        <div class="flex justify-between items-start">
-                            <div>
-                                <span class="font-bold text-sm ${isError ? 'text-red-800' : 'text-green-800'}">${log.type}</span>
-                                <p class="text-xs text-gray-500">${new Date(log.timestamp).toLocaleString('fr-FR')}</p>
-                            </div>
-                        </div>
-                        <div class="mt-2 text-sm text-gray-700">
-                            ${log.message ? `<p><strong>Message:</strong> ${log.message}</p>` : ''}
-                            ${log.url ? `<p><strong>URL:</strong> ${log.url}</p>` : ''}
-                            ${log.error ? `<p><strong>Détail Erreur:</strong> <code class="text-xs bg-gray-200 p-1 rounded">${log.error}</code></p>` : ''}
-                        </div>
-                        ${explanation ? `
-                            <div class="mt-4 border-t pt-3">
-                                <h4 class="font-semibold text-gray-900">${explanation.title}</h4>
-                                <p class="text-sm mt-1">${explanation.explanation}</p>
-                                <h5 class="font-semibold text-gray-900 mt-3 text-sm">💡 Comment corriger :</h5>
-                                <div class="text-sm mt-1 p-3 bg-gray-100 rounded-md">${explanation.solution}</div>
-                            </div>
-                        ` : ''}
-                    </div>
-                `;
-            }).join('');
         }
 
         function clearLogs() {
-            if (confirm("Êtes-vous sûr de vouloir effacer tous les journaux ?")) {
-                localStorage.removeItem(LOG_KEY);
-                renderLogs();
-            }
+            alert("La suppression des journaux doit se faire directement dans la feuille Google Sheets 'Logs'.");
         }
 
         document.addEventListener('DOMContentLoaded', renderLogs);

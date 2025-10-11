@@ -61,6 +61,10 @@ function doGet(e) {
     const clientId = e.parameter.clientId;
     return getFavorites(clientId);
   }
+  // NOUVEAU: Point d'entrée pour la page de log pour récupérer les journaux.
+  if (action === 'getAppLogs') {
+    return getAppLogs(e.parameter);
+  }
   return createJsonResponse({ success: true, message: 'API Client ABMCY Market - Active' });
 }
 
@@ -108,6 +112,9 @@ function doPost(e) {
         return updateFavorites(data, ctx);
       case 'getOrdersByClientId': // NOUVELLE ACTION
         return getOrdersByClientId(data, ctx);
+      // NOUVEAU: Point d'entrée pour recevoir les journaux du client.
+      case 'logClientEvent':
+        return logClientEvent(data, origin);
       default:
         logAction('doPost', { error: 'Action non reconnue', action: action }, origin);
         return createJsonResponse({ success: false, error: `Action non reconnue: ${action}` }, origin);
@@ -290,15 +297,57 @@ function getFavorites(clientId) {
  * @returns {GoogleAppsScript.Content.TextOutput} Un objet TextOutput avec le contenu JSON et les en-têtes CORS.
  */
 function createJsonResponse(data, origin) {
-    const output = ContentService.createTextOutput(JSON.stringify(data));
-    output.setMimeType(ContentService.MimeType.JSON);
-    
-    // CORRECTION: Utiliser la liste des origines autorisées pour la réponse finale.
-    if (origin && ALLOWED_ORIGINS.includes(origin)) {
-        output.addHeader('Access-Control-Allow-Origin', origin);
+  const output = ContentService.createTextOutput(JSON.stringify(data));
+  output.setMimeType(ContentService.MimeType.JSON);
+
+  // CORRECTION: Utiliser la liste des origines autorisées pour la réponse finale.
+  if (origin && ALLOWED_ORIGINS.includes(origin)) {
+    output.addHeader('Access-Control-Allow-Origin', origin);
+  } else if (origin) {
+    // NOUVEAU: Journaliser les requêtes provenant d'origines non autorisées.
+    logAction('CORS_REJECTED', {
+      origin: origin,
+      message: "Origine non présente dans ALLOWED_ORIGINS."
+    });
+  }
+  return output;
+}
+
+/**
+ * NOUVEAU: Enregistre un événement envoyé par le client dans la feuille de logs.
+ */
+function logClientEvent(data, origin) {
+  try {
+    const logSheet = SpreadsheetApp.openById(CLIENT_SPREADSHEET_ID).getSheetByName(SHEET_NAMES.LOGS);
+    if (logSheet) {
+      const details = {
+        message: data.message,
+        url: data.url,
+        error: data.error,
+        payload: data.payload,
+        origin: origin
+      };
+      logSheet.appendRow([new Date(data.timestamp), 'FRONT-END', data.type, JSON.stringify(details)]);
     }
-    return output;
-    }
+    // On renvoie une réponse simple et rapide, le client n'attend pas de données.
+    return createJsonResponse({ success: true }, origin);
+  } catch (e) {
+    // Ne pas bloquer même si le logging échoue.
+    return createJsonResponse({ success: false, error: e.message }, origin);
+  }
+}
+
+/**
+ * NOUVEAU: Récupère les 100 derniers journaux pour la page log.html.
+ */
+function getAppLogs(params) {
+  const logSheet = SpreadsheetApp.openById(CLIENT_SPREADSHEET_ID).getSheetByName(SHEET_NAMES.LOGS);
+  const lastRow = logSheet.getLastRow();
+  const startRow = Math.max(2, lastRow - 99); // Récupère les 100 dernières lignes (ou moins)
+  const numRows = lastRow - startRow + 1;
+  const logs = (numRows > 0) ? logSheet.getRange(startRow, 1, numRows, 4).getValues() : [];
+  return createJsonResponse({ success: true, logs: logs.reverse() }); // Les plus récents en premier
+}
 
 
 

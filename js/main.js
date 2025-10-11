@@ -1652,6 +1652,46 @@ function renderAllCategoriesSection(catalog) {
 // --- LOGIQUE D'AUTHENTIFICATION ---
 
 /**
+ * NOUVEAU: Enregistre un événement dans le localStorage pour le débogage sur la page log.html.
+ * @param {string} type Le type d'événement (ex: 'FETCH_SUCCESS', 'FETCH_ERROR').
+ * @param {object} data Les données associées à l'événement.
+ */
+function logAppEvent(type, data) {
+    const LOG_KEY = 'abmcyAppLogs';
+    const MAX_LOGS = 50;
+    try {
+        let logs = JSON.parse(localStorage.getItem(LOG_KEY)) || [];
+        
+        const logEntry = {
+            type: type,
+            timestamp: new Date().toISOString(),
+            ...data
+        };
+
+        // NOUVEAU: Envoyer le log au serveur de manière asynchrone ("fire and forget")
+        // On n'attend pas la réponse pour ne pas ralentir l'interface utilisateur.
+        const logPayload = {
+            action: 'logClientEvent',
+            data: logEntry
+        };
+        try {
+            fetch(CONFIG.CLIENT_API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(logPayload),
+                keepalive: true // Important pour que la requête aboutisse même si la page se ferme
+            });
+        } catch (e) { console.error("Échec de l'envoi du log au serveur:", e); }
+
+        logs.push(logEntry);
+        if (logs.length > MAX_LOGS) {
+            logs = logs.slice(logs.length - MAX_LOGS);
+        }
+        localStorage.setItem(LOG_KEY, JSON.stringify(logs));
+    } catch (e) { console.error("Impossible d'écrire dans le journal :", e); }
+}
+
+/**
  * Gère la soumission des formulaires de connexion et d'inscription.
  * @param {Event} event L'événement de soumission du formulaire.
  * @param {string} type 'login' ou 'register'.
@@ -1695,6 +1735,12 @@ async function handleAuthForm(event, type) {
         };
     }
 
+    logAppEvent('FETCH_START', {
+        message: `Tentative de ${type === 'login' ? 'connexion' : 'création de compte'}`,
+        url: CONFIG.CLIENT_API_URL,
+        payload: payload
+    });
+
     try {
         form.querySelector('button[type="submit"]').disabled = true;
         const response = await fetch(CONFIG.CLIENT_API_URL, {
@@ -1710,6 +1756,12 @@ async function handleAuthForm(event, type) {
         const result = await response.json();
 
         if (result.success) {
+            logAppEvent('FETCH_SUCCESS', {
+                message: `Action '${payload.action}' réussie.`,
+                url: CONFIG.CLIENT_API_URL,
+                response: result
+            });
+
             if (type === 'register') {
                 statusDiv.textContent = 'Inscription réussie ! Vous pouvez maintenant vous connecter.';
                 statusDiv.classList.add('text-green-600');
@@ -1722,9 +1774,21 @@ async function handleAuthForm(event, type) {
                 window.location.href = 'compte.html'; // Redirection vers la page de compte
             }
         } else {
+            logAppEvent('API_ERROR', {
+                message: `L'API a retourné une erreur pour l'action '${payload.action}'.`,
+                url: CONFIG.CLIENT_API_URL,
+                error: result.error,
+                payload: payload
+            });
             throw new Error(result.error || 'Une erreur est survenue.');
         }
     } catch (error) {
+        logAppEvent('FETCH_ERROR', {
+            message: `Échec de la requête pour l'action '${payload.action}'.`,
+            url: CONFIG.CLIENT_API_URL,
+            error: error.message,
+            payload: payload
+        });
         let errorMessage = `Erreur: ${error.message}`;
         // NOUVEAU: Si l'erreur vient de la connexion, on suggère de s'inscrire.
         if (type === 'login') {
