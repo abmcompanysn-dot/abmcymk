@@ -15,6 +15,31 @@ let allLoadedProducts = []; // Stocke tous les produits déjà chargés
 let renderedCategoriesCount = 0;
 const CATEGORIES_PER_LOAD = 3;
 
+// NOUVEAU: Structure de données pour les options de livraison
+const DELIVERY_OPTIONS = {
+    "Dakar": {
+        "Dakar - Plateau": { "Standard": 1500, "ABMCY Express": 2500 },
+        "Dakar - Yoff": { "Standard": 2000, "ABMCY Express": 3000 },
+        "Dakar - Pikine": { "Standard": 2500, "ABMCY Express": 3500 },
+        "Rufisque": { "Standard": 3000, "ABMCY Express": 4000 }
+    },
+    "Thiès": {
+        "Thiès Ville": { "Standard": 3500, "ABMCY Express": 5000 },
+        "Mbour": { "Standard": 4000, "ABMCY Express": 6000 },
+        "Saly": { "Standard": 4500, "ABMCY Express": 6500 }
+    },
+    "Saint-Louis": {
+        "Saint-Louis Ville": { "Standard": 5000 }
+    },
+    "Ziguinchor": {
+        "Ziguinchor Ville": { "Standard": 6000 }
+    },
+    "Kaolack": {
+        "Kaolack Ville": { "Standard": 4500 }
+    }
+    // ... Ajouter d'autres régions et villes
+};
+
 // Attendre que le contenu de la page soit entièrement chargé
 document.addEventListener('DOMContentLoaded', () => {
     // Initialiser toutes les fonctionnalités du site
@@ -216,6 +241,25 @@ function addToCart(event, productId, name, price, imageUrl) {
     const quantity = quantityInput ? parseInt(quantityInput.value, 10) : 1;
 
     // NOUVEAU: Récupérer les variantes sélectionnées (taille, couleur, etc.)
+    const locationSelect = document.getElementById('delivery-location');
+    const methodSelect = document.getElementById('delivery-method');
+
+    let selectedDelivery = {};
+    const product = allLoadedProducts.find(p => p.IDProduit === productId);
+
+    if (product && (product.LivraisonGratuite === true || product.LivraisonGratuite === "TRUE" || product.LivraisonGratuite === "Oui")) {
+        selectedDelivery = { location: 'Spéciale', method: 'Gratuite', cost: 0 };
+    } else {
+        if (locationSelect && !locationSelect.value) {
+            showToast("Veuillez sélectionner une localité de livraison.", true);
+            return;
+        }
+        selectedDelivery = {
+            location: locationSelect ? locationSelect.value : 'Non spécifié',
+            method: methodSelect ? methodSelect.value : 'Standard'
+        };
+    }
+
     const selectedVariants = {};
     const variantButtons = document.querySelectorAll('.variant-btn.selected');
     variantButtons.forEach(btn => {
@@ -231,7 +275,7 @@ function addToCart(event, productId, name, price, imageUrl) {
         cart[existingProductIndex].quantity += quantity;
     } else {
         // Nouveau produit
-        cart.push({ productId: productId, name, price, imageUrl, quantity, variants: selectedVariants });
+        cart.push({ productId, name, price, imageUrl, quantity, variants: selectedVariants, delivery: selectedDelivery });
     }
     
     saveCart(cart);
@@ -307,7 +351,7 @@ function renderCartPage() {
     const cartHTML = cart.map((item, index) => `
         <div class="flex items-center p-4 border-b">
             <div class="w-16 h-16 bg-gray-200 rounded mr-4 overflow-hidden">
-                <img src="${item.imageUrl || CONFIG.DEFAULT_PRODUCT_IMAGE}" alt="${item.name}" class="w-full h-full object-cover">
+                <img src="${item.imageUrl || CONFIG.DEFAULT_PRODUCT_IMAGE}" alt="${item.name}" class="w-full h-full object-cover" loading="lazy">
             </div>
             <div class="flex-grow">
                 <h4 class="font-semibold">${item.name}</h4>
@@ -332,9 +376,24 @@ function renderCartPage() {
  */
 function updateCartSummary() {
     const cart = getCart() || [];
+    if (!document.getElementById('summary-subtotal')) return;
+
     const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     
-    const shippingCost = subtotal > 30000 ? 0 : 5000; // Livraison gratuite si > 30000 F CFA
+    // NOUVEAU: Calcul dynamique des frais de livraison
+    const shippingCost = cart.reduce((sum, item) => {
+        const location = item.delivery.location;
+        // Si la livraison est gratuite pour cet article, on n'ajoute rien au coût.
+        if (item.delivery.cost === 0) {
+            return sum;
+        }
+
+        const method = item.delivery.method;
+        const region = Object.keys(DELIVERY_OPTIONS).find(r => DELIVERY_OPTIONS[r][location]);
+        const cost = region ? (DELIVERY_OPTIONS[region][location][method] || DELIVERY_OPTIONS[region][location]['Standard'] || 0) : 0;
+        return sum + cost;
+    }, 0);
+
     const total = subtotal + shippingCost;
 
     document.getElementById('summary-subtotal').textContent = `${subtotal.toLocaleString('fr-FR')} F CFA`;
@@ -612,6 +671,21 @@ function loadProductPage(catalog) {
         // Enlever les classes de chargement
         nameEl.classList.remove('h-12', 'bg-gray-200', 'animate-pulse');
         
+        const deliverySection = document.getElementById('delivery-options-section');
+        if (product.LivraisonGratuite === true || product.LivraisonGratuite === "TRUE" || product.LivraisonGratuite === "Oui") {
+            deliverySection.innerHTML = `
+                <h3 class="text-xl font-bold text-gray-800 mb-2">Options de Livraison</h3>
+                <div class="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 rounded-md">
+                    <p class="font-bold">🎉 Livraison Gratuite !</p>
+                    <p>Ce produit bénéficie de la livraison gratuite partout au Sénégal.</p>
+                </div>
+            `;
+        } else {
+            // NOUVEAU: Remplir les sélecteurs de livraison si elle n'est pas gratuite
+            populateDeliverySelectors();
+            updateDeliveryCost();
+        }
+
         // NOUVEAU: Conteneur pour les boutons d'action
         const actionButtonsContainer = document.getElementById('action-buttons-container');
         const contactSellerButton = document.getElementById('contact-seller-button');
@@ -706,6 +780,57 @@ function loadProductPage(catalog) {
         const mainContent = document.querySelector('main');
         if(mainContent) mainContent.innerHTML = `<p class="text-center text-red-500">Impossible de charger les informations du produit. Veuillez réessayer.</p>`;
     }
+}
+
+/**
+ * NOUVEAU: Remplit les sélecteurs de livraison sur la page produit.
+ */
+function populateDeliverySelectors() {
+    const locationSelect = document.getElementById('delivery-location');
+    const methodSelect = document.getElementById('delivery-method');
+
+    if (!locationSelect || !methodSelect) return;
+
+    let locationHTML = '<option value="">-- Choisir une localité --</option>';
+    for (const region in DELIVERY_OPTIONS) {
+        locationHTML += `<optgroup label="${region}">`;
+        for (const city in DELIVERY_OPTIONS[region]) {
+            locationHTML += `<option value="${city}">${city}</option>`;
+        }
+        locationHTML += `</optgroup>`;
+    }
+    locationSelect.innerHTML = locationHTML;
+
+    // Au début, on ne remplit les méthodes que si une localité est choisie
+    methodSelect.innerHTML = '<option value="">-- D\'abord choisir une localité --</option>';
+}
+
+/**
+ * NOUVEAU: Met à jour les options de méthode de livraison et le coût estimé.
+ */
+function updateDeliveryCost() {
+    const locationSelect = document.getElementById('delivery-location');
+    const methodSelect = document.getElementById('delivery-method');
+    const costEstimateEl = document.getElementById('delivery-cost-estimate');
+
+    if (!locationSelect || !methodSelect || !costEstimateEl) return;
+
+    const selectedLocation = locationSelect.value;
+    if (!selectedLocation) {
+        methodSelect.innerHTML = '<option value="">-- D\'abord choisir une localité --</option>';
+        costEstimateEl.textContent = 'Veuillez sélectionner une option';
+        return;
+    }
+
+    const region = Object.keys(DELIVERY_OPTIONS).find(r => DELIVERY_OPTIONS[r][selectedLocation]);
+    const methods = DELIVERY_OPTIONS[region][selectedLocation];
+
+    methodSelect.innerHTML = Object.keys(methods).map(method => `<option value="${method}">${method}</option>`).join('');
+    
+    const selectedMethod = methodSelect.value;
+    const cost = methods[selectedMethod];
+
+    costEstimateEl.textContent = `${cost.toLocaleString('fr-FR')} F CFA`;
 }
 
 /**

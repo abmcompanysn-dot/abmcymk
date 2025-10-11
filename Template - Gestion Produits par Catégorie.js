@@ -76,7 +76,7 @@ const allUniqueAttributes = [...new Set(Object.values(CATEGORY_CONFIG).flat())];
 CATEGORY_CONFIG["Universel (Tous les attributs)"] = allUniqueAttributes;
 
 
-const BASE_HEADERS = ["IDProduit", "Nom", "Marque", "PrixActuel", "PrixAncien", "Réduction%", "Stock", "ImageURL", "Description", "Tags", "Actif", "Catégorie", "NoteMoyenne", "NombreAvis", "Galerie"];
+const BASE_HEADERS = ["IDProduit", "Nom", "Marque", "PrixActuel", "PrixAncien", "Réduction%", "Stock", "ImageURL", "Description", "Tags", "Actif", "Catégorie", "NoteMoyenne", "NombreAvis", "Galerie", "LivraisonGratuite"];
 
 /**
  * NOUVEAU: Récupère les en-têtes pour une catégorie spécifique.
@@ -107,6 +107,7 @@ const PERSONAL_DATA = {
             noteMoyenne: (Math.random() * 1.0 + 4.0).toFixed(1), nombreAvis: Math.floor(Math.random() * 100),
             imageURL: this.logoUrl, galerie: this.gallery,
             description: `Description détaillée pour le produit ${i} de la catégorie ${categoryName}.`,
+            livraisonGratuite: i % 4 === 0, // Un produit sur 4 aura la livraison gratuite pour le test
             tags: `${categoryName.toLowerCase()},nouveau,populaire`
         };
 
@@ -280,6 +281,7 @@ function addProduct(productData, origin) { // La fonction addProduct existe déj
         case "NoteMoyenne": return productData.noteMoyenne || 0;
         case "NombreAvis": return productData.nombreAvis || 0;
         case "Galerie": return productData.galerie || '';
+        case "LivraisonGratuite": return productData.livraisonGratuite || false;
         default: return productData[header] || ''; // Pour les attributs spécifiques
       }
   });
