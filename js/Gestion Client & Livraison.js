@@ -78,11 +78,12 @@ function doOptions(e) {
 function doPost(e) {
     const origin = e.headers.Origin || e.headers.origin;
     try {
-        // Pour une requête de pré-vérification (preflight), e.postData est vide.
-        // On renvoie simplement une réponse vide avec les bons en-têtes.
-        if (!e.postData || !e.postData.contents) {
-            return createJsonResponse({ success: true, message: "Preflight OK" }, origin);
-        }
+        // Si la requête n'a pas de contenu (cas d'une pré-vérification OPTIONS redirigée vers doPost),
+        // on renvoie une réponse vide avec les en-têtes CORS pour valider la pré-vérification.
+        if (!e || !e.postData || !e.postData.contents) {
+          return createJsonResponse({}, origin);
+      }
+
         const request = JSON.parse(e.postData.contents);
         const action = request.action;
         const data = request.data;

@@ -1858,17 +1858,3 @@ async function loadRecentOrdersForAccount(clientId) {
         ordersSection.innerHTML = '<h4 class="text-lg font-semibold mb-4">Mes commandes récentes</h4><p class="text-red-500">Une erreur est survenue lors du chargement de vos commandes.</p>';
     }
 }
-async function loadRecentOrdersForAccount(clientId) {
-    const ordersSection = document.getElementById('recent-orders-section');
-    if (!ordersSection) return;
-
-    ordersSection.innerHTML = '<p>Chargement des commandes récentes...</p>';
-
-    // Note: Cette action n'existe pas encore côté backend, il faudra l'ajouter.
-    // Pour l'instant, on simule ou on laisse un message.
-    // Dans un futur développement, on appellerait une action comme 'getOrdersByClientId'.
-    ordersSection.innerHTML = `
-        <h4 class="text-lg font-semibold mb-4">Mes commandes récentes</h4>
-        <p class="text-gray-500">Cette fonctionnalité est en cours de développement.</p>
-    `;
-}
