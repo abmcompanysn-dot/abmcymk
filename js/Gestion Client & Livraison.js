@@ -44,53 +44,17 @@ function doGet(e) {
     // Réponse par défaut pour un simple test de l'API
     return createJsonResponse({
         success: true,
-        message: 'API Client ABMCY Market - Active'
+        message: 'Requête POST reçue',
+        data: e.parameter // ou JSON.parse(e.postData.contents)
     });
-}
+    return ContentService.createTextOutput(JSON.stringify(response))
 
-/**
- * Gère les requêtes HTTP POST.
- * Point d'entrée principal pour les actions (connexion, inscription, etc.).
- * @param {object} e - L'objet événement de la requête.
- * @returns {GoogleAppsScript.Content.TextOutput} La réponse JSON.
- */
-function doPost(e) {
-    const origin = e.headers.Origin || e.headers.origin;
-
-    try {
-        // La pré-vérification CORS est gérée par doOptions, on attend donc toujours un contenu.
-        if (!e || !e.postData || !e.postData.contents) {
-            throw new Error("Requête POST invalide ou vide.");
-        }
-
-        const request = JSON.parse(e.postData.contents);
-        const { action, data } = request;
-
-        if (!action) {
-            return createJsonResponse({ success: false, error: 'Action non spécifiée.' }, origin);
-        }
-
-        // Routeur pour les actions POST
-        switch (action) {
-            case 'creerCompteClient':
-                return creerCompteClient(data, origin);
-            case 'connecterClient':
-                return connecterClient(data, origin);
-            case 'enregistrerCommande':
-                return enregistrerCommande(data, origin);
-            case 'getOrdersByClientId':
-                return getOrdersByClientId(data, origin);
-            case 'logClientEvent':
-                return logClientEvent(data, origin);
-            default:
-                logAction('doPost', { error: 'Action non reconnue', action: action });
-                return createJsonResponse({ success: false, error: `Action non reconnue: ${action}` }, origin);
-        }
-
-    } catch (error) {
-        logError(e.postData ? e.postData.contents : 'No postData', error);
-        return createJsonResponse({ success: false, error: `Erreur serveur: ${error.message}` }, origin);
-    }
+    .setMimeType(ContentService.MimeType.JSON)
+    .setHeaders({
+      'Access-Control-Allow-Origin': 'https://abmcymarket.vercel.app',
+      'Access-Control-Allow-Methods': 'POST',
+      'Access-Control-Allow-Headers': 'Content-Type'
+    });
 }
 
 /**
@@ -305,7 +269,6 @@ function getAppLogs(params) {
     }
 }
 
-
 // --- FONCTIONS UTILITAIRES ---
 
 /**
@@ -321,11 +284,7 @@ function createJsonResponse(data, origin) {
     // Pour les requêtes POST, on valide l'origine. Pour les GET, on peut être plus permissif.
     if (origin && ALLOWED_ORIGINS.includes(origin)) {
         response.addHeader('Access-Control-Allow-Origin', origin);
-    } else {
-        // Pour les requêtes GET (comme getAppLogs) où l'origine n'est pas passée de la même manière.
-        // On autorise largement car la sécurité est gérée par le fait que l'action est publique.
-        response.addHeader('Access-Control-Allow-Origin', '*');
-    }
+    } 
     return response;
 }
 
