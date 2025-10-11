@@ -678,11 +678,11 @@ function loadProductPage(catalog) {
         // Enlever les classes de chargement
         nameEl.classList.remove('h-12', 'bg-gray-200', 'animate-pulse');
         
-        const deliverySection = document.getElementById('delivery-options-section');
+        const deliveryContent = document.getElementById('delivery-content');
         if (product.LivraisonGratuite === true || product.LivraisonGratuite === "TRUE" || product.LivraisonGratuite === "Oui") {
-            deliverySection.innerHTML = `
-                <h3 class="text-xl font-bold text-gray-800 mb-2">Options de Livraison</h3>
+            deliveryContent.innerHTML = `
                 <div class="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 rounded-md">
+                    <h3 class="text-xl font-bold text-gray-800 mb-2">🎉 Livraison Gratuite !</h3>
                     <p class="font-bold">🎉 Livraison Gratuite !</p>
                     <p>Ce produit bénéficie de la livraison gratuite partout au Sénégal.</p>
                 </div>
