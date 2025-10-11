@@ -1,6 +1,6 @@
 const CONFIG = {
     // URL de l'API publique (Script 2: Gestion Client & Livraison)
-    CLIENT_API_URL: "https://script.google.com/macros/s/AKfycbyngIFID0ufNwsL9T91RGPl1QM_MlNLG2ZPECu_iYWDlGT4TY_PgZVe14w8V0ZU8K38/exec",
+    CLIENT_API_URL: "https://script.google.com/macros/s/AKfycbwAadXqAEm_6opHQF53xBPpDThWOOsKkJTmuxlI-bIbBAWclq1QRGUgW8BHQSyJmffd/exec",
 
     // URL du script central. On ajoute l'action dans la requête fetch.
     CENTRAL_API_URL: "https://script.google.com/macros/s/AKfycbwYJ20BjaSTD1MjOAJbGXbmPKZGdbrVgp4j6w0eg8dVEMmPfpxkoTyvT69rlbe7Fx8R/exec",
