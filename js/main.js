@@ -1725,7 +1725,12 @@ async function handleAuthForm(event, type) {
             throw new Error(result.error || 'Une erreur est survenue.');
         }
     } catch (error) {
-        statusDiv.textContent = `Erreur: ${error.message}`;
+        let errorMessage = `Erreur: ${error.message}`;
+        // NOUVEAU: Si l'erreur vient de la connexion, on suggère de s'inscrire.
+        if (type === 'login') {
+            errorMessage += ` <br><a href="#" onclick="switchTab('register'); return false;" class="text-blue-600 hover:underline">Pas de compte ? Créez-en un.</a>`;
+        }
+        statusDiv.innerHTML = errorMessage; // Utiliser innerHTML pour que le lien soit cliquable
         statusDiv.classList.add('text-red-600');
     } finally {
         form.querySelector('button[type="submit"]').disabled = false;

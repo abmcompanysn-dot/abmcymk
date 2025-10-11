@@ -291,13 +291,12 @@ function createJsonResponse(data, origin) {
     const output = ContentService.createTextOutput(JSON.stringify(data));
     output.setMimeType(ContentService.MimeType.JSON);
 
-    // 🔐 Gestion CORS : Autoriser l'origine si elle est dans la liste, sinon ne rien retourner pour la sécurité.
-    if (origin && ALLOWED_ORIGINS.includes(origin)) {
-        output.addHeader('Access-Control-Allow-Origin', origin);
-    }
+    output.addHeader('Access-Control-Allow-Origin', '*');
 
     return output;
-}
+    }
+
+
 
 // La fonction enregistrerPaiement et autres fonctions de gestion (livraison, SAV)
 // restent conceptuellement les mêmes, mais devraient aussi utiliser le nouveau système de logging.
