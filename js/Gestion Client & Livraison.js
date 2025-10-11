@@ -288,7 +288,8 @@ function createJsonResponse(data, origin) {
   const output = ContentService.createTextOutput(JSON.stringify(data));
   output.setMimeType(ContentService.MimeType.JSON);
   // Autoriser toutes les origines à recevoir la réponse
-  
+  // C'est essentiel pour que le navigateur ne bloque pas la réponse de l'API.
+  output.addHeader('Access-Control-Allow-Origin', '*');
   return output;
 }
 
@@ -372,10 +373,17 @@ function getRecentOrders(data, ctx) {
         });
         return obj;
     });
-    return createJsonResponse({ success: true, data: orders });
+
+    // CORRECTION: Cette fonction est appelée par une interface (google.script.run)
+    // qui attend un objet JavaScript simple, et non un objet TextOutput.
+    // On retourne donc directement l'objet. La fonction createJsonResponse est
+    // réservée aux vraies réponses d'API (doGet/doPost).
+    return { success: true, data: orders };
+
   } catch (error) {
     logError(JSON.stringify({action: 'getRecentOrders', data}), error);
-    return createJsonResponse({ success: false, error: error.message });
+    // CORRECTION: Retourner un objet simple en cas d'erreur.
+    return { success: false, error: error.message };
   }
 }
 
@@ -406,9 +414,12 @@ function getOrdersByClientId(data, ctx) {
         return obj;
       }).reverse(); // Afficher les plus récentes en premier
 
-    return createJsonResponse({ success: true, data: clientOrders });
+    // CORRECTION: Comme pour getRecentOrders, cette fonction est appelée par une interface
+    // et doit retourner un objet JavaScript simple.
+    return { success: true, data: clientOrders };
   } catch (error) {
-    return createJsonResponse({ success: false, error: error.message });
+    // CORRECTION: Retourner un objet simple en cas d'erreur.
+    return { success: false, error: error.message };
   }
 }
 
