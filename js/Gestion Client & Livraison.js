@@ -283,6 +283,10 @@ function getFavorites(clientId) {
 
 /**
  * Crée une réponse standard au format JSON pour l'API.
+ * Crée une réponse JSON standard pour l'API, gérant CORS.
+ * @param {object} data Les données à retourner en JSON.
+ * @param {string} [origin] L'origine de la requête, si disponible.
+ * @returns {GoogleAppsScript.Content.TextOutput} Un objet TextOutput avec le contenu JSON et les en-têtes CORS.
  */
 function createJsonResponse(data, origin) {
   // CORRECTION DÉFINITIVE : On crée l'objet, on définit son type, et on retourne.
