@@ -68,11 +68,13 @@ function doGet(e) {
  * NOUVEAU: Gère les requêtes OPTIONS pour le pré-vol CORS. Essentiel pour les requêtes POST.
  */
 function doOptions(e) {
+  const origin = e.headers.Origin || e.headers.origin;
   // Répond simplement avec les en-têtes nécessaires pour la pré-vérification CORS.
   // Le navigateur validera que la méthode POST et le header Content-Type sont autorisés.
   return ContentService.createTextOutput(null)
     .setMimeType(ContentService.MimeType.TEXT)
-    .addHeader('Access-Control-Allow-Origin', 'https://abmcymarket.vercel.app') // Autorise toutes les origines pour la pré-vérification
+    // CORRECTION: Utiliser la liste des origines autorisées pour être cohérent et sécurisé.
+    .addHeader('Access-Control-Allow-Origin', ALLOWED_ORIGINS.includes(origin) ? origin : null)
     .addHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
     .addHeader('Access-Control-Allow-Headers', 'Content-Type');
 }
@@ -290,9 +292,11 @@ function getFavorites(clientId) {
 function createJsonResponse(data, origin) {
     const output = ContentService.createTextOutput(JSON.stringify(data));
     output.setMimeType(ContentService.MimeType.JSON);
-
-    output.addHeader('Access-Control-Allow-Origin', '*');
-
+    
+    // CORRECTION: Utiliser la liste des origines autorisées pour la réponse finale.
+    if (origin && ALLOWED_ORIGINS.includes(origin)) {
+        output.addHeader('Access-Control-Allow-Origin', origin);
+    }
     return output;
     }
 
