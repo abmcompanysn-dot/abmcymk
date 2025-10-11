@@ -65,6 +65,8 @@
         .promo-carousel {
             scroll-snap-type: x mandatory;
             scroll-behavior: smooth;
+            -ms-overflow-style: none;  /* IE and Edge */
+            scrollbar-width: none;  /* Firefox */
         }
         .promo-carousel-item {
             scroll-snap-align: center;
@@ -81,6 +83,9 @@
         }
         .carousel-dot.active {
             background-color: var(--gold-color);
+        }
+        .promo-carousel::-webkit-scrollbar {
+            display: none; /* Chrome, Safari and Opera */
         }
         /* NOUVEAU: Style pour l'affichage décalé des produits sur mobile */
     </style>
