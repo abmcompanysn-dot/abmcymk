@@ -13,6 +13,7 @@ const CONFIG = {
 let categoryDirectory = []; // Stocke la liste des catégories et leurs URLs
 let allLoadedProducts = []; // Stocke tous les produits déjà chargés
 let renderedCategoriesCount = 0;
+let userFavorites = []; // NOUVEAU: Stocke les favoris de l'utilisateur connecté
 const CATEGORIES_PER_LOAD = 3;
 
 // Attendre que le contenu de la page soit entièrement chargé
@@ -38,6 +39,9 @@ async function initializeApp() {
     if (document.getElementById('panier-page')) {
         renderCartPage(); // Le panier lit depuis le localStorage, pas besoin d'attendre l'API.
     }
+    if (document.querySelector('main h1')?.textContent.includes("Notifications & Favoris")) {
+        initializeNotificationPage();
+    }
     // NOUVEAU: Initialiser immédiatement le squelette de la page catégorie si on y est.
     if (window.location.pathname.endsWith('categorie.html')) {
         initializeCategoryPage();
@@ -49,6 +53,9 @@ async function initializeApp() {
 
     // --- ÉTAPE 2: Lancer le chargement des données en arrière-plan ---
     // On ne bloque PAS le reste de l'exécution de la page.
+    // NOUVEAU: Charger les favoris si l'utilisateur est connecté
+    const user = JSON.parse(localStorage.getItem('abmcyUser'));
+    if (user) loadUserFavorites(user.IDClient);
     const catalogPromise = getCatalogAndRefreshInBackground();
 
     // --- ÉTAPE 3: Remplir les sections qui dépendent des données une fois qu'elles sont prêtes ---
