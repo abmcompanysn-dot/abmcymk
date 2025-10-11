@@ -68,22 +68,20 @@ function doGet(e) {
  * NOUVEAU: Gère les requêtes OPTIONS pour le pré-vol CORS. Essentiel pour les requêtes POST.
  */
 function doOptions(e) {
-  const origin = e.headers.Origin || e.headers.origin;
-  return ContentService.createTextOutput()
-    .addHeader('Access-Control-Allow-Origin', ALLOWED_ORIGINS.includes(origin) ? origin : null)
-    .addHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+  // Répond simplement avec les en-têtes nécessaires pour la pré-vérification CORS.
+  // Le navigateur validera que la méthode POST et le header Content-Type sont autorisés.
+  return ContentService.createTextOutput(null)
+    .setMimeType(ContentService.MimeType.TEXT)
+    .addHeader('Access-Control-Allow-Origin', 'https://abmcymarket.vercel.app') // Autorise toutes les origines pour la pré-vérification
+    .addHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
     .addHeader('Access-Control-Allow-Headers', 'Content-Type');
 }
 
 function doPost(e) {
     const origin = e.headers.Origin || e.headers.origin;
     try {
-        // Si la requête n'a pas de contenu (cas d'une pré-vérification OPTIONS redirigée vers doPost),
-        // on renvoie une réponse vide avec les en-têtes CORS pour valider la pré-vérification.
-        if (!e || !e.postData || !e.postData.contents) {
-          return createJsonResponse({}, origin);
-      }
-
+        // On s'attend à ce que la requête POST ait toujours un contenu.
+        // La pré-vérification est gérée par doOptions.
         const request = JSON.parse(e.postData.contents);
         const action = request.action;
         const data = request.data;
