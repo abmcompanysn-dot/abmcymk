@@ -1698,8 +1698,7 @@ async function handleAuthForm(event, type) {
     try {
         form.querySelector('button[type="submit"]').disabled = true;
         const response = await fetch(CONFIG.CLIENT_API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            method: 'POST', // Le mode 'no-cors' n'est pas nécessaire et cause des problèmes.
             body: JSON.stringify(payload)
         });
 
