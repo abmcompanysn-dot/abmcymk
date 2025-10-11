@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Journal des Événements - ABMCY MARKET</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .log-entry { transition: background-color 0.3s; }
+        .log-entry:hover { background-color: #f9fafb; }
+    </style>
+</head>
+<body class="bg-gray-100 p-4 md:p-8">
+
+    <div class="max-w-6xl mx-auto bg-white rounded-lg shadow-lg p-6">
+        <div class="flex justify-between items-center border-b pb-4 mb-4">
+            <h1 class="text-2xl font-bold text-gray-800">Journal des Événements</h1>
+            <button onclick="clearLogs()" class="px-4 py-2 bg-red-600 text-white text-sm font-semibold rounded-lg hover:bg-red-700">
+                Effacer les journaux
+            </button>
+        </div>
+
+        <div id="logs-container" class="space-y-4">
+            <!-- Les journaux seront injectés ici -->
+        </div>
+    </div>
+
+    <script>
+        const LOG_KEY = 'abmcyAppLogs';
+
+        function getErrorExplanation(log) {
+            if (log.type === 'FETCH_ERROR' && log.error.includes('Failed to fetch')) {
+                return {
+                    title: "Erreur de réseau ou de CORS",
+                    explanation: `Le navigateur a bloqué la requête vers <strong>${log.url}</strong>. Cela se produit généralement pour deux raisons :<br>
+                                 1. <strong>Problème de réseau :</strong> L'appareil n'a pas de connexion Internet ou le serveur est inaccessible.<br>
+                                 2. <strong>Erreur CORS (Cross-Origin Resource Sharing) :</strong> Le serveur (votre script Google) n'a pas donné la permission à votre site (Vercel) de lui parler. C'est le cas le plus fréquent.`,
+                    solution: `Vérifiez les points suivants dans votre script Google Apps :<br>
+                               <ul class="list-disc list-inside mt-2">
+                                 <li>La fonction <code>doOptions(e)</code> est-elle présente et correcte ? Elle doit renvoyer les en-têtes <code>Access-Control-Allow-Origin</code>, <code>Access-Control-Allow-Methods</code>, et <code>Access-Control-Allow-Headers</code>.</li>
+                                 <li>L'URL de votre site (<strong>https://abmcymarket.vercel.app</strong>) est-elle bien dans la liste <code>ALLOWED_ORIGINS</code> ?</li>
+                                 <li>Avez-vous <strong>redéployé</strong> votre script Google Apps après avoir fait des modifications ? (Déployer > Gérer les déploiements > Modifier > Nouvelle version).</li>
+                               </ul>`
+                };
+            }
+            if (log.type === 'API_ERROR') {
+                 return {
+                    title: "Erreur renvoyée par l'API",
+                    explanation: `Le serveur a bien reçu la requête, mais a rencontré une erreur en la traitant. Le message d'erreur du serveur est : <strong>"${log.error}"</strong>.`,
+                    solution: `Regardez le code de l'action <code>${log.payload.action}</code> dans votre script Google Apps pour comprendre pourquoi cette erreur se produit. Vérifiez les journaux d'exécution dans l'éditeur de script Google pour plus de détails.`
+                };
+            }
+            return null;
+        }
+
+        function renderLogs() {
+            const container = document.getElementById('logs-container');
+            const logs = JSON.parse(localStorage.getItem(LOG_KEY)) || [];
+
+            if (logs.length === 0) {
+                container.innerHTML = '<p class="text-center text-gray-500 py-8">Aucun événement enregistré pour le moment.</p>';
+                return;
+            }
+
+            container.innerHTML = logs.reverse().map(log => {
+                const explanation = getErrorExplanation(log);
+                const isError = log.type.includes('ERROR');
+                const bgColor = isError ? 'bg-red-50' : 'bg-green-50';
+                const borderColor = isError ? 'border-red-500' : 'border-green-500';
+
+                return `
+                    <div class="log-entry border-l-4 ${borderColor} p-4 rounded-r-lg ${bgColor}">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <span class="font-bold text-sm ${isError ? 'text-red-800' : 'text-green-800'}">${log.type}</span>
+                                <p class="text-xs text-gray-500">${new Date(log.timestamp).toLocaleString('fr-FR')}</p>
+                            </div>
+                        </div>
+                        <div class="mt-2 text-sm text-gray-700">
+                            ${log.message ? `<p><strong>Message:</strong> ${log.message}</p>` : ''}
+                            ${log.url ? `<p><strong>URL:</strong> ${log.url}</p>` : ''}
+                            ${log.error ? `<p><strong>Détail Erreur:</strong> <code class="text-xs bg-gray-200 p-1 rounded">${log.error}</code></p>` : ''}
+                        </div>
+                        ${explanation ? `
+                            <div class="mt-4 border-t pt-3">
+                                <h4 class="font-semibold text-gray-900">${explanation.title}</h4>
+                                <p class="text-sm mt-1">${explanation.explanation}</p>
+                                <h5 class="font-semibold text-gray-900 mt-3 text-sm">💡 Comment corriger :</h5>
+                                <div class="text-sm mt-1 p-3 bg-gray-100 rounded-md">${explanation.solution}</div>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function clearLogs() {
+            if (confirm("Êtes-vous sûr de vouloir effacer tous les journaux ?")) {
+                localStorage.removeItem(LOG_KEY);
+                renderLogs();
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', renderLogs);
+    </script>
+
+</body>
+</html>
