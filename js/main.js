@@ -1510,3 +1510,160 @@ async function loadRecentOrdersForAccount(clientId) {
         <p class="text-gray-500">Cette fonctionnalité est en cours de développement.</p>
     `;
 }
+
+/**
+ * NOUVEAU: Gère l'ajout ou la suppression d'un produit des favoris.
+ * @param {Event} event L'événement du clic.
+ * @param {string} productId L'ID du produit à ajouter/supprimer.
+ */
+function toggleFavorite(event, productId) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const user = JSON.parse(localStorage.getItem('abmcyUser'));
+    if (!user) {
+        showToast("Veuillez vous connecter pour gérer vos favoris.", true);
+        setTimeout(() => { window.location.href = 'authentification.html'; }, 1500);
+        return;
+    }
+
+    const heartButton = event.currentTarget;
+    const heartIcon = heartButton.querySelector('svg');
+    const productIndex = userFavorites.indexOf(productId);
+
+    if (productIndex > -1) {
+        // Le produit est déjà en favori, on le retire
+        userFavorites.splice(productIndex, 1);
+        heartIcon.classList.remove('text-red-500', 'fill-current');
+        heartIcon.classList.add('text-gray-600');
+        showToast("Produit retiré des favoris.");
+    } else {
+        // Le produit n'est pas en favori, on l'ajoute
+        userFavorites.push(productId);
+        heartIcon.classList.add('text-red-500', 'fill-current');
+        heartIcon.classList.remove('text-gray-600');
+        showToast("Produit ajouté aux favoris !");
+    }
+
+    // Mettre à jour l'affichage de tous les cœurs pour ce produit
+    updateAllFavoriteIcons(productId);
+
+    // Sauvegarder les changements dans le backend
+    updateFavoriteInBackend(user.IDClient, userFavorites);
+}
+
+/**
+ * NOUVEAU: Met à jour l'état de tous les boutons favoris pour un produit donné.
+ * @param {string} productId L'ID du produit.
+ */
+function updateAllFavoriteIcons(productId) {
+    const isFavorite = userFavorites.includes(productId);
+    const allHeartButtons = document.querySelectorAll(`button[data-product-id="${productId}"]`);
+    allHeartButtons.forEach(button => {
+        const icon = button.querySelector('svg');
+        if (isFavorite) {
+            icon.classList.add('text-red-500', 'fill-current');
+            icon.classList.remove('text-gray-600');
+        } else {
+            icon.classList.remove('text-red-500', 'fill-current');
+            icon.classList.add('text-gray-600');
+        }
+    });
+}
+
+/**
+ * NOUVEAU: Envoie la liste des favoris mise à jour au backend.
+ * @param {string} clientId L'ID du client.
+ * @param {string[]} favoritesArray Le tableau des ID de produits favoris.
+ */
+async function updateFavoriteInBackend(clientId, favoritesArray) {
+    try {
+        await fetch(CONFIG.CLIENT_API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'updateFavorites',
+                data: {
+                    clientId: clientId,
+                    favorites: favoritesArray.join(',') // Envoyer comme une chaîne de caractères
+                }
+            })
+        });
+        // Pas besoin d'attendre la réponse pour une meilleure expérience utilisateur
+    } catch (error) {
+        console.error("Erreur lors de la mise à jour des favoris:", error);
+        showToast("Impossible de sauvegarder les favoris.", true);
+    }
+}
+
+/**
+ * NOUVEAU: Charge les favoris de l'utilisateur depuis le backend.
+ * @param {string} clientId L'ID du client.
+ */
+async function loadUserFavorites(clientId) {
+    try {
+        const response = await fetch(`${CONFIG.CLIENT_API_URL}?action=getFavorites&clientId=${clientId}`);
+        const result = await response.json();
+        if (result.success && result.favorites) {
+            userFavorites = result.favorites.split(',').filter(id => id); // Convertir la chaîne en tableau
+        }
+    } catch (error) {
+        console.error("Erreur lors du chargement des favoris:", error);
+    }
+}
+
+/**
+ * NOUVEAU: Initialise la page de notifications et favoris.
+ */
+async function initializeNotificationPage() {
+    const user = JSON.parse(localStorage.getItem('abmcyUser'));
+    if (!user) {
+        window.location.href = 'authentification.html';
+        return;
+    }
+
+    // Charger les favoris si ce n'est pas déjà fait
+    if (userFavorites.length === 0) {
+        await loadUserFavorites(user.IDClient);
+    }
+
+    // Charger le catalogue pour avoir les détails des produits
+    const catalog = await getCatalogAndRefreshInBackground();
+    const allProducts = catalog.data.products || [];
+
+    const favoritesListContainer = document.getElementById('favorites-list');
+    const favoriteProducts = allProducts.filter(p => userFavorites.includes(p.IDProduit));
+
+    if (favoriteProducts.length > 0) {
+        favoritesListContainer.innerHTML = favoriteProducts.map(p => renderProductCard(p)).join('');
+    } else {
+        favoritesListContainer.innerHTML = '<p class="col-span-full text-center text-gray-500 py-8">Vous n\'avez aucun produit en favori pour le moment.</p>';
+    }
+
+    // Logique pour les notifications (à développer)
+    const notificationsList = document.getElementById('notifications-list');
+    notificationsList.innerHTML = '<p class="text-center text-gray-500 py-8">Aucune nouvelle notification.</p>';
+}
+
+/**
+ * NOUVEAU: Gère le changement d'onglet sur la page de notifications.
+ * @param {string} tabName 'notifications' ou 'favorites'.
+ */
+function switchNotificationTab(tabName) {
+    const notificationsTab = document.getElementById('tab-btn-notifications');
+    const favoritesTab = document.getElementById('tab-btn-favorites');
+    const notificationsContent = document.getElementById('tab-content-notifications');
+    const favoritesContent = document.getElementById('tab-content-favorites');
+
+    if (tabName === 'notifications') {
+        notificationsTab.classList.add('active');
+        favoritesTab.classList.remove('active');
+        notificationsContent.classList.remove('hidden');
+        favoritesContent.classList.add('hidden');
+    } else {
+        notificationsTab.classList.remove('active');
+        favoritesTab.classList.add('active');
+        notificationsContent.classList.add('hidden');
+        favoritesContent.classList.remove('hidden');
+    }
+}

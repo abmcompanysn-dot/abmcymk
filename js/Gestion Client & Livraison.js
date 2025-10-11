@@ -56,6 +56,11 @@ function showClientInterface() {
 
 function doGet(e) {
   // doGet peut être utilisé pour des tests de connectivité simples.
+  const action = e.parameter.action;
+  if (action === 'getFavorites') {
+    const clientId = e.parameter.clientId;
+    return getFavorites(clientId);
+  }
   return createJsonResponse({ success: true, message: 'API Client ABMCY Market - Active' });
 }
 
@@ -87,6 +92,8 @@ function doPost(e) {
         return connecterClient(data, ctx);
       case 'getRecentOrders': // Pour le tableau de bord interne
         return getRecentOrders(data, ctx);
+      case 'updateFavorites': // NOUVELLE ACTION
+        return updateFavorites(data, ctx);
       default:
         logAction('doPost', { error: 'Action non reconnue', action: action });
         return createJsonResponse({ success: false, error: `Action non reconnue: ${action}` });
@@ -131,8 +138,8 @@ function creerCompteClient(data, ctx) {
     const salt = Utilities.getUuid();
     const passwordHash = hashPassword(data.motDePasse, salt);
     const idClient = "CUST-" + Utilities.getUuid().substring(0, 8).toUpperCase();
-
-    sheet.appendRow([idClient, data.nom, data.email, passwordHash, salt, data.adresse, data.telephone, new Date(), "Actif", "Client"]);
+    // NOUVEAU: Ajout d'une colonne pour les favoris
+    sheet.appendRow([idClient, data.nom, data.email, passwordHash, salt, data.adresse, data.telephone, new Date(), "Actif", "Client", ""]);
     logAction('creerCompteClient', { email: data.email, id: idClient });
     return createJsonResponse({ success: true, id: idClient });
 
@@ -213,6 +220,53 @@ function enregistrerCommande(data, ctx) {
   
   logAction('enregistrerCommande', { id: idCommande, client: data.idClient });
   return createJsonResponse({ success: true, id: idCommande });
+}
+
+/**
+ * NOUVEAU: Met à jour la liste des favoris d'un utilisateur.
+ */
+function updateFavorites(data, ctx) {
+  try {
+    const ss = SpreadsheetApp.openById(CLIENT_SPREADSHEET_ID);
+    const sheet = ss.getSheetByName(SHEET_NAMES.USERS);
+    const usersData = ctx.users || sheet.getDataRange().getValues();
+    const headers = usersData[0];
+    const idIndex = headers.indexOf("IDClient");
+    const favoritesIndex = headers.indexOf("Favoris");
+
+    if (favoritesIndex === -1) {
+      throw new Error("La colonne 'Favoris' est manquante dans la feuille Utilisateurs.");
+    }
+
+    const userRowIndex = usersData.findIndex(row => row[idIndex] === data.clientId);
+
+    if (userRowIndex === -1) {
+      throw new Error("Utilisateur non trouvé.");
+    }
+
+    // Mettre à jour la cellule des favoris pour cet utilisateur
+    sheet.getRange(userRowIndex + 1, favoritesIndex + 1).setValue(data.favorites);
+    
+    return createJsonResponse({ success: true });
+  } catch (error) {
+    logError(JSON.stringify({action: 'updateFavorites', data}), error);
+    return createJsonResponse({ success: false, error: error.message });
+  }
+}
+
+/**
+ * NOUVEAU: Récupère la liste des favoris d'un utilisateur.
+ */
+function getFavorites(clientId) {
+  const usersData = SpreadsheetApp.openById(CLIENT_SPREADSHEET_ID).getSheetByName(SHEET_NAMES.USERS).getDataRange().getValues();
+  const headers = usersData.shift();
+  const idIndex = headers.indexOf("IDClient");
+  const favoritesIndex = headers.indexOf("Favoris");
+
+  const userRow = usersData.find(row => row[idIndex] === clientId);
+
+  const favorites = userRow && userRow[favoritesIndex] ? userRow[favoritesIndex] : "";
+  return createJsonResponse({ success: true, favorites: favorites });
 }
 
 /**
@@ -312,7 +366,7 @@ function getRecentOrders(data, ctx) {
 // Fonction pour initialiser tous les onglets d'un coup
 function initialiserBaseDeDonnees_Client() {
   const ss = SpreadsheetApp.openById(CLIENT_SPREADSHEET_ID);
-  getOrCreateSheet(ss, SHEET_NAMES.USERS, ["IDClient", "Nom", "Email", "MotDePasseHash", "Salt", "Adresse", "Téléphone", "DateInscription", "Statut", "Rôle"]);
+  getOrCreateSheet(ss, SHEET_NAMES.USERS, ["IDClient", "Nom", "Email", "MotDePasseHash", "Salt", "Adresse", "Téléphone", "DateInscription", "Statut", "Rôle", "Favoris"]);
   getOrCreateSheet(ss, SHEET_NAMES.ORDERS, ["IDCommande", "IDClient", "Date", "Produits", "Quantités", "Total", "Statut", "MoyenPaiement", "AdresseLivraison", "Notes"]);
   getOrCreateSheet(ss, SHEET_NAMES.PAYMENTS, ["IDCommande", "Montant", "MoyenPaiement", "Statut", "Date", "TransactionID", "PreuvePaiement"]);
   getOrCreateSheet(ss, "Livraisons", ["IDCommande", "Transporteur", "NuméroSuivi", "DateEstimee", "Statut", "DateLivraison", "Commentaire"]);
@@ -352,7 +406,7 @@ function updateSystem_Client() {
   const ui = SpreadsheetApp.getUi();
 
   try {
-    const sheetConfigs = {
+    const sheetConfigs = { // NOUVEAU: Ajout de la colonne Favoris
       [SHEET_NAMES.USERS]: ["IDClient", "Nom", "Email", "MotDePasseHash", "Salt", "Adresse", "Téléphone", "DateInscription", "Statut", "Rôle"],
       [SHEET_NAMES.ORDERS]: ["IDCommande", "IDClient", "Date", "Produits", "Quantités", "Total", "Statut", "MoyenPaiement", "AdresseLivraison", "Notes"],
       [SHEET_NAMES.PAYMENTS]: ["IDCommande", "Montant", "MoyenPaiement", "Statut", "Date", "TransactionID", "PreuvePaiement"],
