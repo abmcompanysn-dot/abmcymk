@@ -68,18 +68,22 @@ function doGet(e) {
  * NOUVEAU: Gère les requêtes OPTIONS pour le pré-vol CORS. Essentiel pour les requêtes POST.
  */
 function doOptions(e) {
+  const origin = e.headers.Origin || e.headers.origin;
   return ContentService.createTextOutput()
-    .addHeader('Access-Control-Allow-Origin', '*')
+    .addHeader('Access-Control-Allow-Origin', ALLOWED_ORIGINS.includes(origin) ? origin : null)
     .addHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
     .addHeader('Access-Control-Allow-Headers', 'Content-Type');
 }
 
 function doPost(e) {
+    const origin = e.headers.Origin || e.headers.origin;
     try {
         const request = JSON.parse(e.postData.contents);
+        const action = request.action;
+        const data = request.data;
 
     if (!action) {
-      return createJsonResponse({ success: false, error: 'Action non spécifiée.' });
+      return createJsonResponse({ success: false, error: 'Action non spécifiée.' }, origin);
     }
 
     // Créer un contexte pour optimiser les lectures de feuilles
@@ -87,11 +91,11 @@ function doPost(e) {
 
     switch (action) {
       case 'enregistrerCommande':
-        return enregistrerCommande(data, ctx);
+        return enregistrerCommande(data, ctx, origin);
       case 'creerCompteClient':
-        return creerCompteClient(data, ctx);
+        return creerCompteClient(data, ctx, origin);
       case 'connecterClient':
-        return connecterClient(data, ctx);
+        return connecterClient(data, ctx, origin);
       case 'getRecentOrders': // Pour le tableau de bord interne
         return getRecentOrders(data, ctx);
       case 'updateFavorites': // NOUVELLE ACTION
@@ -99,13 +103,13 @@ function doPost(e) {
       case 'getOrdersByClientId': // NOUVELLE ACTION
         return getOrdersByClientId(data, ctx);
       default:
-        logAction('doPost', { error: 'Action non reconnue', action: action });
-        return createJsonResponse({ success: false, error: `Action non reconnue: ${action}` });
+        logAction('doPost', { error: 'Action non reconnue', action: action }, origin);
+        return createJsonResponse({ success: false, error: `Action non reconnue: ${action}` }, origin);
     }
 
   } catch (error) {
     logError(e.postData.contents, error);
-    return createJsonResponse({ success: false, error: `Erreur serveur: ${error.message}` });
+    return createJsonResponse({ success: false, error: `Erreur serveur: ${error.message}` }, origin);
   }
 }
 
@@ -125,7 +129,7 @@ function createRequestContext() {
   }
 }
 
-function creerCompteClient(data, ctx) {
+function creerCompteClient(data, ctx, origin) {
   try {
     const ss = SpreadsheetApp.openById(CLIENT_SPREADSHEET_ID);
     const sheet = ss.getSheetByName(SHEET_NAMES.USERS);
@@ -145,18 +149,18 @@ function creerCompteClient(data, ctx) {
     // NOUVEAU: Ajout d'une colonne pour les favoris
     sheet.appendRow([idClient, data.nom, data.email, passwordHash, salt, data.adresse, data.telephone, new Date(), "Actif", "Client", ""]);
     logAction('creerCompteClient', { email: data.email, id: idClient });
-    return createJsonResponse({ success: true, id: idClient });
+    return createJsonResponse({ success: true, id: idClient }, origin);
 
   } catch (error) {
     logError(JSON.stringify({action: 'creerCompteClient', data}), error);
-    return createJsonResponse({ success: false, error: error.message });
+    return createJsonResponse({ success: false, error: error.message }, origin);
   }
 }
 
 /**
  * Gère la connexion d'un client.
  */
-function connecterClient(data, ctx) {
+function connecterClient(data, ctx, origin) {
   // OPTIMISATION: Utiliser les données du contexte
   const usersData = ctx.users || SpreadsheetApp.openById(CLIENT_SPREADSHEET_ID).getSheetByName(SHEET_NAMES.USERS).getDataRange().getValues();
   const headers = usersData.shift();
@@ -167,7 +171,7 @@ function connecterClient(data, ctx) {
   const userRow = usersData.find(row => row[emailIndex] === data.email);
 
   if (!userRow) {
-    return createJsonResponse({ success: false, error: "Email ou mot de passe incorrect." });
+    return createJsonResponse({ success: false, error: "Email ou mot de passe incorrect." }, origin);
   }
 
   const storedHash = userRow[hashIndex];
@@ -176,7 +180,7 @@ function connecterClient(data, ctx) {
 
   if (providedPasswordHash !== storedHash) {    
     logAction('connecterClient', { email: data.email, success: false });
-    return createJsonResponse({ success: false, error: "Email ou mot de passe incorrect." });
+    return createJsonResponse({ success: false, error: "Email ou mot de passe incorrect." }, origin);
   }
 
   // Connexion réussie, on retourne les informations de l'utilisateur (sans le mot de passe)
@@ -191,10 +195,10 @@ function connecterClient(data, ctx) {
   return createJsonResponse({
     success: true,
     user: userObject
-  });
+  }, origin);
 }
 
-function enregistrerCommande(data, ctx) {
+function enregistrerCommande(data, ctx, origin) {
   const ss = SpreadsheetApp.openById(CLIENT_SPREADSHEET_ID);
   const sheet = ss.getSheetByName(SHEET_NAMES.ORDERS);
   const lock = LockService.getScriptLock();
@@ -223,7 +227,7 @@ function enregistrerCommande(data, ctx) {
   }
   
   logAction('enregistrerCommande', { id: idCommande, client: data.idClient });
-  return createJsonResponse({ success: true, id: idCommande });
+  return createJsonResponse({ success: true, id: idCommande }, origin);
 }
 
 /**
@@ -284,7 +288,7 @@ function createJsonResponse(data, origin) {
     output.setMimeType(ContentService.MimeType.JSON);
 
     // 🔐 Gestion CORS : Autoriser l'origine si elle est dans la liste, sinon ne rien retourner pour la sécurité.
-    if (ALLOWED_ORIGINS.includes(origin)) {
+    if (origin && ALLOWED_ORIGINS.includes(origin)) {
         output.addHeader('Access-Control-Allow-Origin', origin);
     }
 
