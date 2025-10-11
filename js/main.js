@@ -91,7 +91,7 @@ async function initializeApp() {
         if (window.location.pathname.endsWith('recherche.html')) displaySearchResults(catalog);
         if (window.location.pathname.endsWith('categorie.html')) fillCategoryProducts(catalog);
         if (window.location.pathname.endsWith('categorie.html')) updateWhatsAppLinkForCategory(catalog); // NOUVEAU
-        if (window.location.pathname.endsWith('promotion.html')) displayPromotionProducts(catalog);
+        if (window.location.pathname.endsWith('promotions.html')) displayPromotionProducts(catalog);
         if (window.location.pathname.endsWith('produit.html')) loadProductPage(catalog);
         
         // Remplir les sections de la page d'accueil
@@ -1804,16 +1804,59 @@ function initializeAccountPage() {
 async function loadRecentOrdersForAccount(clientId) {
     const ordersSection = document.getElementById('recent-orders-section');
     if (!ordersSection) return;
+    ordersSection.innerHTML = '<div class="loader mx-auto"></div><p class="text-center text-gray-500 mt-2">Chargement de vos commandes...</p>';
 
-    ordersSection.innerHTML = '<p>Chargement des commandes récentes...</p>';
+    try {
+        const response = await fetch(CONFIG.CLIENT_API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'getOrdersByClientId',
+                data: { clientId: clientId }
+            })
+        });
+        const result = await response.json();
 
-    // Note: Cette action n'existe pas encore côté backend, il faudra l'ajouter.
-    // Pour l'instant, on simule ou on laisse un message.
-    // Dans un futur développement, on appellerait une action comme 'getOrdersByClientId'.
-    ordersSection.innerHTML = `
-        <h4 class="text-lg font-semibold mb-4">Mes commandes récentes</h4>
-        <p class="text-gray-500">Cette fonctionnalité est en cours de développement.</p>
-    `;
+        if (!result.success) {
+            throw new Error(result.error || "Impossible de récupérer les commandes.");
+        }
+
+        if (result.data.length === 0) {
+            ordersSection.innerHTML = '<h4 class="text-lg font-semibold mb-4">Mes commandes récentes</h4><p class="text-gray-500">Vous n\'avez passé aucune commande pour le moment.</p>';
+            return;
+        }
+
+        const ordersHTML = `
+            <h4 class="text-lg font-semibold mb-4">Mes commandes récentes</h4>
+            <div class="overflow-x-auto">
+                <table class="min-w-full text-sm text-left">
+                    <thead class="bg-gray-100">
+                        <tr>
+                            <th class="p-3 font-semibold">Commande</th>
+                            <th class="p-3 font-semibold">Date</th>
+                            <th class="p-3 font-semibold">Statut</th>
+                            <th class="p-3 font-semibold text-right">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${result.data.map(order => `
+                            <tr class="border-b">
+                                <td class="p-3 font-medium text-blue-600">#${order.IDCommande.split('-')[1]}</td>
+                                <td class="p-3">${new Date(order.Date).toLocaleDateString('fr-FR')}</td>
+                                <td class="p-3"><span class="px-2 py-1 text-xs font-semibold rounded-full bg-yellow-200 text-yellow-800">${order.Statut}</span></td>
+                                <td class="p-3 text-right font-semibold">${Number(order.Total).toLocaleString('fr-FR')} F CFA</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+        ordersSection.innerHTML = ordersHTML;
+
+    } catch (error) {
+        console.error("Erreur lors du chargement des commandes:", error);
+        ordersSection.innerHTML = '<h4 class="text-lg font-semibold mb-4">Mes commandes récentes</h4><p class="text-red-500">Une erreur est survenue lors du chargement de vos commandes.</p>';
+    }
 }
 async function loadRecentOrdersForAccount(clientId) {
     const ordersSection = document.getElementById('recent-orders-section');
