@@ -1600,9 +1600,20 @@ function initializePromoCarousel(carouselId) {
         }, 5000); // Change toutes les 5 secondes
     }
 
-    dots.forEach(dot => dot.addEventListener('click', () => scrollToItem(parseInt(dot.dataset.index))));
+    function resetAutoScroll() {
+        clearInterval(intervalId);
+        startAutoScroll();
+    }
+
+    dots.forEach(dot => {
+        dot.addEventListener('click', () => {
+            scrollToItem(parseInt(dot.dataset.index));
+            resetAutoScroll(); // Redémarre le minuteur après une interaction manuelle
+        });
+    });
+
     carousel.addEventListener('mouseenter', () => clearInterval(intervalId));
-    carousel.addEventListener('mouseleave', startAutoScroll);
+    carousel.addEventListener('mouseleave', resetAutoScroll);
 
     updateDots();
     startAutoScroll();
