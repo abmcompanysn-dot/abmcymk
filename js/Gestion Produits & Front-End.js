@@ -393,6 +393,8 @@ function archiveAllOutOfStock() {
 function createJsonResponse(data, origin) {
   const output = ContentService.createTextOutput(JSON.stringify(data));
   output.setMimeType(ContentService.MimeType.JSON);
+  // Autoriser toutes les origines à recevoir la réponse
+  output.addHeader('Access-Control-Allow-Origin', '*');
   return output;
 }
 

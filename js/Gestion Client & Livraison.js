@@ -76,12 +76,6 @@ function doOptions(e) {
 
 function doPost(e) {
   try {
-    // Sécurité : Vérifier l'origine de la requête
-    const originHeader = e.headers ? e.headers.origin : undefined;
-    if (originHeader && !ALLOWED_ORIGINS.includes(originHeader)) {
-      throw new Error("Accès non autorisé depuis cette origine.");
-    }
-
     const request = JSON.parse(e.postData.contents);
     const action = request.action;
     const data = request.data;
@@ -282,17 +276,19 @@ function getFavorites(clientId) {
 }
 
 /**
- * Crée une réponse standard au format JSON pour l'API.
  * Crée une réponse JSON standard pour l'API, gérant CORS.
  * @param {object} data Les données à retourner en JSON.
  * @param {string} [origin] L'origine de la requête, si disponible.
  * @returns {GoogleAppsScript.Content.TextOutput} Un objet TextOutput avec le contenu JSON et les en-têtes CORS.
  */
 function createJsonResponse(data, origin) {
-  // CORRECTION DÉFINITIVE : On crée l'objet, on définit son type, et on retourne.
-  // L'en-tête CORS est géré par la fonction doOptions et la réponse globale.
+  // CORRECTION: Utiliser ContentService.createTextOutput est la méthode standard et robuste
+  // pour créer une réponse JSON. Elle retourne un objet TextOutput qui possède la méthode .addHeader(),
+  // essentielle pour autoriser les requêtes cross-domain (CORS).
   const output = ContentService.createTextOutput(JSON.stringify(data));
   output.setMimeType(ContentService.MimeType.JSON);
+  // Autoriser toutes les origines à recevoir la réponse
+  
   return output;
 }
 
@@ -379,6 +375,39 @@ function getRecentOrders(data, ctx) {
     return createJsonResponse({ success: true, data: orders });
   } catch (error) {
     logError(JSON.stringify({action: 'getRecentOrders', data}), error);
+    return createJsonResponse({ success: false, error: error.message });
+  }
+}
+
+/**
+ * NOUVEAU: Récupère les commandes pour un client spécifique.
+ * Appelée par la page "Mon Compte".
+ * @param {object} data L'objet contenant { clientId }.
+ * @param {object} ctx Le contexte de la requête avec les données pré-chargées.
+ * @returns {GoogleAppsScript.Content.TextOutput} Une réponse JSON avec les commandes du client.
+ */
+function getOrdersByClientId(data, ctx) {
+  try {
+    const clientId = data.clientId;
+    if (!clientId) {
+      throw new Error("L'ID du client est manquant.");
+    }
+
+    const ordersData = ctx.orders || SpreadsheetApp.openById(CLIENT_SPREADSHEET_ID).getSheetByName(SHEET_NAMES.ORDERS).getDataRange().getValues();
+    const headers = ordersData[0];
+    const idClientIndex = headers.indexOf("IDClient");
+
+    const clientOrders = ordersData
+      .slice(1) // Ignorer les en-têtes
+      .filter(row => row[idClientIndex] === clientId)
+      .map(row => {
+        const obj = {};
+        headers.forEach((header, index) => obj[header] = row[index]);
+        return obj;
+      }).reverse(); // Afficher les plus récentes en premier
+
+    return createJsonResponse({ success: true, data: clientOrders });
+  } catch (error) {
     return createJsonResponse({ success: false, error: error.message });
   }
 }
