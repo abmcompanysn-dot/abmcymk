@@ -1428,42 +1428,72 @@ function renderHomepageCategorySections(catalog) {
             if ((i + 1) % 2 === 0 && i < categories.length - 1) {
                 const nextCategory1 = categories[i + 1];
                 const nextCategory2 = categories[i + 2];
+                const carouselId = `promo-carousel-${i}`;
                 let carouselItems = [];
 
                 // Ajouter les images de pub
-                if (nextCategory1 && nextCategory1.AdImageURL1) carouselItems.push({ type: 'ad', imageUrl: nextCategory1.AdImageURL1, link: `categorie.html?id=${nextCategory1.IDCategorie}` });
-                if (nextCategory2 && nextCategory2.AdImageURL1) carouselItems.push({ type: 'ad', imageUrl: nextCategory2.AdImageURL1, link: `categorie.html?id=${nextCategory2.IDCategorie}` });
+                if (nextCategory1 && nextCategory1.AdImageURLs) {
+                    nextCategory1.AdImageURLs.split(',').forEach(url => {
+                        if(url.trim()) carouselItems.push({ type: 'ad', imageUrl: url.trim(), link: `categorie.html?id=${nextCategory1.IDCategorie}` });
+                    });
+                }
+                if (nextCategory2 && nextCategory2.AdImageURLs) {
+                    nextCategory2.AdImageURLs.split(',').forEach(url => {
+                        if(url.trim()) carouselItems.push({ type: 'ad', imageUrl: url.trim(), link: `categorie.html?id=${nextCategory2.IDCategorie}` });
+                    });
+                }
 
                 // Trouver les produits les moins chers
                 let cheapestProducts = [];
-                if (nextCategory1) {
-                    cheapestProducts.push(...(productsByCategory[nextCategory1.NomCategorie] || []));
-                }
-                if (nextCategory2) {
-                    cheapestProducts.push(...(productsByCategory[nextCategory2.NomCategorie] || []));
-                }
+                if (nextCategory1) cheapestProducts.push(...(productsByCategory[nextCategory1.NomCategorie] || []));
+                if (nextCategory2) cheapestProducts.push(...(productsByCategory[nextCategory2.NomCategorie] || []));
 
                 cheapestProducts.sort((a, b) => a.PrixActuel - b.PrixActuel);
                 
                 cheapestProducts.slice(0, 4).forEach(p => carouselItems.push({ type: 'product', product: p }));
 
                 if (carouselItems.length > 0) {
+                    const dotsHTML = `<div class="carousel-dots absolute left-1/2 -translate-x-1/2 flex space-x-2">${carouselItems.map((_, idx) => `<div class="carousel-dot" data-index="${idx}"></div>`).join('')}</div>`;
+
                     allSectionsHTML += `
-                        <section class="my-12 bg-gradient-to-r from-gray-800 to-gray-900 text-white p-6 rounded-lg shadow-xl">
-                            <h3 class="text-2xl font-bold text-gold mb-4">Profitez de l'offre moins chère</h3>
-                            <div class="horizontal-scroll-container flex space-x-4 overflow-x-auto pb-4">
+                        <section class="my-12 relative pb-8">
+                            <h3 class="text-3xl font-extrabold text-center text-gray-800 mb-2">Nos Offres Immanquables</h3>
+                            <p class="text-center text-gray-500 mb-6">Saisissez votre chance, les stocks sont limités !</p>
+                            <div id="${carouselId}" class="promo-carousel flex overflow-x-auto snap-x-mandatory">
                                 ${carouselItems.map(item => {
                                     if (item.type === 'ad') {
                                         return `
-                                            <a href="${item.link}" class="flex-shrink-0 w-64 h-40 bg-gray-700 rounded-lg overflow-hidden block">
+                                            <a href="${item.link}" class="promo-carousel-item flex-shrink-0 w-full rounded-lg overflow-hidden relative h-64">
                                                 <img src="${item.imageUrl}" class="w-full h-full object-cover" alt="Publicité">
+                                                <div class="absolute inset-0 bg-black bg-opacity-30 flex items-end p-6">
+                                                    <h4 class="text-white text-2xl font-bold">Découvrez nos Nouveautés</h4>
+                                                </div>
                                             </a>
                                         `;
                                     } else { // type 'product'
-                                        return `<div class="flex-shrink-0 w-40">${renderProductCard(item.product)}</div>`;
+                                        const p = item.product;
+                                        return `
+                                            <div class="promo-carousel-item flex-shrink-0 w-full bg-white rounded-lg overflow-hidden p-4">
+                                                <a href="produit.html?id=${p.IDProduit}" class="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+                                                    <div class="h-64 bg-gray-100 rounded-lg flex items-center justify-center">
+                                                        <img src="${p.ImageURL || CONFIG.DEFAULT_PRODUCT_IMAGE}" alt="${p.Nom}" class="max-h-full max-w-full object-contain">
+                                                    </div>
+                                                    <div class="text-center md:text-left">
+                                                        <p class="text-sm text-gray-500">${p.Catégorie}</p>
+                                                        <h4 class="text-2xl font-bold text-gray-800 my-2">${p.Nom}</h4>
+                                                        <p class="font-bold text-3xl text-gold">${p.PrixActuel.toLocaleString('fr-FR')} F CFA</p>
+                                                        ${p.PrixAncien > p.PrixActuel ? `<p class="text-lg text-gray-400 line-through">${p.PrixAncien.toLocaleString('fr-FR')} F CFA</p>` : ''}
+                                                        <button class="mt-4 bg-black text-white font-bold py-3 px-8 rounded-lg hover:bg-gray-800 transition">
+                                                            J'en Profite
+                                                        </button>
+                                                    </div>
+                                                </a>
+                                            </div>
+                                        `;
                                     }
                                 }).join('')}
                             </div>
+                            ${dotsHTML}
                         </section>
                     `;
                 }
@@ -1471,11 +1501,57 @@ function renderHomepageCategorySections(catalog) {
         }
 
         mainContainer.innerHTML = allSectionsHTML;
+        // NOUVEAU: Initialiser tous les carrousels créés
+        document.querySelectorAll('.promo-carousel').forEach(carousel => initializePromoCarousel(carousel.id));
 
     } catch (error) {
         console.error("Erreur lors de l'affichage des sections par catégorie:", error);
         container.innerHTML = '<p class="text-center text-red-500">Impossible de charger les sections de produits.</p>';
     }
+}
+
+/**
+ * NOUVEAU: Initialise un carrousel promotionnel (auto-scroll et points de navigation).
+ * @param {string} carouselId L'ID de l'élément carrousel.
+ */
+function initializePromoCarousel(carouselId) {
+    const carousel = document.getElementById(carouselId);
+    if (!carousel) return;
+
+    const dotsContainer = carousel.nextElementSibling;
+    const dots = dotsContainer.querySelectorAll('.carousel-dot');
+    const items = carousel.querySelectorAll('.promo-carousel-item');
+    let currentIndex = 0;
+    let intervalId;
+
+    function updateDots() {
+        dots.forEach((dot, index) => {
+            dot.classList.toggle('active', index === currentIndex);
+        });
+    }
+
+    function scrollToItem(index) {
+        carousel.scrollTo({
+            left: items[index].offsetLeft,
+            behavior: 'smooth'
+        });
+        currentIndex = index;
+        updateDots();
+    }
+
+    function startAutoScroll() {
+        intervalId = setInterval(() => {
+            let nextIndex = (currentIndex + 1) % items.length;
+            scrollToItem(nextIndex);
+        }, 5000); // Change toutes les 5 secondes
+    }
+
+    dots.forEach(dot => dot.addEventListener('click', () => scrollToItem(parseInt(dot.dataset.index))));
+    carousel.addEventListener('mouseenter', () => clearInterval(intervalId));
+    carousel.addEventListener('mouseleave', startAutoScroll);
+
+    updateDots();
+    startAutoScroll();
 }
 
 /**

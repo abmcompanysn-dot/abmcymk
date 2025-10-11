@@ -61,6 +61,27 @@
         #main-nav-links::-webkit-scrollbar {
             display: none;
         }
+        /* NOUVEAU: Styles pour les carrousels promotionnels */
+        .promo-carousel {
+            scroll-snap-type: x mandatory;
+            scroll-behavior: smooth;
+        }
+        .promo-carousel-item {
+            scroll-snap-align: center;
+        }
+        .carousel-dots {
+            bottom: -1.5rem; /* Positionner les points sous le carrousel */
+        }
+        .carousel-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #d1d5db; /* gray-300 */
+            transition: background-color 0.3s ease;
+        }
+        .carousel-dot.active {
+            background-color: var(--gold-color);
+        }
         /* NOUVEAU: Style pour l'affichage décalé des produits sur mobile */
     </style>
 </head>
