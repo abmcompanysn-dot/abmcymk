@@ -1390,15 +1390,13 @@ function copySiteLink() {
  * NOUVEAU: Affiche des sections de produits pour chaque catégorie sur la page d'accueil.
  */
 function renderHomepageCategorySections(catalog) {
-    const container = document.getElementById('category-products-sections-container');
-    if (!container) return;
+    const mainContainer = document.getElementById('category-products-sections-container');
+    if (!mainContainer) return;
     try {
         const { data } = catalog;
         const categories = (data.categories || []).filter(cat => cat.SheetID && cat.ScriptURL && !cat.ScriptURL.startsWith('REMPLIR_'));
         const products = data.products || [];
 
-        // Étape 3: OPTIMISATION - Regrouper tous les produits par catégorie en une seule passe.
-        // C'est beaucoup plus rapide que de filtrer la liste complète pour chaque catégorie.
         const productsByCategory = products.reduce((acc, product) => {
             const categoryName = product.Catégorie;
             if (!acc[categoryName]) {
@@ -1408,12 +1406,13 @@ function renderHomepageCategorySections(catalog) {
             return acc;
         }, {});
 
-        // Étape 4: Générer le HTML pour chaque catégorie qui a des produits.
-        const allSectionsHTML = categories.map(category => {
+        let allSectionsHTML = '';
+        for (let i = 0; i < categories.length; i++) {
+            const category = categories[i];
             const categoryProducts = (productsByCategory[category.NomCategorie] || []).slice(0, 12); // Limite à 12 produits
-            if (categoryProducts.length === 0) return ''; // Ne pas créer de section si elle est vide.
+            if (categoryProducts.length === 0) continue;
 
-            return `
+            allSectionsHTML += `
                 <section data-category-id="${category.IDCategorie}">
                     <div class="flex justify-between items-center mb-4">
                         <h3 class="text-2xl font-bold text-gray-800">${category.NomCategorie}</h3>
@@ -1424,12 +1423,54 @@ function renderHomepageCategorySections(catalog) {
                     </div>
                 </section>
             `;
-        }).join('');
 
-        // Étape 5: Remplacer les squelettes par le contenu réel en une seule opération.
-        categories.forEach(category => {
-            container.innerHTML = allSectionsHTML;
-        });
+            // NOUVEAU: Insérer un carrousel après chaque deux catégories
+            if ((i + 1) % 2 === 0 && i < categories.length - 1) {
+                const nextCategory1 = categories[i + 1];
+                const nextCategory2 = categories[i + 2];
+                let carouselItems = [];
+
+                // Ajouter les images de pub
+                if (nextCategory1 && nextCategory1.AdImageURL1) carouselItems.push({ type: 'ad', imageUrl: nextCategory1.AdImageURL1, link: `categorie.html?id=${nextCategory1.IDCategorie}` });
+                if (nextCategory2 && nextCategory2.AdImageURL1) carouselItems.push({ type: 'ad', imageUrl: nextCategory2.AdImageURL1, link: `categorie.html?id=${nextCategory2.IDCategorie}` });
+
+                // Trouver les produits les moins chers
+                let cheapestProducts = [];
+                if (nextCategory1) {
+                    cheapestProducts.push(...(productsByCategory[nextCategory1.NomCategorie] || []));
+                }
+                if (nextCategory2) {
+                    cheapestProducts.push(...(productsByCategory[nextCategory2.NomCategorie] || []));
+                }
+
+                cheapestProducts.sort((a, b) => a.PrixActuel - b.PrixActuel);
+                
+                cheapestProducts.slice(0, 4).forEach(p => carouselItems.push({ type: 'product', product: p }));
+
+                if (carouselItems.length > 0) {
+                    allSectionsHTML += `
+                        <section class="my-12 bg-gradient-to-r from-gray-800 to-gray-900 text-white p-6 rounded-lg shadow-xl">
+                            <h3 class="text-2xl font-bold text-gold mb-4">Profitez de l'offre moins chère</h3>
+                            <div class="horizontal-scroll-container flex space-x-4 overflow-x-auto pb-4">
+                                ${carouselItems.map(item => {
+                                    if (item.type === 'ad') {
+                                        return `
+                                            <a href="${item.link}" class="flex-shrink-0 w-64 h-40 bg-gray-700 rounded-lg overflow-hidden block">
+                                                <img src="${item.imageUrl}" class="w-full h-full object-cover" alt="Publicité">
+                                            </a>
+                                        `;
+                                    } else { // type 'product'
+                                        return `<div class="flex-shrink-0 w-40">${renderProductCard(item.product)}</div>`;
+                                    }
+                                }).join('')}
+                            </div>
+                        </section>
+                    `;
+                }
+            }
+        }
+
+        mainContainer.innerHTML = allSectionsHTML;
 
     } catch (error) {
         console.error("Erreur lors de l'affichage des sections par catégorie:", error);

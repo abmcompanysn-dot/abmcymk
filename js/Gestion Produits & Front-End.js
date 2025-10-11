@@ -427,7 +427,7 @@ function setupCentralSheet() {
   }
   sheet.clear();
   // NOUVEAU: Ajout de ImageURL pour le front-end
-  const headers = ["IDCategorie", "NomCategorie", "SheetID", "ScriptURL", "ImageURL", "Numero"];
+  const headers = ["IDCategorie", "NomCategorie", "SheetID", "ScriptURL", "ImageURL", "Numero", "AdImageURL1", "AdImageURL2"];
   sheet.appendRow(headers);
   sheet.setFrozenRows(1);
   sheet.getRange(1, 1, 1, headers.length).setFontWeight("bold");
@@ -439,7 +439,7 @@ function setupCentralSheet() {
     const catId = `CAT-${String(index + 1).padStart(3, '0')}`;
     const placeholderSheetId = `REMPLIR_ID_FEUILLE_${catName.replace(/[^a-zA-Z0-9]/g, '_').toUpperCase()}`;
     const placeholderScriptUrl = `REMPLIR_URL_SCRIPT_${catName.replace(/[^a-zA-Z0-9]/g, '_').toUpperCase()}`;
-    return [catId, catName, placeholderSheetId, placeholderScriptUrl, DEFAULT_LOGO_URL, DEFAULT_CONTACT_NUMBER];
+    return [catId, catName, placeholderSheetId, placeholderScriptUrl, DEFAULT_LOGO_URL, DEFAULT_CONTACT_NUMBER, "", ""];
   });
 
   if (rows.length > 0) {
@@ -459,7 +459,7 @@ function updateSystem() {
 
   try {
     const sheetConfigs = {
-      "Catégories": ["IDCategorie", "NomCategorie", "SheetID", "ScriptURL", "ImageURL", "Numero"]
+      "Catégories": ["IDCategorie", "NomCategorie", "SheetID", "ScriptURL", "ImageURL", "Numero", "AdImageURL1", "AdImageURL2"]
     };
 
     Object.entries(sheetConfigs).forEach(([name, expectedHeaders]) => {
