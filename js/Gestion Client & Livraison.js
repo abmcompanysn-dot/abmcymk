@@ -296,6 +296,7 @@ function createJsonResponse(data, origin) {
   return output;
 }
 
+
 // La fonction enregistrerPaiement et autres fonctions de gestion (livraison, SAV)
 // restent conceptuellement les mêmes, mais devraient aussi utiliser le nouveau système de logging.
 

@@ -391,8 +391,6 @@ function archiveAllOutOfStock() {
  * @returns {GoogleAppsScript.Content.TextOutput} Un objet TextOutput avec le contenu JSON et les en-têtes CORS.
  */
 function createJsonResponse(data, origin) {
-  // CORRECTION DÉFINITIVE : On crée l'objet, on définit son type, et on retourne.
-  // L'en-tête CORS est géré par la fonction doOptions et la réponse globale.
   const output = ContentService.createTextOutput(JSON.stringify(data));
   output.setMimeType(ContentService.MimeType.JSON);
   return output;
