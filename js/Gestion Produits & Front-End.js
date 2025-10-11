@@ -92,6 +92,8 @@ function onOpen() {
       .createMenu('ABMCY Market [ADMIN]')
       .addItem('📦 Gérer le Catalogue', 'showAdminInterface')
       .addSeparator()
+      .addItem('🔄 Mettre à jour le système', 'updateSystem')
+      .addSeparator()
       .addItem('⚙️ Initialiser la feuille centrale', 'setupCentralSheet')
       .addToUi();
 }
@@ -445,4 +447,41 @@ function setupCentralSheet() {
   }
 
   SpreadsheetApp.getUi().alert(`Initialisation terminée. ${rows.length} catégories ont été ajoutées à la feuille "Catégories".`);
+}
+
+/**
+ * NOUVEAU: Vérifie et met à jour la structure de la feuille de calcul centrale.
+ * Ajoute les onglets ou les colonnes manquants.
+ */
+function updateSystem() {
+  const ss = SpreadsheetApp.openById(CENTRAL_SHEET_ID);
+  const ui = SpreadsheetApp.getUi();
+
+  try {
+    const sheetConfigs = {
+      "Catégories": ["IDCategorie", "NomCategorie", "SheetID", "ScriptURL", "ImageURL", "Numero"]
+    };
+
+    Object.entries(sheetConfigs).forEach(([name, expectedHeaders]) => {
+      let sheet = ss.getSheetByName(name);
+      if (!sheet) {
+        sheet = ss.insertSheet(name);
+        sheet.appendRow(expectedHeaders);
+        Logger.log(`Onglet '${name}' créé avec les en-têtes.`);
+      } else {
+        const headerRange = sheet.getRange(1, 1, 1, sheet.getLastColumn() || 1);
+        const currentHeaders = headerRange.getValues()[0];
+        const missingHeaders = expectedHeaders.filter(h => !currentHeaders.includes(h));
+
+        if (missingHeaders.length > 0) {
+          sheet.getRange(1, currentHeaders.length + 1, 1, missingHeaders.length).setValues([missingHeaders]);
+          Logger.log(`Colonnes manquantes ajoutées à '${name}': ${missingHeaders.join(', ')}`);
+        }
+      }
+    });
+    ui.alert('Mise à jour du système central terminée avec succès !');
+  } catch (e) {
+    Logger.log(e);
+    ui.alert('Erreur lors de la mise à jour', e.message, ui.ButtonSet.OK);
+  }
 }
