@@ -107,36 +107,6 @@
                 <div id="product-thumbnails" class="grid grid-cols-5 gap-2">
                     <!-- Les miniatures seront injectées ici par JS -->
                 </div>
-
-                <!-- NOUVEAU: Section Livraison sous la galerie (visible sur ordinateur) -->
-                <div class="block mt-8 bg-white p-6 rounded-lg shadow-md border md:block">
-                    <h3 class="text-xl font-bold text-gray-800 mb-4">Livraison & Services</h3>
-                    
-                    <!-- Sélecteur de région -->
-                    <div class="mb-6">
-                        <label for="region-select-product" class="block text-sm font-semibold text-gray-700 mb-2">Vérifiez les options pour votre région</label>
-                        <select id="region-select-product" class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gold">
-                            <option value="">Sélectionner une région</option>
-                            <option value="dakar">Dakar</option>
-                            <option value="diourbel">Diourbel</option>
-                            <option value="fatick">Fatick</option>
-                            <option value="kaffrine">Kaffrine</option>
-                            <option value="kaolack">Kaolack</option>
-                            <option value="kedougou">Kédougou</option>
-                            <option value="kolda">Kolda</option>
-                            <option value="louga">Louga</option>
-                            <option value="matam">Matam</option>
-                            <option value="saint-louis">Saint-Louis</option>
-                            <option value="sedhiou">Sédhiou</option>
-                            <option value="tambacounda">Tambacounda</option>
-                            <option value="thies">Thiès</option>
-                            <option value="ziguinchor">Ziguinchor</option>
-                        </select>
-                    </div>
-
-                    <p class="text-sm text-gray-600 mb-4">Nous proposons plusieurs options de livraison flexibles et sécurisées pour répondre à vos besoins.</p>
-                    <a href="livraison.html" class="text-sm text-blue-600 hover:underline">En savoir plus sur nos politiques de livraison →</a>
-                </div>
             </div>
 
             <!-- Informations produit -->
@@ -171,6 +141,36 @@
                     </a>
                 </div>
 
+                <!-- NOUVEAU: Section Livraison & Services -->
+                <div class="mt-8 border-t pt-6">
+                    <h3 class="text-xl font-bold text-gray-800 mb-4">Livraison & Services</h3>
+                    
+                    <!-- Sélecteur de région -->
+                    <div class="mb-6">
+                        <label for="region-select-product" class="block text-sm font-semibold text-gray-700 mb-2">Vérifiez les options pour votre région</label>
+                        <select id="region-select-product" class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gold">
+                            <option value="">Sélectionner une région</option>
+                            <option value="dakar">Dakar</option>
+                            <option value="diourbel">Diourbel</option>
+                            <option value="fatick">Fatick</option>
+                            <option value="kaffrine">Kaffrine</option>
+                            <option value="kaolack">Kaolack</option>
+                            <option value="kedougou">Kédougou</option>
+                            <option value="kolda">Kolda</option>
+                            <option value="louga">Louga</option>
+                            <option value="matam">Matam</option>
+                            <option value="saint-louis">Saint-Louis</option>
+                            <option value="sedhiou">Sédhiou</option>
+                            <option value="tambacounda">Tambacounda</option>
+                            <option value="thies">Thiès</option>
+                            <option value="ziguinchor">Ziguinchor</option>
+                        </select>
+                    </div>
+
+                    <p class="text-sm text-gray-600 mb-4">Nous proposons plusieurs options de livraison flexibles et sécurisées pour répondre à vos besoins.</p>
+                    <a href="livraison.html" class="text-sm text-blue-600 hover:underline">En savoir plus sur nos politiques de livraison →</a>
+                </div>
+
                 <!-- NOUVEAU: Section Détails du produit (déplacée ici pour un meilleur alignement) -->
                 <div class="mt-8 border-t pt-6">
                     <h3 class="text-xl font-bold text-gray-800 mb-4">Détails du produit</h3>
@@ -181,30 +181,6 @@
                 </div>
             </div>
         </div>
-
-        <!-- NOUVEAU: Section Informations de Livraison -->
-        <section class="mt-16 bg-white p-8 rounded-lg shadow-md">
-            <h3 class="text-2xl font-bold text-gray-800 mb-6">Options de Livraison</h3>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div>
-                    <h4 class="font-semibold text-lg mb-2">🚀 Livraison Rapide & Fiable</h4>
-                    <p class="text-gray-600">Nous proposons plusieurs options pour répondre à vos besoins, partout au Sénégal et à l’international.</p>
-                    <ul class="list-disc list-inside text-gray-600 mt-3 space-y-1">
-                        <li><span class="font-semibold">Dakar :</span> 24 à 48h</li>
-                        <li><span class="font-semibold">Régions :</span> 48 à 72h</li>
-                        <li><span class="font-semibold">International :</span> 5 à 10 jours</li>
-                    </ul>
-                </div>
-                <div>
-                    <h4 class="font-semibold text-lg mb-2">💰 Tarifs & Avantages</h4>
-                     <ul class="list-disc list-inside text-gray-600 mt-3 space-y-1">
-                        <li class="font-semibold text-green-600">Livraison gratuite dès 10 000 FCFA d’achat !</li>
-                        <li>Suivi de commande en temps réel disponible.</li>
-                        <li><a href="livraison.html" class="text-blue-600 hover:underline">Voir toutes les options de livraison</a></li>
-                    </ul>
-                </div>
-            </div>
-        </section>
 
         <!-- Section Produits similaires -->
         <section class="mt-16 border-t pt-8">
