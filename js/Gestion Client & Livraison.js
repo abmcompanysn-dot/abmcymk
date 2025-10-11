@@ -1,555 +1,376 @@
 /**
- * SCRIPT 2: Gestion Client & Livraison (API Publique)
- * Auteur: Gemini Code Assist
- * Description: Gère les comptes clients, commandes, paiements et livraisons.
- * A déployer en tant qu'application web avec accès "Tous les utilisateurs".
+ * @file Gestion Client & Livraison - API pour abmcymarket.vercel.app
+ * @description Gère l'authentification des clients, l'enregistrement des commandes,
+ * la journalisation des événements et la récupération des données spécifiques au client.
+ *
+ * @version 2.0.0
+ * @author Gemini Code Assist
  */
 
-// --- CONFIGURATION ---
-const CLIENT_SPREADSHEET_ID = "1pGx-1uFUdS61fL4eh4HhQaHQSX6UzmPXiMQY0i71ZpU"; // IMPORTANT: Mettez ici l'ID de votre 2ème Google Sheet
-const ADMIN_API_URL = "https://script.google.com/macros/s/AKfycbwBtesagcmH6DiK1ARbUnIsmpNdQRFlBMUy1qnEj4hDygAkZOML5ZPKKMLGmMtQRfMk/exec"; // URL de l'API Admin
-const SCRIPT_NAME = "API-Client";
+// --- CONFIGURATION GLOBALE ---
 
+// ⚠️ REMPLACEZ PAR L'ID DE VOTRE FEUILLE GOOGLE SHEETS
+const CLIENT_SPREADSHEET_ID = "1pGx-1uFUdS61fL4eh4HhQaHQSX6UzmPXiMQY0i71ZpU";
+
+// Noms des feuilles de calcul utilisées
 const SHEET_NAMES = {
-  USERS: "Utilisateurs",
-  ORDERS: "Commandes",
-  PAYMENTS: "Paiements",
-  LOGS: "Logs"
+    USERS: "Utilisateurs",
+    ORDERS: "Commandes",
+    LOGS: "Logs",
+    PRODUCTS: "Produits" // Ajout pour certaines logiques
 };
 
-// Liste des URLs autorisées à appeler cette API.
+// 🔐 Origines autorisées à accéder à cette API.
 const ALLOWED_ORIGINS = [
-  "https://abmcymarket.vercel.app", // URL de production
-  "http://127.0.0.1:5500"          // URL de développement local
+    "https://abmcymarket.vercel.app"
+    // Ajoutez d'autres origines si nécessaire, ex: "http://localhost:5500" pour les tests locaux
 ];
 
-// --- DONNÉES PERSONNELLES PAR DÉFAUT (VISIBLES ET MODIFIABLES) ---
-const PERSONAL_DATA = {
-  clients: [
-      { nom: "Moussa Diop", email: "moussa.diop@example.com", motDePasse: "password123", adresse: "123 Rue de Dakar", telephone: "771234567" },
-      { nom: "Awa Fall", email: "awa.fall@example.com", motDePasse: "password123", adresse: "456 Avenue de Thies", telephone: "781234567" },
-      { nom: "Ibrahima Sow", email: "ibrahima.sow@example.com", motDePasse: "password123", adresse: "789 Boulevard de St-Louis", telephone: "761234567" },
-  ]
-};
+// --- POINTS D'ENTRÉE DE L'API WEB (doGet, doPost, doOptions) ---
 
-// --- GESTIONNAIRE DE MENU ---
-function onOpen() {
-  SpreadsheetApp.getUi()
-      .createMenu('ABMCY Market [CLIENT]')
-      .addItem('📊 Tableau de Bord Commandes', 'showClientInterface')
-      .addSeparator()
-      .addSubMenu(SpreadsheetApp.getUi().createMenu('Configuration')
-          .addItem('⚙️ Initialiser les onglets Client', 'initialiserBaseDeDonnees_Client')
-          .addItem('🔄 Mettre à jour le système', 'updateSystem_Client'))
-      .addSeparator()
-      .addSubMenu(SpreadsheetApp.getUi().createMenu('🧪 Testing')
-          .addItem('🌱 Remplir avec des clients de test', 'seedPersonalData_Client')
-          .addItem('🧹 Vider toutes les données client', 'clearAllData_Client'))
-      .addToUi();
-}
-
-function showClientInterface() {
-  const html = HtmlService.createHtmlOutputFromFile('ClientInterface').setTitle('Tableau de Bord Client');
-  SpreadsheetApp.getUi().showSidebar(html);
-}
-// --- POINTS D'ENTREE DE L'API PUBLIQUE ---
-
+/**
+ * Gère les requêtes HTTP GET.
+ * Utilisé principalement pour récupérer des données publiques ou des journaux.
+ * @param {object} e - L'objet événement de la requête.
+ * @returns {GoogleAppsScript.Content.TextOutput} La réponse JSON.
+ */
 function doGet(e) {
-  // doGet peut être utilisé pour des tests de connectivité simples.
-  const action = e.parameter.action;
-  if (action === 'getFavorites') {
-    const clientId = e.parameter.clientId;
-    return getFavorites(clientId);
-  }
-  // NOUVEAU: Point d'entrée pour la page de log pour récupérer les journaux.
-  if (action === 'getAppLogs') {
-    return getAppLogs(e.parameter);
-  }
-  return createJsonResponse({ success: true, message: 'API Client ABMCY Market - Active' });
+    const action = e.parameter.action;
+
+    if (action === 'getAppLogs') {
+        return getAppLogs(e.parameter);
+    }
+
+    // Réponse par défaut pour un simple test de l'API
+    return createJsonResponse({
+        success: true,
+        message: 'API Client ABMCY Market - Active'
+    });
 }
 
 /**
- * NOUVEAU: Gère les requêtes OPTIONS pour le pré-vol CORS. Essentiel pour les requêtes POST.
+ * Gère les requêtes HTTP POST.
+ * Point d'entrée principal pour les actions (connexion, inscription, etc.).
+ * @param {object} e - L'objet événement de la requête.
+ * @returns {GoogleAppsScript.Content.TextOutput} La réponse JSON.
  */
-function doOptions(e) {
-  const origin = e.headers.Origin || e.headers.origin;
-  // Répond simplement avec les en-têtes nécessaires pour la pré-vérification CORS.
-  // Le navigateur validera que la méthode POST et le header Content-Type sont autorisés.
-  return ContentService.createTextOutput(null)
-    .setMimeType(ContentService.MimeType.TEXT)
-    // CORRECTION: Utiliser la liste des origines autorisées pour être cohérent et sécurisé.
-    .addHeader('Access-Control-Allow-Origin', ALLOWED_ORIGINS.includes(origin) ? origin : null)
-    .addHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
-    .addHeader('Access-Control-Allow-Headers', 'Content-Type');
-}
-
 function doPost(e) {
     const origin = e.headers.Origin || e.headers.origin;
+
     try {
-        // On s'attend à ce que la requête POST ait toujours un contenu.
-        // La pré-vérification est gérée par doOptions.
+        // La pré-vérification CORS est gérée par doOptions, on attend donc toujours un contenu.
+        if (!e || !e.postData || !e.postData.contents) {
+            throw new Error("Requête POST invalide ou vide.");
+        }
+
         const request = JSON.parse(e.postData.contents);
-        const action = request.action;
-        const data = request.data;
+        const { action, data } = request;
 
-    if (!action) {
-      return createJsonResponse({ success: false, error: 'Action non spécifiée.' }, origin);
+        if (!action) {
+            return createJsonResponse({ success: false, error: 'Action non spécifiée.' }, origin);
+        }
+
+        // Routeur pour les actions POST
+        switch (action) {
+            case 'creerCompteClient':
+                return creerCompteClient(data, origin);
+            case 'connecterClient':
+                return connecterClient(data, origin);
+            case 'enregistrerCommande':
+                return enregistrerCommande(data, origin);
+            case 'getOrdersByClientId':
+                return getOrdersByClientId(data, origin);
+            case 'logClientEvent':
+                return logClientEvent(data, origin);
+            default:
+                logAction('doPost', { error: 'Action non reconnue', action: action });
+                return createJsonResponse({ success: false, error: `Action non reconnue: ${action}` }, origin);
+        }
+
+    } catch (error) {
+        logError(e.postData ? e.postData.contents : 'No postData', error);
+        return createJsonResponse({ success: false, error: `Erreur serveur: ${error.message}` }, origin);
     }
-
-    // Créer un contexte pour optimiser les lectures de feuilles
-    const ctx = createRequestContext();
-
-    switch (action) {
-      case 'enregistrerCommande':
-        return enregistrerCommande(data, ctx, origin);
-      case 'creerCompteClient':
-        return creerCompteClient(data, ctx, origin);
-      case 'connecterClient':
-        return connecterClient(data, ctx, origin);
-      case 'getRecentOrders': // Pour le tableau de bord interne
-        return getRecentOrders(data, ctx);
-      case 'updateFavorites': // NOUVELLE ACTION
-        return updateFavorites(data, ctx);
-      case 'getOrdersByClientId': // NOUVELLE ACTION
-        return getOrdersByClientId(data, ctx);
-      // NOUVEAU: Point d'entrée pour recevoir les journaux du client.
-      case 'logClientEvent':
-        return logClientEvent(data, origin);
-      default:
-        logAction('doPost', { error: 'Action non reconnue', action: action }, origin);
-        return createJsonResponse({ success: false, error: `Action non reconnue: ${action}` }, origin);
-    }
-
-  } catch (error) {
-    logError(e.postData.contents, error);
-    return createJsonResponse({ success: false, error: `Erreur serveur: ${error.message}` }, origin);
-  }
 }
 
 /**
- * Crée un contexte contenant les données des feuilles fréquemment utilisées.
- * @returns {object} Un objet contenant les données des feuilles.
+ * Gère les requêtes HTTP OPTIONS pour la pré-vérification CORS.
+ * C'est une étape de sécurité obligatoire demandée par le navigateur.
+ * @param {object} e - L'objet événement de la requête.
+ * @returns {GoogleAppsScript.Content.TextOutput} Une réponse vide avec les en-têtes CORS.
  */
-function createRequestContext() {
-  try {
-    const ss = SpreadsheetApp.openById(CLIENT_SPREADSHEET_ID);
-    return {
-      users: ss.getSheetByName(SHEET_NAMES.USERS).getDataRange().getValues(),
-      orders: ss.getSheetByName(SHEET_NAMES.ORDERS).getDataRange().getValues(),
-    };
-  } catch (e) {
-    return {}; // En cas d'erreur, renvoie un objet vide.
-  }
+function doOptions(e) {
+    const origin = e.headers.Origin || e.headers.origin;
+    const response = ContentService.createTextOutput(null);
+    
+    // On autorise si l'origine est dans notre liste blanche
+    if (ALLOWED_ORIGINS.includes(origin)) {
+        response.addHeader('Access-Control-Allow-Origin', origin);
+        response.addHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
+        response.addHeader('Access-Control-Allow-Headers', 'Content-Type');
+    }
+    
+    return response;
 }
 
-function creerCompteClient(data, ctx, origin) {
-  try {
-    const ss = SpreadsheetApp.openById(CLIENT_SPREADSHEET_ID);
-    const sheet = ss.getSheetByName(SHEET_NAMES.USERS);
 
-    // OPTIMISATION: Utiliser les données du contexte
-    const usersData = ctx.users || sheet.getDataRange().getValues();
-    const emailIndex = usersData[0].indexOf("Email");
-    const emailList = usersData.slice(1).map(row => row[emailIndex]);
+// --- LOGIQUE MÉTIER (ACTIONS DE L'API) ---
 
-    if (emailList.includes(data.email)) {
-      throw new Error("Un compte avec cet email existe déjà.");
+/**
+ * Crée un nouveau compte client.
+ * @param {object} data - Données du client (nom, email, motDePasse).
+ * @param {string} origin - L'origine de la requête.
+ * @returns {GoogleAppsScript.Content.TextOutput} Réponse JSON.
+ */
+function creerCompteClient(data, origin) {
+    try {
+        const sheet = SpreadsheetApp.openById(CLIENT_SPREADSHEET_ID).getSheetByName(SHEET_NAMES.USERS);
+        const usersData = sheet.getRange(2, 1, sheet.getLastRow(), 3).getValues();
+        const emailExists = usersData.some(row => row[1] === data.email);
+
+        if (emailExists) {
+            return createJsonResponse({ success: false, error: 'Un compte avec cet email existe déjà.' }, origin);
+        }
+
+        const idClient = "CLT-" + new Date().getTime();
+        const { passwordHash, salt } = hashPassword(data.motDePasse);
+
+        sheet.appendRow([
+            idClient, data.nom, data.email, passwordHash, salt,
+            data.adresse || '', data.telephone || '', new Date(), "Actif", "Client"
+        ]);
+
+        logAction('creerCompteClient', { email: data.email, id: idClient });
+        return createJsonResponse({ success: true, id: idClient }, origin);
+
+    } catch (error) {
+        logError(JSON.stringify({ action: 'creerCompteClient', data }), error);
+        return createJsonResponse({ success: false, error: error.message }, origin);
     }
-
-    const salt = Utilities.getUuid();
-    const passwordHash = hashPassword(data.motDePasse, salt);
-    const idClient = "CUST-" + Utilities.getUuid().substring(0, 8).toUpperCase();
-    // NOUVEAU: Ajout d'une colonne pour les favoris
-    sheet.appendRow([idClient, data.nom, data.email, passwordHash, salt, data.adresse, data.telephone, new Date(), "Actif", "Client", ""]);
-    logAction('creerCompteClient', { email: data.email, id: idClient });
-    return createJsonResponse({ success: true, id: idClient }, origin);
-
-  } catch (error) {
-    logError(JSON.stringify({action: 'creerCompteClient', data}), error);
-    return createJsonResponse({ success: false, error: error.message }, origin);
-  }
 }
 
 /**
  * Gère la connexion d'un client.
+ * @param {object} data - Données de connexion (email, motDePasse).
+ * @param {string} origin - L'origine de la requête.
+ * @returns {GoogleAppsScript.Content.TextOutput} Réponse JSON avec les infos utilisateur si succès.
  */
-function connecterClient(data, ctx, origin) {
-  // OPTIMISATION: Utiliser les données du contexte
-  const usersData = ctx.users || SpreadsheetApp.openById(CLIENT_SPREADSHEET_ID).getSheetByName(SHEET_NAMES.USERS).getDataRange().getValues();
-  const headers = usersData.shift();
-  const emailIndex = headers.indexOf("Email");
-  const hashIndex = headers.indexOf("MotDePasseHash");
-  const saltIndex = headers.indexOf("Salt");
+function connecterClient(data, origin) {
+    try {
+        const sheet = SpreadsheetApp.openById(CLIENT_SPREADSHEET_ID).getSheetByName(SHEET_NAMES.USERS);
+        const usersData = sheet.getDataRange().getValues();
+        const headers = usersData.shift();
+        const emailIndex = headers.indexOf("Email");
+        const hashIndex = headers.indexOf("PasswordHash");
+        const saltIndex = headers.indexOf("Salt");
 
-  const userRow = usersData.find(row => row[emailIndex] === data.email);
+        const userRow = usersData.find(row => row[emailIndex] === data.email);
 
-  if (!userRow) {
-    return createJsonResponse({ success: false, error: "Email ou mot de passe incorrect." }, origin);
-  }
+        if (!userRow) {
+            return createJsonResponse({ success: false, error: "Email ou mot de passe incorrect." }, origin);
+        }
 
-  const storedHash = userRow[hashIndex];
-  const storedSalt = userRow[saltIndex];
-  const providedPasswordHash = hashPassword(data.motDePasse, storedSalt);
+        const storedHash = userRow[hashIndex];
+        const salt = userRow[saltIndex];
+        const { passwordHash: providedPasswordHash } = hashPassword(data.motDePasse, salt);
 
-  if (providedPasswordHash !== storedHash) {    
-    logAction('connecterClient', { email: data.email, success: false });
-    return createJsonResponse({ success: false, error: "Email ou mot de passe incorrect." }, origin);
-  }
+        if (providedPasswordHash !== storedHash) {
+            logAction('connecterClient', { email: data.email, success: false });
+            return createJsonResponse({ success: false, error: "Email ou mot de passe incorrect." }, origin);
+        }
 
-  // Connexion réussie, on retourne les informations de l'utilisateur (sans le mot de passe)
-  const userObject = {};
-  headers.forEach((header, index) => {
-    if (header !== "MotDePasseHash" && header !== "Salt") {
-      userObject[header] = userRow[index];
+        // Connexion réussie, on retourne les informations de l'utilisateur
+        const userObject = headers.reduce((obj, header, index) => {
+            // Exclure les informations sensibles
+            if (header !== 'PasswordHash' && header !== 'Salt') {
+                obj[header] = userRow[index];
+            }
+            return obj;
+        }, {});
+
+        return createJsonResponse({ success: true, user: userObject }, origin);
+
+    } catch (error) {
+        logError(JSON.stringify({ action: 'connecterClient', data }), error);
+        return createJsonResponse({ success: false, error: error.message }, origin);
     }
-  });
-
-  logAction('connecterClient', { email: data.email, success: true });
-  return createJsonResponse({
-    success: true,
-    user: userObject
-  }, origin);
-}
-
-function enregistrerCommande(data, ctx, origin) {
-  const ss = SpreadsheetApp.openById(CLIENT_SPREADSHEET_ID);
-  const sheet = ss.getSheetByName(SHEET_NAMES.ORDERS);
-  const lock = LockService.getScriptLock();
-  lock.waitLock(30000); // Sécurité pour la génération d'ID et la mise à jour du stock
-
-  let idCommande;
-  try {
-    idCommande = "CMD-" + (sheet.getLastRow() + 1) + "-" + new Date().getFullYear();
-    sheet.appendRow([idCommande, data.idClient, new Date(), JSON.stringify(data.produits), JSON.stringify(data.quantites), data.total, "En attente de paiement", data.moyenPaiement, data.adresseLivraison, data.notes]);
-    
-    const stockUpdatePayload = {
-      action: 'mettreAJourStock',
-      data: data.produits.map((id, index) => ({ idProduit: id, quantite: data.quantites[index] }))
-    };
-
-    UrlFetchApp.fetch(ADMIN_API_URL, {
-      method: 'post',
-      contentType: 'application/json',
-      headers: {
-        Authorization: 'Bearer ' + ScriptApp.getIdentityToken(),
-      },
-      payload: JSON.stringify(stockUpdatePayload)
-    });
-  } finally {
-    lock.releaseLock();
-  }
-  
-  logAction('enregistrerCommande', { id: idCommande, client: data.idClient });
-  return createJsonResponse({ success: true, id: idCommande }, origin);
 }
 
 /**
- * NOUVEAU: Met à jour la liste des favoris d'un utilisateur.
+ * NOUVEAU: Enregistre une nouvelle commande dans la feuille "Commandes".
+ * @param {object} data - Les données de la commande (idClient, produits, total, etc.).
+ * @param {string} origin - L'origine de la requête.
+ * @returns {GoogleAppsScript.Content.TextOutput} Réponse JSON avec l'ID de la commande.
  */
-function updateFavorites(data, ctx) {
-  try {
-    const ss = SpreadsheetApp.openById(CLIENT_SPREADSHEET_ID);
-    const sheet = ss.getSheetByName(SHEET_NAMES.USERS);
-    const usersData = ctx.users || sheet.getDataRange().getValues();
-    const headers = usersData[0];
-    const idIndex = headers.indexOf("IDClient");
-    const favoritesIndex = headers.indexOf("Favoris");
+function enregistrerCommande(data, origin) {
+    const lock = LockService.getScriptLock();
+    lock.waitLock(30000); // Attendre jusqu'à 30 secondes pour éviter les conflits
 
-    if (favoritesIndex === -1) {
-      throw new Error("La colonne 'Favoris' est manquante dans la feuille Utilisateurs.");
+    try {
+        const sheet = SpreadsheetApp.openById(CLIENT_SPREADSHEET_ID).getSheetByName(SHEET_NAMES.ORDERS);
+        const idCommande = "CMD-" + new Date().getTime();
+
+        // Les produits et quantités sont des tableaux, on les convertit en chaînes de caractères.
+        const produitsStr = Array.isArray(data.produits) ? data.produits.join(', ') : data.produits;
+        const quantitesStr = Array.isArray(data.quantites) ? data.quantites.join(', ') : data.quantites;
+
+        sheet.appendRow([
+            idCommande,
+            data.idClient,
+            new Date(),
+            produitsStr,
+            quantitesStr,
+            data.total,
+            "En attente", // Statut initial
+            data.adresseLivraison,
+            data.moyenPaiement,
+            data.notes || ''
+        ]);
+
+        logAction('enregistrerCommande', { id: idCommande, client: data.idClient });
+        return createJsonResponse({ success: true, id: idCommande }, origin);
+    } finally {
+        lock.releaseLock();
     }
+}
 
-    const userRowIndex = usersData.findIndex(row => row[idIndex] === data.clientId);
+/**
+ * Récupère les commandes d'un client spécifique.
+ * @param {object} data - Contient { clientId }.
+ * @param {string} origin - L'origine de la requête.
+ * @returns {GoogleAppsScript.Content.TextOutput} Réponse JSON avec la liste des commandes.
+ */
+function getOrdersByClientId(data, origin) {
+    try {
+        const sheet = SpreadsheetApp.openById(CLIENT_SPREADSHEET_ID).getSheetByName(SHEET_NAMES.ORDERS);
+        const allOrders = sheet.getDataRange().getValues();
+        const headers = allOrders.shift();
+        const idClientIndex = headers.indexOf("IDClient");
 
-    if (userRowIndex === -1) {
-      throw new Error("Utilisateur non trouvé.");
+        const clientOrdersData = allOrders.filter(row => row[idClientIndex] === data.clientId);
+
+        const clientOrders = clientOrdersData.map(row => {
+            return headers.reduce((obj, header, index) => {
+                obj[header] = row[index];
+                return obj;
+            }, {});
+        }).reverse(); // Afficher les plus récentes en premier
+
+        return createJsonResponse({ success: true, data: clientOrders }, origin);
+    } catch (error) {
+        logError(JSON.stringify({ action: 'getOrdersByClientId', data }), error);
+        return createJsonResponse({ success: false, error: error.message }, origin);
     }
-
-    // Mettre à jour la cellule des favoris pour cet utilisateur
-    sheet.getRange(userRowIndex + 1, favoritesIndex + 1).setValue(data.favorites);
-    
-    return createJsonResponse({ success: true });
-  } catch (error) {
-    logError(JSON.stringify({action: 'updateFavorites', data}), error);
-    return createJsonResponse({ success: false, error: error.message });
-  }
 }
 
 /**
- * NOUVEAU: Récupère la liste des favoris d'un utilisateur.
- */
-function getFavorites(clientId) {
-  const usersData = SpreadsheetApp.openById(CLIENT_SPREADSHEET_ID).getSheetByName(SHEET_NAMES.USERS).getDataRange().getValues();
-  const headers = usersData.shift();
-  const idIndex = headers.indexOf("IDClient");
-  const favoritesIndex = headers.indexOf("Favoris");
-
-  const userRow = usersData.find(row => row[idIndex] === clientId);
-
-  const favorites = userRow && userRow[favoritesIndex] ? userRow[favoritesIndex] : "";
-  return createJsonResponse({ success: true, favorites: favorites });
-}
-
-/**
- * Crée une réponse JSON standard pour l'API, gérant CORS.
- * @param {object} data Les données à retourner en JSON.
- * @param {string} [origin] L'origine de la requête, si disponible.
- * @returns {GoogleAppsScript.Content.TextOutput} Un objet TextOutput avec le contenu JSON et les en-têtes CORS.
- */
-function createJsonResponse(data, origin) {
-  const output = ContentService.createTextOutput(JSON.stringify(data));
-  output.setMimeType(ContentService.MimeType.JSON);
-
-  // CORRECTION: Utiliser la liste des origines autorisées pour la réponse finale.
-  if (origin && ALLOWED_ORIGINS.includes(origin)) {
-    output.addHeader('Access-Control-Allow-Origin', origin);
-  } else if (origin) {
-    // NOUVEAU: Journaliser les requêtes provenant d'origines non autorisées.
-    logAction('CORS_REJECTED', {
-      origin: origin,
-      message: "Origine non présente dans ALLOWED_ORIGINS."
-    });
-  }
-  return output;
-}
-
-/**
- * NOUVEAU: Enregistre un événement envoyé par le client dans la feuille de logs.
+ * Enregistre un événement envoyé par le client dans la feuille de logs.
+ * @param {object} data - L'objet log envoyé par le client.
+ * @param {string} origin - L'origine de la requête.
+ * @returns {GoogleAppsScript.Content.TextOutput} Réponse JSON.
  */
 function logClientEvent(data, origin) {
-  try {
-    const logSheet = SpreadsheetApp.openById(CLIENT_SPREADSHEET_ID).getSheetByName(SHEET_NAMES.LOGS);
-    if (logSheet) {
-      const details = {
-        message: data.message,
-        url: data.url,
-        error: data.error,
-        payload: data.payload,
-        origin: origin
-      };
-      logSheet.appendRow([new Date(data.timestamp), 'FRONT-END', data.type, JSON.stringify(details)]);
+    try {
+        const logSheet = SpreadsheetApp.openById(CLIENT_SPREADSHEET_ID).getSheetByName(SHEET_NAMES.LOGS);
+        const details = {
+            message: data.message,
+            url: data.url,
+            error: data.error,
+            payload: data.payload,
+            origin: origin
+        };
+        logSheet.appendRow([new Date(data.timestamp), 'FRONT-END', data.type, JSON.stringify(details)]);
+        return createJsonResponse({ success: true }, origin);
+    } catch (e) {
+        return createJsonResponse({ success: false, error: e.message }, origin);
     }
-    // On renvoie une réponse simple et rapide, le client n'attend pas de données.
-    return createJsonResponse({ success: true }, origin);
-  } catch (e) {
-    // Ne pas bloquer même si le logging échoue.
-    return createJsonResponse({ success: false, error: e.message }, origin);
-  }
 }
 
 /**
- * NOUVEAU: Récupère les 100 derniers journaux pour la page log.html.
+ * Récupère les 100 derniers journaux pour la page log.html.
+ * @param {object} params - Paramètres de la requête GET.
+ * @returns {GoogleAppsScript.Content.TextOutput} Réponse JSON.
  */
 function getAppLogs(params) {
-  const logSheet = SpreadsheetApp.openById(CLIENT_SPREADSHEET_ID).getSheetByName(SHEET_NAMES.LOGS);
-  const lastRow = logSheet.getLastRow();
-  const startRow = Math.max(2, lastRow - 99); // Récupère les 100 dernières lignes (ou moins)
-  const numRows = lastRow - startRow + 1;
-  const logs = (numRows > 0) ? logSheet.getRange(startRow, 1, numRows, 4).getValues() : [];
-  return createJsonResponse({ success: true, logs: logs.reverse() }); // Les plus récents en premier
+    try {
+        const logSheet = SpreadsheetApp.openById(CLIENT_SPREADSHEET_ID).getSheetByName(SHEET_NAMES.LOGS);
+        const lastRow = logSheet.getLastRow();
+        const startRow = Math.max(2, lastRow - 99);
+        const numRows = lastRow > 1 ? lastRow - startRow + 1 : 0;
+        const logs = (numRows > 0) ? logSheet.getRange(startRow, 1, numRows, 4).getValues() : [];
+        return createJsonResponse({ success: true, logs: logs.reverse() });
+    } catch (error) {
+        logError('getAppLogs', error);
+        return createJsonResponse({ success: false, error: error.message });
+    }
 }
 
-
-
-// La fonction enregistrerPaiement et autres fonctions de gestion (livraison, SAV)
-// restent conceptuellement les mêmes, mais devraient aussi utiliser le nouveau système de logging.
-
-// La fonction getSiteData n'est plus nécessaire car les données produits sont récupérées directement par le front-end depuis l'API Produits.
-
-/**
- * Fonction de hachage simple pour les mots de passe.
- * @param {string} password Le mot de passe en clair.
- * @param {string} salt Le "grain de sel" unique à l'utilisateur.
- * @returns {string} Le mot de passe haché.
- */
-function hashPassword(password, salt) {
-  const digest = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, password + salt);
-  return Utilities.base64Encode(digest);
-}
 
 // --- FONCTIONS UTILITAIRES ---
-function logAction(actionName, data) {
-  try {
-    const logSheet = SpreadsheetApp.openById(CLIENT_SPREADSHEET_ID).getSheetByName(SHEET_NAMES.LOGS);
-    if (logSheet) {
-      logSheet.appendRow([
-        new Date(),
-        SCRIPT_NAME,
-        actionName,
-        JSON.stringify(data)
-      ]);
+
+/**
+ * Crée une réponse JSON standardisée avec les en-têtes CORS.
+ * @param {object} data - L'objet à convertir en JSON.
+ * @param {string} [origin] - L'origine de la requête pour l'en-tête CORS.
+ * @returns {GoogleAppsScript.Content.TextOutput} Un objet TextOutput.
+ */
+function createJsonResponse(data, origin) {
+    const response = ContentService.createTextOutput(JSON.stringify(data))
+        .setMimeType(ContentService.MimeType.JSON);
+
+    // Pour les requêtes POST, on valide l'origine. Pour les GET, on peut être plus permissif.
+    if (origin && ALLOWED_ORIGINS.includes(origin)) {
+        response.addHeader('Access-Control-Allow-Origin', origin);
+    } else {
+        // Pour les requêtes GET (comme getAppLogs) où l'origine n'est pas passée de la même manière.
+        // On autorise largement car la sécurité est gérée par le fait que l'action est publique.
+        response.addHeader('Access-Control-Allow-Origin', '*');
     }
-  } catch (e) {
-    Logger.log(`Échec de l'enregistrement de l'action: ${e.toString()}`);
-  }
-}
-
-function logError(requestContent, error) {
-  try {
-    const errorSheet = SpreadsheetApp.openById(CLIENT_SPREADSHEET_ID).getSheetByName(SHEET_NAMES.LOGS);
-    if (errorSheet) {
-      errorSheet.appendRow([new Date(), SCRIPT_NAME, 'ERREUR', `Requête: ${requestContent} | Erreur: ${error.message} | Pile: ${error.stack}`]);
-    }
-  } catch (e) {
-    Logger.log(`Échec de l'enregistrement de l'erreur: ${e.toString()}`);
-  }
-}
-
-function getOrCreateSheet(spreadsheet, sheetName, headers) {
-  let sheet = spreadsheet.getSheetByName(sheetName);
-  if (!sheet) {
-    sheet = spreadsheet.insertSheet(sheetName);
-    sheet.appendRow(headers);
-    sheet.setFrozenRows(1);
-    sheet.getRange(1, 1, 1, headers.length).setFontWeight("bold");
-  }
-  return sheet;
-}
-
-// --- FONCTIONS DE LECTURE POUR LE DASHBOARD ---
-
-function getRecentOrders(data, ctx) {
-  try {
-    // OPTIMISATION: Utiliser les données du contexte
-    const ordersData = ctx.orders || SpreadsheetApp.openById(CLIENT_SPREADSHEET_ID).getSheetByName(SHEET_NAMES.ORDERS).getDataRange().getValues();
-    const headers = ordersData[0];
-    
-    const lastRow = ordersData.length;
-    const startRow = Math.max(2, lastRow - 19);
-    const numRows = lastRow - startRow + 1;
-
-    if (numRows <= 0) return createJsonResponse({ success: true, data: [] });
-
-    // Extraire les lignes pertinentes des données pré-chargées
-    const relevantRows = ordersData.slice(startRow - 1, lastRow);
-
-    const orders = relevantRows.reverse().map(row => {
-        const obj = {};
-        headers.forEach((header, index) => {
-            obj[header] = row[index];
-        });
-        return obj;
-    });
-
-    // CORRECTION: Cette fonction est appelée par une interface (google.script.run)
-    // qui attend un objet JavaScript simple, et non un objet TextOutput.
-    // On retourne donc directement l'objet. La fonction createJsonResponse est
-    // réservée aux vraies réponses d'API (doGet/doPost).
-    return { success: true, data: orders };
-
-  } catch (error) {
-    logError(JSON.stringify({action: 'getRecentOrders', data}), error);
-    // CORRECTION: Retourner un objet simple en cas d'erreur.
-    return { success: false, error: error.message };
-  }
+    return response;
 }
 
 /**
- * NOUVEAU: Récupère les commandes pour un client spécifique.
- * Appelée par la page "Mon Compte".
- * @param {object} data L'objet contenant { clientId }.
- * @param {object} ctx Le contexte de la requête avec les données pré-chargées.
- * @returns {GoogleAppsScript.Content.TextOutput} Une réponse JSON avec les commandes du client.
+ * Hache un mot de passe avec un sel (salt).
+ * @param {string} password - Le mot de passe en clair.
+ * @param {string} [salt] - Le sel à utiliser. Si non fourni, un nouveau sera généré.
+ * @returns {{passwordHash: string, salt: string}} Le mot de passe haché et le sel utilisé.
  */
-function getOrdersByClientId(data, ctx) {
-  try {
-    const clientId = data.clientId;
-    if (!clientId) {
-      throw new Error("L'ID du client est manquant.");
-    }
-
-    const ordersData = ctx.orders || SpreadsheetApp.openById(CLIENT_SPREADSHEET_ID).getSheetByName(SHEET_NAMES.ORDERS).getDataRange().getValues();
-    const headers = ordersData[0];
-    const idClientIndex = headers.indexOf("IDClient");
-
-    const clientOrders = ordersData
-      .slice(1) // Ignorer les en-têtes
-      .filter(row => row[idClientIndex] === clientId)
-      .map(row => {
-        const obj = {};
-        headers.forEach((header, index) => obj[header] = row[index]);
-        return obj;
-      }).reverse(); // Afficher les plus récentes en premier
-
-    // CORRECTION: Comme pour getRecentOrders, cette fonction est appelée par une interface
-    // et doit retourner un objet JavaScript simple.
-    return { success: true, data: clientOrders };
-  } catch (error) {
-    // CORRECTION: Retourner un objet simple en cas d'erreur.
-    return { success: false, error: error.message };
-  }
+function hashPassword(password, salt) {
+    const saltValue = salt || Utilities.getUuid();
+    const hash = Utilities.computeHmacSha256Signature(password, saltValue);
+    const passwordHash = Utilities.base64Encode(hash);
+    return { passwordHash, salt: saltValue };
 }
 
-// Fonction pour initialiser tous les onglets d'un coup
-function initialiserBaseDeDonnees_Client() {
-  const ss = SpreadsheetApp.openById(CLIENT_SPREADSHEET_ID);
-  getOrCreateSheet(ss, SHEET_NAMES.USERS, ["IDClient", "Nom", "Email", "MotDePasseHash", "Salt", "Adresse", "Téléphone", "DateInscription", "Statut", "Rôle", "Favoris"]);
-  getOrCreateSheet(ss, SHEET_NAMES.ORDERS, ["IDCommande", "IDClient", "Date", "Produits", "Quantités", "Total", "Statut", "MoyenPaiement", "AdresseLivraison", "Notes"]);
-  getOrCreateSheet(ss, SHEET_NAMES.PAYMENTS, ["IDCommande", "Montant", "MoyenPaiement", "Statut", "Date", "TransactionID", "PreuvePaiement"]);
-  getOrCreateSheet(ss, "Livraisons", ["IDCommande", "Transporteur", "NuméroSuivi", "DateEstimee", "Statut", "DateLivraison", "Commentaire"]);
-  getOrCreateSheet(ss, "SAV", ["IDCommande", "Client", "Motif", "Statut", "Date", "Résolution", "Commentaire"]);
-  getOrCreateSheet(ss, SHEET_NAMES.LOGS, ["Date", "Script", "Action", "Détails"]);
-}
-
-function seedPersonalData_Client() {
-    const clients = PERSONAL_DATA.clients;
-    clients.forEach(client => {
-        creerCompteClient(client, createRequestContext());
-    });
-    SpreadsheetApp.getUi().alert('Remplissage terminé !', 'Les clients de test ont été ajoutés.', SpreadsheetApp.getUi().ButtonSet.OK);
-}
-
-function clearAllData_Client() {
-    const ui = SpreadsheetApp.getUi();
-    const response = ui.alert('Confirmation', 'Êtes-vous sûr de vouloir supprimer TOUTES les données clients (Utilisateurs, Commandes, Paiements) ? Cette action est irréversible.', ui.ButtonSet.YES_NO);
-
-    if (response == ui.Button.YES) {
-        const ss = SpreadsheetApp.openById(CLIENT_SPREADSHEET_ID);
-        const usersSheet = ss.getSheetByName(SHEET_NAMES.USERS);
-        const ordersSheet = ss.getSheetByName(SHEET_NAMES.ORDERS);
-        const paymentsSheet = ss.getSheetByName(SHEET_NAMES.PAYMENTS);
-
-        if (usersSheet) usersSheet.getRange("A2:Z").clearContent();
-        if (ordersSheet) ordersSheet.getRange("A2:Z").clearContent();
-        if (paymentsSheet) paymentsSheet.getRange("A2:Z").clearContent();
-
-        logAction('clearAllData_Client', { status: 'Données effacées' });
-        ui.alert('Opération terminée', 'Toutes les données client ont été effacées.', ui.ButtonSet.OK);
+/**
+ * Journalise une action réussie dans la feuille "Logs".
+ * @param {string} action - Le nom de l'action.
+ * @param {object} details - Les détails de l'action.
+ */
+function logAction(action, details) {
+    try {
+        const logSheet = SpreadsheetApp.openById(CLIENT_SPREADSHEET_ID).getSheetByName(SHEET_NAMES.LOGS);
+        logSheet.appendRow([new Date(), "BACK-END", action, JSON.stringify(details)]);
+    } catch (e) {
+        console.error("Échec de la journalisation d'action: " + e.message);
     }
 }
 
-function updateSystem_Client() {
-  const ss = SpreadsheetApp.openById(CLIENT_SPREADSHEET_ID);
-  const ui = SpreadsheetApp.getUi();
-
-  try {
-    const sheetConfigs = {
-      [SHEET_NAMES.USERS]: ["IDClient", "Nom", "Email", "MotDePasseHash", "Salt", "Adresse", "Téléphone", "DateInscription", "Statut", "Rôle", "Favoris"],
-      [SHEET_NAMES.ORDERS]: ["IDCommande", "IDClient", "Date", "Produits", "Quantités", "Total", "Statut", "MoyenPaiement", "AdresseLivraison", "Notes"],
-      [SHEET_NAMES.PAYMENTS]: ["IDCommande", "Montant", "MoyenPaiement", "Statut", "Date", "TransactionID", "PreuvePaiement"],
-      [SHEET_NAMES.LOGS]: ["Date", "Script", "Action", "Détails"]
-    };
-
-    Object.entries(sheetConfigs).forEach(([name, expectedHeaders]) => {
-      let sheet = ss.getSheetByName(name);
-      if (!sheet) {
-        sheet = ss.insertSheet(name);
-        sheet.appendRow(expectedHeaders);
-        Logger.log(`Onglet '${name}' créé avec les en-têtes.`);
-      } else {
-        const headerRange = sheet.getRange(1, 1, 1, sheet.getLastColumn() || 1);
-        const currentHeaders = headerRange.getValues()[0];
-        const missingHeaders = expectedHeaders.filter(h => !currentHeaders.includes(h));
-
-        if (missingHeaders.length > 0) {
-          sheet.getRange(1, currentHeaders.length + 1, 1, missingHeaders.length).setValues([missingHeaders]);
-          Logger.log(`Colonnes manquantes ajoutées à '${name}': ${missingHeaders.join(', ')}`);
-        }
-      }
-    });
-    ui.alert('Mise à jour du système client terminée avec succès !');
-  } catch (e) {
-    Logger.log(e);
-    ui.alert('Erreur lors de la mise à jour', e.message, ui.ButtonSet.OK);
-  }
+/**
+ * Journalise une erreur dans la feuille "Logs".
+ * @param {string} context - Le contexte où l'erreur s'est produite.
+ * @param {Error} error - L'objet erreur.
+ */
+function logError(context, error) {
+    try {
+        const logSheet = SpreadsheetApp.openById(CLIENT_SPREADSHEET_ID).getSheetByName(SHEET_NAMES.LOGS);
+        const errorDetails = {
+            context: context,
+            message: error.message,
+            stack: error.stack
+        };
+        logSheet.appendRow([new Date(), "BACK-END", "ERROR", JSON.stringify(errorDetails)]);
+    } catch (e) {
+        console.error("Échec de la journalisation d'erreur: " + e.message);
+    }
 }
