@@ -1,8 +1,17 @@
 const CONFIG = {
-    // URL de l'API publique (Script 2: Gestion Client & Livraison)
-    CLIENT_API_URL: "https://script.google.com/macros/s/AKfycbyX2oYgH90ZYLzv3ZjDJn0bvlJsgvXaeuRR-RqUki0HRC_ZyKEzeqyjvGDUMEp3q3XK/exec",
+    // URL de l'API pour la gestion des comptes (authentification, etc.)
+    ACCOUNT_API_URL: "https://script.google.com/macros/s/AKfycbzzLqCLTH45Z0T_612sACgxeg_mEQ2Dke4_JPDtg72jOfgmmGwcUVwoTVOuI4tYCdMR/exec",
 
-    // URL du script central. On ajoute l'action dans la requête fetch.
+    // NOUVEAU: URL de l'API dédiée à la gestion des commandes
+    ORDER_API_URL: "URL_DU_SCRIPT_GESTION_COMMANDES",
+
+    // NOUVEAU: URL de l'API dédiée à la gestion des livraisons
+    DELIVERY_API_URL: "URL_DU_SCRIPT_GESTION_LIVRAISONS",
+
+    // NOUVEAU: URL de l'API dédiée aux notifications
+    NOTIFICATION_API_URL: "URL_DU_SCRIPT_GESTION_NOTIFICATIONS",
+
+    // URL du script central pour le catalogue de produits.
     CENTRAL_API_URL: "https://script.google.com/macros/s/AKfycbwYJ20BjaSTD1MjOAJbGXbmPKZGdbrVgp4j6w0eg8dVEMmPfpxkoTyvT69rlbe7Fx8R/exec",
     
     // Autres configurations
@@ -15,30 +24,7 @@ let allLoadedProducts = []; // Stocke tous les produits déjà chargés
 let renderedCategoriesCount = 0;
 const CATEGORIES_PER_LOAD = 3;
 
-// NOUVEAU: Structure de données pour les options de livraison
-const DELIVERY_OPTIONS = {
-    "Dakar": {
-        "Dakar - Plateau": { "Standard": 1500, "ABMCY Express": 2500, "Livraison par Yango": 0, "Livraison au point de relais": 0, "Livraison en agence": 0 },
-        "Dakar - Yoff": { "Standard": 2000, "ABMCY Express": 3000, "Livraison par Yango": 0, "Livraison au point de relais": 0, "Livraison en agence": 0 },
-        "Dakar - Pikine": { "Standard": 2500, "ABMCY Express": 3500, "Livraison par Yango": 0, "Livraison au point de relais": 0, "Livraison en agence": 0 },
-        "Rufisque": { "Standard": 3000, "ABMCY Express": 4000, "Livraison par Yango": 0, "Livraison au point de relais": 0, "Livraison en agence": 0 }
-    },
-    "Thiès": {
-        "Thiès Ville": { "Standard": 3500, "ABMCY Express": 5000, "Livraison au point de relais": 0, "Livraison en agence": 0 },
-        "Mbour": { "Standard": 4000, "ABMCY Express": 6000, "Livraison au point de relais": 0, "Livraison en agence": 0 },
-        "Saly": { "Standard": 4500, "ABMCY Express": 6500, "Livraison au point de relais": 0, "Livraison en agence": 0 }
-    },
-    "Saint-Louis": {
-        "Saint-Louis Ville": { "Standard": 5000, "Livraison au point de relais": 0, "Livraison en agence": 0 }
-    },
-    "Ziguinchor": {
-        "Ziguinchor Ville": { "Standard": 6000, "Livraison au point de relais": 0, "Livraison en agence": 0 }
-    },
-    "Kaolack": {
-        "Kaolack Ville": { "Standard": 4500, "Livraison au point de relais": 0, "Livraison en agence": 0 }
-    }
-    // ... Ajouter d'autres régions et villes
-};
+let DELIVERY_OPTIONS = {}; // NOUVEAU: Sera chargé depuis l'API
 
 // Attendre que le contenu de la page soit entièrement chargé
 document.addEventListener('DOMContentLoaded', () => {
@@ -847,11 +833,21 @@ function loadProductPage(catalog) {
  * NOUVEAU: Remplit les sélecteurs de livraison sur la page produit.
  */
 function populateDeliverySelectors() {
+    // NOUVEAU: Récupérer les options de livraison depuis l'API
+    fetch(`${CONFIG.DELIVERY_API_URL}?action=getDeliveryOptions`)
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                DELIVERY_OPTIONS = result.data;
+                fillDeliverySelectors();
+            }
+        });
+}
+
+function fillDeliverySelectors() {
     const locationSelect = document.getElementById('delivery-location');
     const methodSelect = document.getElementById('delivery-method');
-
     if (!locationSelect || !methodSelect) return;
-
     let locationHTML = '<option value="">-- Choisir une localité --</option>';
     for (const region in DELIVERY_OPTIONS) {
         locationHTML += `<optgroup label="${region}">`;
@@ -1113,7 +1109,7 @@ async function processCheckout(event) {
 
     // 4. Envoyer la commande à l'API Client (Script 2)
     try {
-        const response = await fetch(CONFIG.CLIENT_API_URL, {
+        const response = await fetch(CONFIG.ORDER_API_URL, { // NOUVEAU: Utilise l'API des commandes
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(orderPayload)
@@ -1125,6 +1121,16 @@ async function processCheckout(event) {
             saveCart([]); // Vider le panier après la commande
             window.location.href = 'index.html'; // Rediriger vers la page d'accueil
         } else {
+            // NOUVEAU: Envoyer une notification même si la commande réussit
+            fetch(CONFIG.NOTIFICATION_API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'sendOrderConfirmation',
+                    data: { orderId: result.id, ...orderPayload.data }
+                }),
+                keepalive: true
+            });
             throw new Error(result.error || "Une erreur inconnue est survenue.");
         }
     } catch (error) {
@@ -1671,7 +1677,7 @@ function logAppEvent(type, data) {
         // NOUVEAU: Envoyer le log au serveur de manière asynchrone ("fire and forget")
         // On n'attend pas la réponse pour ne pas ralentir l'interface utilisateur.
         const logPayload = {
-            action: 'logClientEvent',
+            action: 'logClientEvent', // Cette action est dans l'API des comptes
             data: logEntry
         };
         try {
@@ -1679,7 +1685,7 @@ function logAppEvent(type, data) {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(logPayload),
-                keepalive: true // Important pour que la requête aboutisse même si la page se ferme
+                keepalive: true
             });
         } catch (e) { console.error("Échec de l'envoi du log au serveur:", e); }
 
@@ -1737,13 +1743,13 @@ async function handleAuthForm(event, type) {
 
     logAppEvent('FETCH_START', {
         message: `Tentative de ${type === 'login' ? 'connexion' : 'création de compte'}`,
-        url: CONFIG.CLIENT_API_URL,
+        url: CONFIG.ACCOUNT_API_URL,
         payload: payload
     });
 
     try {
         form.querySelector('button[type="submit"]').disabled = true;
-        const response = await fetch(CONFIG.CLIENT_API_URL, {
+        const response = await fetch(CONFIG.ACCOUNT_API_URL, {
             method: 'POST', // Le mode 'no-cors' n'est pas nécessaire et cause des problèmes.
             headers: { 'Content-Type': 'application/json' }, // Ajout de cet en-tête essentiel
             body: JSON.stringify(payload),
@@ -1758,7 +1764,7 @@ async function handleAuthForm(event, type) {
         if (result.success) {
             logAppEvent('FETCH_SUCCESS', {
                 message: `Action '${payload.action}' réussie.`,
-                url: CONFIG.CLIENT_API_URL,
+                url: CONFIG.ACCOUNT_API_URL,
                 response: result
             });
 
@@ -1776,7 +1782,7 @@ async function handleAuthForm(event, type) {
         } else {
             logAppEvent('API_ERROR', {
                 message: `L'API a retourné une erreur pour l'action '${payload.action}'.`,
-                url: CONFIG.CLIENT_API_URL,
+                url: CONFIG.ACCOUNT_API_URL,
                 error: result.error,
                 payload: payload
             });
@@ -1785,7 +1791,7 @@ async function handleAuthForm(event, type) {
     } catch (error) {
         logAppEvent('FETCH_ERROR', {
             message: `Échec de la requête pour l'action '${payload.action}'.`,
-            url: CONFIG.CLIENT_API_URL,
+            url: CONFIG.ACCOUNT_API_URL,
             error: error.message,
             payload: payload
         });
@@ -1876,7 +1882,7 @@ async function loadRecentOrdersForAccount(clientId) {
     ordersSection.innerHTML = '<div class="loader mx-auto"></div><p class="text-center text-gray-500 mt-2">Chargement de vos commandes...</p>';
 
     try {
-        const response = await fetch(CONFIG.CLIENT_API_URL, {
+        const response = await fetch(CONFIG.ACCOUNT_API_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
