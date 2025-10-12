@@ -1,6 +1,6 @@
 const CONFIG = {
     // URL de l'API pour la gestion des comptes (authentification, etc.)
-    ACCOUNT_API_URL: "https://script.google.com/macros/s/AKfycbyFyXmCbPbyEx6502OiwPyAsvq4N0qwHwVQCp3H-8WLKVewqU6AGqO726p5Lu7INt05/exec",
+    ACCOUNT_API_URL: "https://script.google.com/macros/s/AKfycbwRpCI4watBHo8R6jkvcVpPb8pTVTbtR5Kg2vOvHby1Kdweo7nx4G-LEMfE9HQ5vRnc/exec",
     // NOUVEAU: URL de l'API dédiée à la gestion des commandes
     ORDER_API_URL: "https://script.google.com/macros/s/AKfycbwrLOxtez1UrrXVj2iugSiLtAYOhhaef9x-HlpvvvxmQxsMVYRVQeShy4V56vfhjBxq/exec",
 
