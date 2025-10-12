@@ -2,7 +2,7 @@ const CONFIG = {
     // URL de l'API pour la gestion des comptes (authentification, etc.)
     ACCOUNT_API_URL: "https://script.google.com/macros/s/AKfycbwTQyGfxo0AnsadvuUWv-s2cmUT0qymUhNXq-v15pwqBZ9d2dfdw67LT0nYGmObyII7/exec",
     // NOUVEAU: URL de l'API dédiée à la gestion des commandes
-    ORDER_API_URL: "URL_DU_SCRIPT_GESTION_COMMANDES",
+    ORDER_API_URL: "https://script.google.com/macros/s/AKfycbwrLOxtez1UrrXVj2iugSiLtAYOhhaef9x-HlpvvvxmQxsMVYRVQeShy4V56vfhjBxq/exec",
 
     // NOUVEAU: URL de l'API dédiée à la gestion des livraisons
     DELIVERY_API_URL: "URL_DU_SCRIPT_GESTION_LIVRAISONS",
