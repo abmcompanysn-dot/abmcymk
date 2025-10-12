@@ -1,6 +1,6 @@
 const CONFIG = {
     // URL de l'API pour la gestion des comptes (authentification, etc.)
-    ACCOUNT_API_URL: "https://script.google.com/macros/s/AKfycbw1c_Cgrcrvh2qDuAUXxltUPjhjuLns48o1ov-uhVU3uAzDW-85edlGxhiysp68iEtP/exec",
+    ACCOUNT_API_URL: "https://script.google.com/macros/s/AKfycby6f9OWSBR_LJENwHmShbSmaI_Q-gfmTiIdIzPJL1hNduBo1MlQaWjjtuP47Q_wtttq/exec",
 
     // NOUVEAU: URL de l'API dédiée à la gestion des commandes
     ORDER_API_URL: "URL_DU_SCRIPT_GESTION_COMMANDES",
@@ -1681,7 +1681,7 @@ function logAppEvent(type, data) {
             data: logEntry
         };
         try {
-            fetch(CONFIG.CLIENT_API_URL, {
+            fetch(CONFIG.ACCOUNT_API_URL, { // CORRECTION: Utiliser l'API des comptes pour la journalisation
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(logPayload),

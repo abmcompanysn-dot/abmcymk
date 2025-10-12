@@ -2,29 +2,19 @@
  * @file Gestion Compte - API pour abmcymarket.vercel.app
  * @description Gère l'authentification des clients,
  * la journalisation des événements et la récupération des données spécifiques au client.
- *
- * @version 2.0.0
+ * @version 3.0.0
  * @author Gemini Code Assist
  */
 
 // --- CONFIGURATION GLOBALE ---
-
-// ⚠️ REMPLACEZ PAR L'ID DE VOTRE FEUILLE GOOGLE SHEETS
-const CLIENT_SPREADSHEET_ID = "1pGx-1uFUdS61fL4eh4HhQaHQSX6UzmPXiMQY0i71ZpU";
 
 // Noms des feuilles de calcul utilisées
 const SHEET_NAMES = {
     USERS: "Utilisateurs",
     ORDERS: "Commandes",
     LOGS: "Logs",
-    PRODUCTS: "Produits" // Ajout pour certaines logiques
+    CONFIG: "Config" // NOUVEAU
 };
-
-// 🔐 Origines autorisées à accéder à cette API.
-const ALLOWED_ORIGINS = [
-    "https://abmcymarket.vercel.app"
-    // Ajoutez d'autres origines si nécessaire, ex: "http://localhost:5500" pour les tests locaux
-];
 
 // --- POINTS D'ENTRÉE DE L'API WEB (doGet, doPost, doOptions) ---
 
@@ -59,7 +49,7 @@ function doPost(e) {
 
     try {
         // La pré-vérification CORS est gérée par doOptions, on attend donc toujours un contenu.
-        if (!e || !e.postData || !e.postData.contents) {
+        if (!e || !e.postData ||  !e.postData.contents) {
             throw new Error("Requête POST invalide ou vide.");
         }
 
@@ -102,10 +92,14 @@ function doOptions(e) {
     const response = ContentService.createTextOutput(null);
     
     // On autorise si l'origine est dans notre liste blanche
-    if (ALLOWED_ORIGINS.includes(origin)) {
+    const config = getConfig();
+    if (config.allowed_origins.includes(origin)) {
         response.addHeader('Access-Control-Allow-Origin', origin);
-        response.addHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
-        response.addHeader('Access-Control-Allow-Headers', 'Content-Type');
+        response.addHeader('Access-Control-Allow-Methods', config.allowed_methods);
+        response.addHeader('Access-Control-Allow-Headers', config.allowed_headers);
+        if (config.allow_credentials) {
+            response.addHeader('Access-Control-Allow-Credentials', 'true');
+        }
     }
     
     return response;
@@ -122,7 +116,7 @@ function doOptions(e) {
  */
 function creerCompteClient(data, origin) {
     try {
-        const sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEET_NAMES.USERS);
+        const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.USERS);
         const usersData = sheet.getRange(2, 1, sheet.getLastRow(), 3).getValues();
         const emailExists = usersData.some(row => row[1] === data.email);
 
@@ -134,8 +128,8 @@ function creerCompteClient(data, origin) {
         const { passwordHash, salt } = hashPassword(data.motDePasse);
 
         sheet.appendRow([
-            idClient, data.nom, data.email, passwordHash, salt,
-            data.adresse || '', data.telephone || '', new Date(), "Actif", "Client"
+            idClient, data.nom, data.email, passwordHash, salt, data.telephone || '',
+            data.adresse || '', new Date(), "Actif", "Client"
         ]);
 
         logAction('creerCompteClient', { email: data.email, id: idClient });
@@ -155,7 +149,7 @@ function creerCompteClient(data, origin) {
  */
 function connecterClient(data, origin) {
     try {
-        const sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEET_NAMES.USERS);
+        const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.USERS);
         const usersData = sheet.getDataRange().getValues();
         const headers = usersData.shift();
         const emailIndex = headers.indexOf("Email");
@@ -202,7 +196,7 @@ function connecterClient(data, origin) {
  */
 function getOrdersByClientId(data, origin) {
     try {
-        const sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEET_NAMES.ORDERS);
+        const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.ORDERS);
         const allOrders = sheet.getDataRange().getValues();
         const headers = allOrders.shift();
         const idClientIndex = headers.indexOf("IDClient");
@@ -231,7 +225,7 @@ function getOrdersByClientId(data, origin) {
  */
 function logClientEvent(data, origin) {
     try {
-        const logSheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEET_NAMES.LOGS);
+        const logSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.LOGS);
         const details = {
             message: data.message,
             url: data.url,
@@ -253,7 +247,7 @@ function logClientEvent(data, origin) {
  */
 function getAppLogs(params) {
     try {
-        const logSheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEET_NAMES.LOGS);
+        const logSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.LOGS);
         const lastRow = logSheet.getLastRow();
         const startRow = Math.max(2, lastRow - 99);
         const numRows = lastRow > 1 ? lastRow - startRow + 1 : 0;
@@ -277,9 +271,13 @@ function createJsonResponse(data, origin) {
     const response = ContentService.createTextOutput(JSON.stringify(data))
         .setMimeType(ContentService.MimeType.JSON);
 
+    const config = getConfig();
     // Pour les requêtes POST, on valide l'origine. Pour les GET, on peut être plus permissif.
-    if (origin && ALLOWED_ORIGINS.includes(origin)) {
+    if (origin && config.allowed_origins.includes(origin)) {
         response.addHeader('Access-Control-Allow-Origin', origin);
+        if (config.allow_credentials) {
+            response.addHeader('Access-Control-Allow-Credentials', 'true');
+        }
     } else {
         response.addHeader('Access-Control-Allow-Origin', '*');
     }
@@ -306,7 +304,7 @@ function hashPassword(password, salt) {
  */
 function logAction(action, details) {
     try {
-        const logSheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEET_NAMES.LOGS);
+        const logSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.LOGS);
         logSheet.appendRow([new Date(), "BACK-END", action, JSON.stringify(details)]);
     } catch (e) {
         console.error("Échec de la journalisation d'action: " + e.message);
@@ -320,7 +318,7 @@ function logAction(action, details) {
  */
 function logError(context, error) {
     try {
-        const logSheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEET_NAMES.LOGS);
+        const logSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.LOGS);
         const errorDetails = {
             context: context,
             message: error.message,
@@ -330,4 +328,103 @@ function logError(context, error) {
     } catch (e) {
         console.error("Échec de la journalisation d'erreur: " + e.message);
     }
+}
+
+/**
+ * NOUVEAU: Crée un menu personnalisé à l'ouverture de la feuille de calcul.
+ */
+function onOpen() {
+  SpreadsheetApp.getUi()
+      .createMenu('Configuration Module')
+      .addItem('🚀 Initialiser le projet', 'setupProject')
+      .addToUi();
+}
+
+/**
+ * NOUVEAU: Récupère la configuration depuis la feuille "Config" et la met en cache.
+ * @returns {object} Un objet contenant la configuration.
+ */
+function getConfig() {
+  const cache = CacheService.getScriptCache();
+  const CACHE_KEY = 'script_config';
+  const cachedConfig = cache.get(CACHE_KEY);
+  if (cachedConfig) {
+    return JSON.parse(cachedConfig);
+  }
+
+  const defaultConfig = {
+    allowed_origins: ["https://abmcymarket.vercel.app"],
+    allowed_methods: "POST,GET,OPTIONS",
+    allowed_headers: "Content-Type",
+    allow_credentials: "true"
+  };
+
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const configSheet = ss.getSheetByName(SHEET_NAMES.CONFIG);
+    if (!configSheet) return defaultConfig;
+
+    const data = configSheet.getDataRange().getValues();
+    const config = {};
+    data.forEach(row => {
+      if (row[0] && row[1]) { config[row[0]] = row[1]; }
+    });
+
+    const finalConfig = {
+      allowed_origins: config.allowed_origins ? config.allowed_origins.split(',').map(s => s.trim()) : defaultConfig.allowed_origins,
+      allowed_methods: config.allowed_methods || defaultConfig.allowed_methods,
+      allowed_headers: config.allowed_headers || defaultConfig.allowed_headers,
+      allow_credentials: config.allow_credentials === 'true'
+    };
+
+    cache.put(CACHE_KEY, JSON.stringify(finalConfig), 600); // Cache pendant 10 minutes
+    return finalConfig;
+  } catch (e) {
+    return defaultConfig;
+  }
+}
+
+/**
+ * NOUVEAU: Initialise les feuilles de calcul nécessaires pour ce module.
+ */
+function setupProject() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ui = SpreadsheetApp.getUi();
+
+  const sheetsToCreate = {
+    [SHEET_NAMES.USERS]: ["IDClient", "Nom", "Email", "PasswordHash", "Salt", "Telephone", "Adresse", "Date d'inscription", "Statut", "Role"],
+    [SHEET_NAMES.ORDERS]: ["ID Commande", "ID Client", "Produits", "Quantités", "Montant Total", "Statut", "Date", "Adresse Livraison", "Moyen Paiement", "Notes"],
+    [SHEET_NAMES.LOGS]: ["Timestamp", "Source", "Action", "Détails"],
+    [SHEET_NAMES.CONFIG]: ["Clé", "Valeur"]
+  };
+
+  Object.entries(sheetsToCreate).forEach(([sheetName, headers]) => {
+    let sheet = ss.getSheetByName(sheetName);
+    if (!sheet) {
+      sheet = ss.insertSheet(sheetName);
+      sheet.appendRow(headers);
+      sheet.setFrozenRows(1);
+      sheet.getRange("A1:Z1").setFontWeight("bold");
+    }
+  });
+
+  // Remplir la configuration par défaut
+  const configSheet = ss.getSheetByName(SHEET_NAMES.CONFIG);
+  const configData = configSheet.getDataRange().getValues();
+  const configMap = new Map(configData.map(row => [row[0], row[1]]));
+
+  const defaultConfigValues = {
+    'allowed_origins': 'https://abmcymarket.vercel.app,http://127.0.0.1:5500',
+    'allowed_methods': 'POST,GET,OPTIONS',
+    'allowed_headers': 'Content-Type',
+    'allow_credentials': 'true'
+  };
+
+  Object.entries(defaultConfigValues).forEach(([key, value]) => {
+    if (!configMap.has(key)) {
+      configSheet.appendRow([key, value]);
+    }
+  });
+
+  ui.alert("Projet 'Gestion Compte' initialisé avec succès ! Les onglets 'Utilisateurs', 'Commandes', 'Logs' et 'Config' sont prêts.");
 }
