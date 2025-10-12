@@ -55,7 +55,7 @@ function doGet(e) {
  * @returns {GoogleAppsScript.Content.TextOutput} Une réponse vide avec les en-têtes CORS.
  */
 function doOptions(e) {
-    const origin = e.headers.Origin || e.headers.origin;
+    const origin = e && e.headers ? e.headers.Origin || e.headers.origin : null;
     const response = ContentService.createTextOutput(null);
     
     // On autorise si l'origine est dans notre liste blanche

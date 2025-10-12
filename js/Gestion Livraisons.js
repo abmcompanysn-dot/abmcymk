@@ -15,51 +15,35 @@ const SHEET_NAMES = {
 // --- POINTS D'ENTRÉE DE L'API WEB ---
 
 function doGet(e) {
-    const action = e.parameter.action;
+    const origin = e && e.headers ? e.headers.Origin || e.headers.origin : null;
+    const action = e && e.parameter ? e.parameter.action : null;
 
     if (action === 'getDeliveryOptions') {
         const config = getConfig();
-        return createJsonResponse({ success: true, data: config.delivery_options });
+        return addCorsHeaders(createJsonResponse({ success: true, data: config.delivery_options }), origin);
     }
 
-    return createJsonResponse({
+    return addCorsHeaders(createJsonResponse({
         success: true,
         message: 'API Gestion Livraisons - Active'
-    });
+    }), origin);
 }
 
 function doOptions(e) {
-    const origin = e.headers.Origin || e.headers.origin;
-    const response = ContentService.createTextOutput(null);
-    const config = getConfig();
-    if (config.allowed_origins.includes(origin)) {
-        response.addHeader('Access-Control-Allow-Origin', origin);
-        response.addHeader('Access-Control-Allow-Methods', config.allowed_methods);
-        response.addHeader('Access-Control-Allow-Headers', config.allowed_headers);
-        if (config.allow_credentials) {
-            response.addHeader('Access-Control-Allow-Credentials', 'true');
-        }
+    const origin = e && e.headers ? e.headers.Origin || e.headers.origin : null;
+    const output = ContentService.createTextOutput(null);
+    const corsHeaders = getCorsHeaders(origin);
+    for (const header in corsHeaders) {
+        output.setHeader(header, corsHeaders[header]);
     }
-    return response;
+    return output;
 }
 
 // --- FONCTIONS UTILITAIRES ---
 
 function createJsonResponse(data, origin) {
-    const response = ContentService.createTextOutput(JSON.stringify(data))
+    return ContentService.createTextOutput(JSON.stringify(data))
         .setMimeType(ContentService.MimeType.JSON);
-
-    const config = getConfig();
-    if (origin && config.allowed_origins.includes(origin)) {
-        response.addHeader('Access-Control-Allow-Origin', origin);
-        if (config.allow_credentials) {
-            response.addHeader('Access-Control-Allow-Credentials', 'true');
-        }
-    } else {
-        // Pour les requêtes GET publiques, on autorise largement.
-        response.addHeader('Access-Control-Allow-Origin', '*');
-    }
-    return response;
 }
 
 /**
@@ -149,4 +133,23 @@ function setupProject() {
   configSheet.appendRow(['delivery_options', JSON.stringify(defaultDeliveryOptions)]);
 
   ui.alert("Projet 'Gestion Livraisons' initialisé avec succès !");
+}
+
+/**
+ * NOUVEAU: Ajoute les en-têtes CORS à une réponse existante.
+ * @param {GoogleAppsScript.Content.TextOutput} response - L'objet réponse.
+ * @param {string} origin - L'origine de la requête.
+ * @returns {GoogleAppsScript.Content.TextOutput} La réponse avec les en-têtes.
+ */
+function addCorsHeaders(response, origin) {
+    const config = getConfig();
+    if (origin && config.allowed_origins.includes(origin)) {
+        response.setHeader('Access-Control-Allow-Origin', origin);
+        if (config.allow_credentials) {
+            response.setHeader('Access-Control-Allow-Credentials', 'true');
+        }
+    } else {
+        response.setHeader('Access-Control-Allow-Origin', '*');
+    }
+    return response;
 }

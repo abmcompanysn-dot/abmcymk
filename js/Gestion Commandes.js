@@ -16,8 +16,17 @@ const SHEET_NAMES = {
 
 // --- POINTS D'ENTRÉE DE L'API WEB ---
 
+function doGet(e) {
+    const origin = e && e.headers ? e.headers.Origin || e.headers.origin : null;
+    // Réponse par défaut pour un simple test de connectivité
+    return addCorsHeaders(createJsonResponse({
+      success: true,
+      message: 'API Gestion Commandes - Active'
+    }), origin);
+}
+
 function doPost(e) {
-    const origin = e.headers.Origin || e.headers.origin;
+    const origin = e && e.headers ? e.headers.Origin || e.headers.origin : null;
     try {
         if (!e || !e.postData || !e.postData.contents) {
             throw new Error("Requête POST invalide ou vide.");
@@ -27,31 +36,26 @@ function doPost(e) {
         const { action, data } = request;
 
         if (action === 'enregistrerCommande') {
-            return enregistrerCommande(data, origin);
+            return addCorsHeaders(enregistrerCommande(data, origin), origin);
         } else {
             logAction('doPost', { error: 'Action non reconnue', action: action });
-            return createJsonResponse({ success: false, error: `Action non reconnue: ${action}` }, origin);
+            return addCorsHeaders(createJsonResponse({ success: false, error: `Action non reconnue: ${action}` }), origin);
         }
 
     } catch (error) {
         logError(e.postData ? e.postData.contents : 'No postData', error);
-        return createJsonResponse({ success: false, error: `Erreur serveur: ${error.message}` }, origin);
+        return addCorsHeaders(createJsonResponse({ success: false, error: `Erreur serveur: ${error.message}` }), origin);
     }
 }
 
 function doOptions(e) {
-    const origin = e.headers.Origin || e.headers.origin;
-    const response = ContentService.createTextOutput(null);
-    const config = getConfig();
-    if (config.allowed_origins.includes(origin)) {
-        response.addHeader('Access-Control-Allow-Origin', origin);
-        response.addHeader('Access-Control-Allow-Methods', config.allowed_methods);
-        response.addHeader('Access-Control-Allow-Headers', config.allowed_headers);
-        if (config.allow_credentials) {
-            response.addHeader('Access-Control-Allow-Credentials', 'true');
-        }
+    const origin = e && e.headers ? e.headers.Origin || e.headers.origin : null;
+    const output = ContentService.createTextOutput(null);
+    const corsHeaders = getCorsHeaders(origin);
+    for (const header in corsHeaders) {
+        output.setHeader(header, corsHeaders[header]);
     }
-    return response;
+    return output;
 }
 
 // --- LOGIQUE MÉTIER ---
@@ -74,7 +78,7 @@ function enregistrerCommande(data, origin) {
             data.notes || '']);
 
         logAction('enregistrerCommande', { id: idCommande, client: data.idClient });
-        return createJsonResponse({ success: true, id: idCommande }, origin);
+        return createJsonResponse({ success: true, id: idCommande });
     } finally {
         lock.releaseLock();
     }
@@ -83,16 +87,8 @@ function enregistrerCommande(data, origin) {
 // --- FONCTIONS UTILITAIRES ---
 
 function createJsonResponse(data, origin) {
-    const response = ContentService.createTextOutput(JSON.stringify(data))
+    return ContentService.createTextOutput(JSON.stringify(data))
         .setMimeType(ContentService.MimeType.JSON);
-    const config = getConfig();
-    if (origin && config.allowed_origins.includes(origin)) {
-        response.addHeader('Access-Control-Allow-Origin', origin);
-        if (config.allow_credentials) {
-            response.addHeader('Access-Control-Allow-Credentials', 'true');
-        }
-    }
-    return response;
 }
 
 function logAction(action, details) {
@@ -209,4 +205,23 @@ function setupProject() {
   });
 
   ui.alert("Projet 'Gestion Commandes' initialisé avec succès ! Les onglets 'Commandes', 'Logs' et 'Config' sont prêts.");
+}
+
+/**
+ * NOUVEAU: Ajoute les en-têtes CORS à une réponse existante.
+ * @param {GoogleAppsScript.Content.TextOutput} response - L'objet réponse.
+ * @param {string} origin - L'origine de la requête.
+ * @returns {GoogleAppsScript.Content.TextOutput} La réponse avec les en-têtes.
+ */
+function addCorsHeaders(response, origin) {
+    const config = getConfig();
+    if (origin && config.allowed_origins.includes(origin)) {
+        response.setHeader('Access-Control-Allow-Origin', origin);
+        if (config.allow_credentials) {
+            response.setHeader('Access-Control-Allow-Credentials', 'true');
+        }
+    } else {
+        response.setHeader('Access-Control-Allow-Origin', '*');
+    }
+    return response;
 }

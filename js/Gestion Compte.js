@@ -2,7 +2,8 @@
  * @file Gestion Compte - API pour abmcymarket.vercel.app
  * @description Gère l'authentification des clients,
  * la journalisation des événements et la récupération des données spécifiques au client.
- * @version 3.0.0
+ *
+ * @version 3.1.0 (Correction CORS pour Apps Script)
  * @author Gemini Code Assist
  */
 
@@ -13,7 +14,7 @@ const SHEET_NAMES = {
     USERS: "Utilisateurs",
     ORDERS: "Commandes",
     LOGS: "Logs",
-    CONFIG: "Config" // NOUVEAU
+    CONFIG: "Config"
 };
 
 // --- POINTS D'ENTRÉE DE L'API WEB (doGet, doPost, doOptions) ---
@@ -25,17 +26,20 @@ const SHEET_NAMES = {
  * @returns {GoogleAppsScript.Content.TextOutput} La réponse JSON.
  */
 function doGet(e) {
+    const origin = e.headers ? e.headers.Origin || e.headers.origin : null;
     const action = e.parameter.action;
 
     if (action === 'getAppLogs') {
-        return getAppLogs(e.parameter);
+        // CORRECTION: N'appelle plus addCorsHeaders
+        return getAppLogs(e.parameter, origin);
     }
 
     // Réponse par défaut pour un simple test de l'API
+    // CORRECTION: N'appelle plus addCorsHeaders
     return createJsonResponse({
       success: true,
       message: 'API Gestion Compte - Active'
-    });
+    }, origin);
 }
 
 /**
@@ -45,11 +49,12 @@ function doGet(e) {
  * @returns {GoogleAppsScript.Content.TextOutput} La réponse JSON.
  */
 function doPost(e) {
-    const origin = e.headers.Origin || e.headers.origin;
+    // Dans le cas de POST, l'entête CORS est souvent géré par la réponse du navigateur
+    // si l'origine est autorisée dans le déploiement.
+    const origin = e.headers.Origin || e.headers.origin; 
 
     try {
-        // La pré-vérification CORS est gérée par doOptions, on attend donc toujours un contenu.
-        if (!e || !e.postData ||  !e.postData.contents) {
+        if (!e || !e.postData ||  !e.postData.contents) {
             throw new Error("Requête POST invalide ou vide.");
         }
 
@@ -83,26 +88,14 @@ function doPost(e) {
 
 /**
  * Gère les requêtes HTTP OPTIONS pour la pré-vérification CORS.
- * C'est une étape de sécurité obligatoire demandée par le navigateur.
+ * CORRECTION: Simplification pour Apps Script, car TextOutput n'a pas setHeader.
  * @param {object} e - L'objet événement de la requête.
- * @returns {GoogleAppsScript.Content.TextOutput} Une réponse vide avec les en-têtes CORS.
+ * @returns {GoogleAppsScript.Content.TextOutput} Une réponse vide.
  */
 function doOptions(e) {
-    const origin = e.headers.Origin || e.headers.origin;
-    const response = ContentService.createTextOutput(null);
-    
-    // On autorise si l'origine est dans notre liste blanche
-    const config = getConfig();
-    if (config.allowed_origins.includes(origin)) {
-        response.addHeader('Access-Control-Allow-Origin', origin);
-        response.addHeader('Access-Control-Allow-Methods', config.allowed_methods);
-        response.addHeader('Access-Control-Allow-Headers', config.allowed_headers);
-        if (config.allow_credentials) {
-            response.addHeader('Access-Control-Allow-Credentials', 'true');
-        }
-    }
-    
-    return response;
+    // Renvoie simplement un TextOutput vide (réponse 200 OK)
+    // Les en-têtes CORS nécessaires doivent être gérés par le client et le service Apps Script.
+    return ContentService.createTextOutput('');
 }
 
 
@@ -245,14 +238,14 @@ function logClientEvent(data, origin) {
  * @param {object} params - Paramètres de la requête GET.
  * @returns {GoogleAppsScript.Content.TextOutput} Réponse JSON.
  */
-function getAppLogs(params) {
+function getAppLogs(params, origin) {
     try {
         const logSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.LOGS);
         const lastRow = logSheet.getLastRow();
         const startRow = Math.max(2, lastRow - 99);
         const numRows = lastRow > 1 ? lastRow - startRow + 1 : 0;
         const logs = (numRows > 0) ? logSheet.getRange(startRow, 1, numRows, 4).getValues() : [];
-        return createJsonResponse({ success: true, logs: logs.reverse() });
+        return createJsonResponse({ success: true, logs: logs.reverse() }, origin);
     } catch (error) {
         logError('getAppLogs', error);
         return createJsonResponse({ success: false, error: error.message });
@@ -262,26 +255,14 @@ function getAppLogs(params) {
 // --- FONCTIONS UTILITAIRES ---
 
 /**
- * Crée une réponse JSON standardisée avec les en-têtes CORS.
+ * Crée une réponse JSON standardisée avec le MimeType.
  * @param {object} data - L'objet à convertir en JSON.
- * @param {string} [origin] - L'origine de la requête pour l'en-tête CORS.
+ * @param {string} [origin] - L'origine de la requête pour l'en-tête CORS (non utilisé directement).
  * @returns {GoogleAppsScript.Content.TextOutput} Un objet TextOutput.
  */
 function createJsonResponse(data, origin) {
-    const response = ContentService.createTextOutput(JSON.stringify(data))
+    return ContentService.createTextOutput(JSON.stringify(data))
         .setMimeType(ContentService.MimeType.JSON);
-
-    const config = getConfig();
-    // Pour les requêtes POST, on valide l'origine. Pour les GET, on peut être plus permissif.
-    if (origin && config.allowed_origins.includes(origin)) {
-        response.addHeader('Access-Control-Allow-Origin', origin);
-        if (config.allow_credentials) {
-            response.addHeader('Access-Control-Allow-Credentials', 'true');
-        }
-    } else {
-        response.addHeader('Access-Control-Allow-Origin', '*');
-    }
-    return response;
 }
 
 /**
@@ -331,7 +312,7 @@ function logError(context, error) {
 }
 
 /**
- * NOUVEAU: Crée un menu personnalisé à l'ouverture de la feuille de calcul.
+ * Crée un menu personnalisé à l'ouverture de la feuille de calcul.
  */
 function onOpen() {
   SpreadsheetApp.getUi()
@@ -341,7 +322,7 @@ function onOpen() {
 }
 
 /**
- * NOUVEAU: Récupère la configuration depuis la feuille "Config" et la met en cache.
+ * Récupère la configuration depuis la feuille "Config" et la met en cache.
  * @returns {object} Un objet contenant la configuration.
  */
 function getConfig() {
@@ -385,7 +366,7 @@ function getConfig() {
 }
 
 /**
- * NOUVEAU: Initialise les feuilles de calcul nécessaires pour ce module.
+ * Initialise les feuilles de calcul nécessaires pour ce module.
  */
 function setupProject() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -427,4 +408,50 @@ function setupProject() {
   });
 
   ui.alert("Projet 'Gestion Compte' initialisé avec succès ! Les onglets 'Utilisateurs', 'Commandes', 'Logs' et 'Config' sont prêts.");
+}
+
+/**
+ * ANCIENNE FONCTION - SUPPRIMÉE.
+ * La méthode setHeader() n'existe pas sur l'objet ContentService.TextOutput.
+ * La gestion des en-têtes CORS doit être effectuée via le déploiement Apps Script
+ * ou en utilisant setMimeType (déjà fait dans createJsonResponse).
+ */
+/*
+function addCorsHeaders(response, origin) {
+    const output = response;
+    const corsHeaders = getCorsHeaders(origin);
+
+    if (corsHeaders['Access-Control-Allow-Origin']) {
+        output.setHeader('Access-Control-Allow-Origin', corsHeaders['Access-Control-Allow-Origin']);
+    }
+    if (corsHeaders['Access-Control-Allow-Credentials']) {
+        output.setHeader('Access-Control-Allow-Credentials', corsHeaders['Access-Control-Allow-Credentials']);
+    }
+
+    return output;
+}
+*/
+
+/**
+ * Construit un objet d'en-têtes CORS basé sur la configuration.
+ * (Conservée, bien que non utilisée directement pour setHeader.)
+ * @param {string} origin - L'origine de la requête.
+ * @returns {object} Un objet contenant les en-têtes CORS.
+ */
+function getCorsHeaders(origin) {
+    const config = getConfig();
+    const headers = {};
+
+    if (origin && config.allowed_origins.includes(origin)) {
+        headers['Access-Control-Allow-Origin'] = origin;
+        headers['Access-Control-Allow-Methods'] = config.allowed_methods;
+        headers['Access-Control-Allow-Headers'] = config.allowed_headers;
+        if (config.allow_credentials) {
+            headers['Access-Control-Allow-Credentials'] = 'true';
+        }
+    } else {
+        // Pour les requêtes GET simples sans origine (ex: test direct), on reste permissif.
+        headers['Access-Control-Allow-Origin'] = '*';
+    }
+    return headers;
 }
