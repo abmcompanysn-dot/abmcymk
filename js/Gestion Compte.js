@@ -248,7 +248,7 @@ function getAppLogs(params, origin) {
         return createJsonResponse({ success: true, logs: logs.reverse() }, origin);
     } catch (error) {
         logError('getAppLogs', error);
-        return createJsonResponse({ success: false, error: error.message });
+        return createJsonResponse({ success: false, error: error.message }, origin);
     }
 }
 

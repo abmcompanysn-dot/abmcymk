@@ -19,10 +19,10 @@ const SHEET_NAMES = {
 function doGet(e) {
     const origin = e && e.headers ? e.headers.Origin || e.headers.origin : null;
     // Réponse par défaut pour un simple test de connectivité
-    return addCorsHeaders(createJsonResponse({
+    return createJsonResponse({
       success: true,
       message: 'API Gestion Commandes - Active'
-    }), origin);
+    }, origin);
 }
 
 function doPost(e) {
@@ -36,26 +36,20 @@ function doPost(e) {
         const { action, data } = request;
 
         if (action === 'enregistrerCommande') {
-            return addCorsHeaders(enregistrerCommande(data, origin), origin);
+            return enregistrerCommande(data, origin);
         } else {
             logAction('doPost', { error: 'Action non reconnue', action: action });
-            return addCorsHeaders(createJsonResponse({ success: false, error: `Action non reconnue: ${action}` }), origin);
+            return createJsonResponse({ success: false, error: `Action non reconnue: ${action}` }, origin);
         }
 
     } catch (error) {
         logError(e.postData ? e.postData.contents : 'No postData', error);
-        return addCorsHeaders(createJsonResponse({ success: false, error: `Erreur serveur: ${error.message}` }), origin);
+        return createJsonResponse({ success: false, error: `Erreur serveur: ${error.message}` }, origin);
     }
 }
 
 function doOptions(e) {
-    const origin = e && e.headers ? e.headers.Origin || e.headers.origin : null;
-    const output = ContentService.createTextOutput(null);
-    const corsHeaders = getCorsHeaders(origin);
-    for (const header in corsHeaders) {
-        output.setHeader(header, corsHeaders[header]);
-    }
-    return output;
+    return ContentService.createTextOutput('');
 }
 
 // --- LOGIQUE MÉTIER ---
@@ -78,7 +72,7 @@ function enregistrerCommande(data, origin) {
             data.notes || '']);
 
         logAction('enregistrerCommande', { id: idCommande, client: data.idClient });
-        return createJsonResponse({ success: true, id: idCommande });
+        return createJsonResponse({ success: true, id: idCommande }, origin);
     } finally {
         lock.releaseLock();
     }

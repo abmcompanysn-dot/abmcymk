@@ -17,10 +17,10 @@ const SHEET_NAMES = {
 function doGet(e) {
     const origin = e && e.headers ? e.headers.Origin || e.headers.origin : null;
     // Réponse par défaut pour un simple test de connectivité
-    return addCorsHeaders(createJsonResponse({
+    return createJsonResponse({
       success: true,
       message: 'API Gestion Notifications - Active'
-    }), origin);
+    }, origin);
 }
 
 function doPost(e) {
@@ -34,24 +34,18 @@ function doPost(e) {
             const subject = `Nouvelle commande #${data.orderId}`;
             const body = `Une nouvelle commande a été passée.\n\nID Commande: ${data.orderId}\nClient: ${data.clientId}\nTotal: ${data.total}\n\nDétails: ${JSON.stringify(data.products, null, 2)}`;
             MailApp.sendEmail(ADMIN_EMAIL, subject, body);
-            return addCorsHeaders(createJsonResponse({ success: true, message: "Notification envoyée." }), origin);
+            return createJsonResponse({ success: true, message: "Notification envoyée." }, origin);
         }
 
-        return addCorsHeaders(createJsonResponse({ success: false, error: "Action de notification non reconnue." }), origin);
+        return createJsonResponse({ success: false, error: "Action de notification non reconnue." }, origin);
 
     } catch (error) {
-        return addCorsHeaders(createJsonResponse({ success: false, error: `Erreur serveur: ${error.message}` }), origin);
+        return createJsonResponse({ success: false, error: `Erreur serveur: ${error.message}` }, origin);
     }
 }
 
 function doOptions(e) {
-    const origin = e && e.headers ? e.headers.Origin || e.headers.origin : null;
-    const output = ContentService.createTextOutput(null);
-    const corsHeaders = getCorsHeaders(origin);
-    for (const header in corsHeaders) {
-        output.setHeader(header, corsHeaders[header]);
-    }
-    return output;
+    return ContentService.createTextOutput('');
 }
 
 // --- FONCTIONS UTILITAIRES ---
@@ -144,46 +138,4 @@ function setupProject() {
   configSheet.appendRow(['allow_credentials', 'true']);
 
   ui.alert("Projet 'Gestion Notifications' initialisé avec succès !");
-}
-
-/**
- * NOUVEAU: Ajoute les en-têtes CORS à une réponse existante.
- * @param {GoogleAppsScript.Content.TextOutput} response - L'objet réponse.
- * @param {string} origin - L'origine de la requête.
- * @returns {GoogleAppsScript.Content.TextOutput} La réponse avec les en-têtes.
- */
-function addCorsHeaders(response, origin) {
-    const output = response;
-    const corsHeaders = getCorsHeaders(origin);
-
-    if (corsHeaders['Access-Control-Allow-Origin']) {
-        output.setHeader('Access-Control-Allow-Origin', corsHeaders['Access-Control-Allow-Origin']);
-    }
-    if (corsHeaders['Access-Control-Allow-Credentials']) {
-        output.setHeader('Access-Control-Allow-Credentials', corsHeaders['Access-Control-Allow-Credentials']);
-    }
-
-    return output;
-}
-
-/**
- * NOUVEAU: Construit un objet d'en-têtes CORS basé sur la configuration.
- * @param {string} origin - L'origine de la requête.
- * @returns {object} Un objet contenant les en-têtes CORS.
- */
-function getCorsHeaders(origin) {
-    const config = getConfig();
-    const headers = {};
-
-    if (origin && config.allowed_origins.includes(origin)) {
-        headers['Access-Control-Allow-Origin'] = origin;
-        headers['Access-Control-Allow-Methods'] = config.allowed_methods;
-        headers['Access-Control-Allow-Headers'] = config.allowed_headers;
-        if (config.allow_credentials) {
-            headers['Access-Control-Allow-Credentials'] = 'true';
-        }
-    } else {
-        headers['Access-Control-Allow-Origin'] = '*';
-    }
-    return headers;
 }

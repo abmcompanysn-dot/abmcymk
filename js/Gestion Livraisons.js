@@ -20,23 +20,17 @@ function doGet(e) {
 
     if (action === 'getDeliveryOptions') {
         const config = getConfig();
-        return addCorsHeaders(createJsonResponse({ success: true, data: config.delivery_options }), origin);
+        return createJsonResponse({ success: true, data: config.delivery_options }, origin);
     }
 
-    return addCorsHeaders(createJsonResponse({
+    return createJsonResponse({
         success: true,
         message: 'API Gestion Livraisons - Active'
-    }), origin);
+    }, origin);
 }
 
 function doOptions(e) {
-    const origin = e && e.headers ? e.headers.Origin || e.headers.origin : null;
-    const output = ContentService.createTextOutput(null);
-    const corsHeaders = getCorsHeaders(origin);
-    for (const header in corsHeaders) {
-        output.setHeader(header, corsHeaders[header]);
-    }
-    return output;
+    return ContentService.createTextOutput('');
 }
 
 // --- FONCTIONS UTILITAIRES ---
