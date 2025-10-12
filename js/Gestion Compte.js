@@ -49,6 +49,49 @@ function doGet(e) {
 }
 
 /**
+ * Gère les requêtes HTTP POST.
+ * Point d'entrée principal pour les actions (connexion, inscription, etc.).
+ * @param {object} e - L'objet événement de la requête.
+ * @returns {GoogleAppsScript.Content.TextOutput} La réponse JSON.
+ */
+function doPost(e) {
+    const origin = e.headers.Origin || e.headers.origin;
+
+    try {
+        // La pré-vérification CORS est gérée par doOptions, on attend donc toujours un contenu.
+        if (!e || !e.postData || !e.postData.contents) {
+            throw new Error("Requête POST invalide ou vide.");
+        }
+
+        const request = JSON.parse(e.postData.contents);
+        const { action, data } = request;
+
+        if (!action) {
+            return createJsonResponse({ success: false, error: 'Action non spécifiée.' }, origin);
+        }
+
+        // Routeur pour les actions POST
+        switch (action) {
+            case 'creerCompteClient':
+                return creerCompteClient(data, origin);
+            case 'connecterClient':
+                return connecterClient(data, origin);
+            case 'getOrdersByClientId':
+                return getOrdersByClientId(data, origin);
+            case 'logClientEvent':
+                return logClientEvent(data, origin);
+            default:
+                logAction('doPost', { error: 'Action non reconnue', action: action });
+                return createJsonResponse({ success: false, error: `Action non reconnue: ${action}` }, origin);
+        }
+
+    } catch (error) {
+        logError(e.postData ? e.postData.contents : 'No postData', error);
+        return createJsonResponse({ success: false, error: `Erreur serveur: ${error.message}` }, origin);
+    }
+}
+
+/**
  * Gère les requêtes HTTP OPTIONS pour la pré-vérification CORS.
  * C'est une étape de sécurité obligatoire demandée par le navigateur.
  * @param {object} e - L'objet événement de la requête.

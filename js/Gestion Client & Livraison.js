@@ -43,17 +43,8 @@ function doGet(e) {
 
     // Réponse par défaut pour un simple test de l'API
     return createJsonResponse({
-        success: true,
-        message: 'Requête POST reçue',
-        data: e.parameter // ou JSON.parse(e.postData.contents)
-    });
-    return ContentService.createTextOutput(JSON.stringify(response))
-
-    .setMimeType(ContentService.MimeType.JSON)
-    .setHeaders({
-      'Access-Control-Allow-Origin': 'https://abmcymarket.vercel.app',
-      'Access-Control-Allow-Methods': 'POST',
-      'Access-Control-Allow-Headers': 'Content-Type'
+      success: true,
+      message: 'API Gestion Compte - Active'
     });
 }
 
