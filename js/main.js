@@ -1,18 +1,11 @@
 const CONFIG = {
-    // URL de l'API pour la gestion des comptes (authentification, etc.)
-    ACCOUNT_API_URL:"https://script.google.com/macros/s/AKfycbxl2teYJfhLRALtoucMMQWmguCNbNZrrcI2VDwacQdiibrYTcWtsS_rqMjL7udMwOyJDg/exec",
-    // ⚠️ REMPLACEZ PAR VOS URLS DE DÉPLOIEMENT
-    // Script "Gestion Commandes"
-    ORDER_API_URL: "https://script.google.com/macros/s/AKfycbx-aYAV2xS-bO82HE2nO3ymw32a25q2J2W2gOaYJjY-s-gL8sYd8K8f8N8e8W8g8H8/exec", // URL fictive, à remplacer
-
-    // Script "Gestion Livraisons"
-    DELIVERY_API_URL: "https://script.google.com/macros/s/AKfycbw-bZAV2xS-cO82HE2nO3ymw32a25q2J2W2gOaYJjY-s-gL8sYd8K8f8N8e8W8g8H8/exec", // URL fictive, à remplacer
-
-    // Script "Gestion Notifications"
-    NOTIFICATION_API_URL: "https://script.google.com/macros/s/AKfycby-dZAV2xS-eO82HE2nO3ymw32a25q2J2W2gOaYJjY-s-gL8sYd8K8f8N8e8W8g8H8/exec", // URL fictive, à remplacer
-
+    // NOUVEAU: URL de l'API CENTRALE qui gère maintenant tout (comptes, commandes, etc.)
+    ACCOUNT_API_URL:"https://script.google.com/macros/s/AKfycbzUuMtaxPyMocKNHjsnjUNCpYDITwPGa3dhObt2Rv5K1xXAP20VII_t-cJAYSnZXQyMXg/exec",
+    // Les URL spécifiques pour commandes, livraisons et notifications sont maintenant obsolètes
+    // car tout est géré par l'API centrale (ACCOUNT_API_URL).
+    
     // URL du script central pour le catalogue de produits.
-    CENTRAL_API_URL: "https://script.google.com/macros/s/AKfycbwYJ20BjaSTD1MjOAJbGXbmPKZGdbrVgp4j6w0eg8dVEMmPfpxkoTyvT69rlbe7Fx8R/exec",
+    CENTRAL_API_URL: "https://script.google.com/macros/s/AKfycbwXJ7nGrftKjKHaG6r_I1i9HCmcFJHmDk8BEvmW1jbNpBnI7-DjnDw7eLEet9HeHRwF/exec",
     
     // Autres configurations
     DEFAULT_PRODUCT_IMAGE: "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png",
@@ -1097,7 +1090,7 @@ async function processCheckout(event) {
 
     // 3. Préparer l'objet de la commande pour le backend
     const orderPayload = {
-        action: 'enregistrerCommande',
+        action: 'enregistrerCommandeEtNotifier', // NOUVEAU: Action unique qui gère tout
         data: {
             idClient: clientId,
             produits: cart, // Envoyer le panier complet
@@ -1109,35 +1102,19 @@ async function processCheckout(event) {
     };
 
     // 5. Envoyer la commande à l'API des commandes
+    // NOUVEAU: Un seul appel à l'API centrale
     try {
-        const response = await fetch(CONFIG.ORDER_API_URL, { // NOUVEAU: Utilise l'API des commandes
+        const response = await fetch(CONFIG.ACCOUNT_API_URL, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'text/plain' }, // Utiliser text/plain pour éviter le preflight
             body: JSON.stringify(orderPayload)
         });
         const result = await response.json();
 
         if (result.success) {
-            statusDiv.textContent = `Commande #${result.id.split('-')[1]} enregistrée avec succès ! Vous allez être redirigé.`;
+            statusDiv.textContent = `Commande #${result.id} enregistrée avec succès ! Vous allez être redirigé.`;
             statusDiv.className = 'mt-4 text-center font-semibold text-green-600';
             saveCart([]); // Vider le panier après la commande
-
-            // NOUVEAU: Envoyer une notification de manière asynchrone ("fire and forget")
-            try {
-                fetch(CONFIG.NOTIFICATION_API_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        action: 'sendOrderConfirmation',
-                        data: {
-                            orderId: result.id,
-                            clientId: clientId,
-                            total: total,
-                            products: cart
-                        }
-                    })
-                });
-            } catch (notifError) { console.error("Échec de l'envoi de la notification:", notifError); }
 
             setTimeout(() => {
                 window.location.href = 'compte.html'; // Rediriger vers la page de compte pour voir la commande
@@ -1705,7 +1682,7 @@ function logAppEvent(type, data) {
         // NOUVEAU: Envoyer le log au serveur de manière asynchrone ("fire and forget")
         // On n'attend pas la réponse pour ne pas ralentir l'interface utilisateur.
         const logPayload = {
-            action: 'logClientEvent', // Cette action est dans l'API des comptes
+            action: 'logClientEvent',
             data: logEntry
         };
         try {
@@ -1778,8 +1755,9 @@ async function handleAuthForm(event, type) {
     try {
         form.querySelector('button[type="submit"]').disabled = true;
         const response = await fetch(CONFIG.ACCOUNT_API_URL, {
-
             method: 'POST',
+            // Utiliser text/plain pour en faire une "requête simple" et éviter le preflight CORS.
+            headers: { 'Content-Type': 'text/plain' }, // Changé de application/json
             body: JSON.stringify(payload),
         });
 
@@ -1912,7 +1890,7 @@ async function loadRecentOrdersForAccount(clientId) {
     try {
         const response = await fetch(CONFIG.ACCOUNT_API_URL, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'text/plain' }, // Utiliser text/plain pour éviter le preflight
             body: JSON.stringify({
                 action: 'getOrdersByClientId',
                 data: { clientId: clientId }
@@ -1944,7 +1922,7 @@ async function loadRecentOrdersForAccount(clientId) {
                     <tbody>
                         ${result.data.map(order => `
                             <tr class="border-b">
-                                <td class="p-3 font-medium text-blue-600">#${order.IDCommande.split('-')[1]}</td>
+                                <td class="p-3 font-medium text-blue-600">#${order.IDCommande}</td>
                                 <td class="p-3">${new Date(order.Date).toLocaleDateString('fr-FR')}</td>
                                 <td class="p-3"><span class="px-2 py-1 text-xs font-semibold rounded-full bg-yellow-200 text-yellow-800">${order.Statut}</span></td>
                                 <td class="p-3 text-right font-semibold">${Number(order.Total).toLocaleString('fr-FR')} F CFA</td>

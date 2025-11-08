@@ -1,20 +1,25 @@
 /**
  * @file Gestion Compte - API pour abmcymarket.vercel.app
- * @description Gère l'authentification des clients,
- * la journalisation des événements et la récupération des données spécifiques au client.
+ * @description API CENTRALE: Gère les clients, commandes, livraisons et notifications.
  *
- * @version 3.2.0 (Correction CORS robuste)
+ * @version 4.0.0 (Fusion des services)
  * @author Gemini Code Assist
  */
 
 // --- CONFIGURATION GLOBALE ---
+
+// Email pour recevoir les notifications de nouvelles commandes
+const ADMIN_EMAIL = "abmcompanysn@gmail.com";
 
 // Noms des feuilles de calcul utilisées
 const SHEET_NAMES = {
     USERS: "Utilisateurs",
     ORDERS: "Commandes",
     LOGS: "Logs",
-    CONFIG: "Config"
+    CONFIG: "Config",
+    // NOUVEAU: Ajout des feuilles des autres modules
+    LIVRAISONS: "Livraisons",
+    NOTIFICATIONS: "Notifications"
 };
 
 // Origines autorisées à accéder à cette API.
@@ -37,6 +42,12 @@ function doGet(e) {
 
     if (action === 'getAppLogs') {
         return getAppLogs(e.parameter, origin);
+    }
+
+    // NOUVEAU: Action fusionnée depuis Gestion Livraisons
+    if (action === 'getDeliveryOptions') {
+        const config = getConfig();
+        return createJsonResponse({ success: true, data: config.delivery_options || {} }, origin);
     }
 
     // Réponse par défaut pour un simple test de l'API
@@ -78,6 +89,12 @@ function doPost(e) {
                 return connecterClient(data, origin);
             case 'getOrdersByClientId':
                 return getOrdersByClientId(data, origin);
+            // NOUVEAU: Action fusionnée depuis Gestion Commandes & Notifications
+            case 'enregistrerCommandeEtNotifier':
+                const orderResult = enregistrerCommande(data, origin);
+                const orderData = JSON.parse(orderResult.getContent());
+                if (orderData.success) { sendOrderConfirmationEmail(orderData, data); }
+                return orderResult;
             case 'logClientEvent':
                 return logClientEvent(data, origin);
             default:
@@ -194,6 +211,52 @@ function connecterClient(data, origin) {
 }
 
 /**
+ * NOUVEAU: Enregistre une nouvelle commande. Fusionné depuis Gestion Commandes.
+ * @param {object} data - Les données de la commande.
+ * @param {string} origin - L'origine de la requête.
+ * @returns {GoogleAppsScript.Content.TextOutput} Réponse JSON avec l'ID de la commande.
+ */
+function enregistrerCommande(data, origin) {
+    try {
+        const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.ORDERS);
+        const idCommande = "CMD-" + new Date().getTime();
+
+        // Convertir les produits (qui sont des objets) en une chaîne lisible
+        const produitsDetails = data.produits.map(p => `${p.name} (x${p.quantity})`).join(', ');
+
+        sheet.appendRow([
+            idCommande, data.idClient, produitsDetails, // Correspond à IDCommande, IDClient, DetailsProduits
+            data.total, "En attente", new Date(),
+            data.adresseLivraison, data.moyenPaiement,
+            data.notes || ''
+        ]);
+
+        logAction('enregistrerCommande', { id: idCommande, client: data.idClient });
+        // Retourne plus d'infos pour la notification
+        return createJsonResponse({ success: true, id: idCommande, total: data.total, clientId: data.idClient }, origin);
+    } catch (error) {
+        logError(JSON.stringify({ action: 'enregistrerCommande', data }), error);
+        return createJsonResponse({ success: false, error: error.message }, origin);
+    }
+}
+
+/**
+ * NOUVEAU: Envoie un email de confirmation de commande à l'admin. Fusionné depuis Gestion Notifications.
+ * @param {object} orderResult - Le résultat de la fonction enregistrerCommande.
+ * @param {object} originalData - Les données originales de la commande contenant les détails des produits.
+ */
+function sendOrderConfirmationEmail(orderResult, originalData) {
+    try {
+        const subject = `Nouvelle commande #${orderResult.id}`;
+        const body = `Une nouvelle commande a été passée.\n\nID Commande: ${orderResult.id}\nClient: ${orderResult.clientId}\nTotal: ${orderResult.total} F CFA\n\nDétails: ${JSON.stringify(originalData.produits, null, 2)}`;
+        MailApp.sendEmail(ADMIN_EMAIL, subject, body);
+        logAction('sendOrderConfirmationEmail', { orderId: orderResult.id });
+    } catch (error) {
+        logError('sendOrderConfirmationEmail', error);
+    }
+}
+
+/**
  * Récupère les commandes d'un client spécifique.
  * @param {object} data - Contient { clientId }.
  * @param {string} origin - L'origine de la requête.
@@ -203,7 +266,7 @@ function getOrdersByClientId(data, origin) {
     try {
         const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.ORDERS);
         const allOrders = sheet.getDataRange().getValues();
-        const headers = allOrders.shift();
+        const headers = allOrders.shift() || [];
         const idClientIndex = headers.indexOf("IDClient");
 
         const clientOrdersData = allOrders.filter(row => row[idClientIndex] === data.clientId);
@@ -353,7 +416,8 @@ function getConfig() {
   const defaultConfig = {
     allowed_origins: ["https://abmcymarket.vercel.app"],
     allowed_methods: "POST,GET,OPTIONS",
-    allowed_headers: "Content-Type",
+    allowed_headers: "Content-Type, X-Requested-With", // Ajout pour compatibilité
+    delivery_options: {}, // NOUVEAU: Ajout depuis Gestion Livraisons
     allow_credentials: "true"
   };
 
@@ -372,7 +436,8 @@ function getConfig() {
       allowed_origins: config.allowed_origins ? config.allowed_origins.split(',').map(s => s.trim()) : defaultConfig.allowed_origins,
       allowed_methods: config.allowed_methods || defaultConfig.allowed_methods,
       allowed_headers: config.allowed_headers || defaultConfig.allowed_headers,
-      allow_credentials: config.allow_credentials === 'true'
+      allow_credentials: config.allow_credentials === 'true',
+      delivery_options: config.delivery_options ? JSON.parse(config.delivery_options) : defaultConfig.delivery_options
     };
 
     cache.put(CACHE_KEY, JSON.stringify(finalConfig), 600); // Cache pendant 10 minutes
@@ -390,10 +455,12 @@ function setupProject() {
   const ui = SpreadsheetApp.getUi();
 
   const sheetsToCreate = {
-    [SHEET_NAMES.USERS]: ["IDClient", "Nom", "Email", "PasswordHash", "Salt", "Telephone", "Adresse", "Date d'inscription", "Statut", "Role"],
-    [SHEET_NAMES.ORDERS]: ["ID Commande", "ID Client", "Produits", "Quantités", "Montant Total", "Statut", "Date", "Adresse Livraison", "Moyen Paiement", "Notes"],
+    [SHEET_NAMES.USERS]: ["IDClient", "Nom", "Email", "PasswordHash", "Salt", "Telephone", "Adresse", "DateInscription", "Statut", "Role"],
+    [SHEET_NAMES.ORDERS]: ["IDCommande", "IDClient", "Produits", "MontantTotal", "Statut", "Date", "AdresseLivraison", "MoyenPaiement", "Notes"],
     [SHEET_NAMES.LOGS]: ["Timestamp", "Source", "Action", "Détails"],
-    [SHEET_NAMES.CONFIG]: ["Clé", "Valeur"]
+    [SHEET_NAMES.CONFIG]: ["Clé", "Valeur"],
+    [SHEET_NAMES.LIVRAISONS]: ["IDLivraison", "IDCommande", "Client", "Adresse", "Statut", "DateMiseAJour", "Transporteur"],
+    [SHEET_NAMES.NOTIFICATIONS]: ["IDNotification", "EmailClient", "Type", "Message", "Statut", "Date"]
   };
 
   Object.entries(sheetsToCreate).forEach(([sheetName, headers]) => {
@@ -413,9 +480,10 @@ function setupProject() {
 
   const defaultConfigValues = {
     'allowed_origins': 'https://abmcymarket.vercel.app,http://127.0.0.1:5500',
-    'allowed_methods': 'POST,GET,OPTIONS',
-    'allowed_headers': 'Content-Type',
-    'allow_credentials': 'true'
+    'allowed_methods': 'POST, GET, OPTIONS',
+    'allowed_headers': 'Content-Type, X-Requested-With',
+    'allow_credentials': 'true',
+    'delivery_options': JSON.stringify({"Dakar":{"Dakar - Plateau":{"Standard":1500,"ABMCY Express":2500},"Rufisque":{"Standard":3000}},"Thiès":{"Thiès Ville":{"Standard":3500}}})
   };
 
   Object.entries(defaultConfigValues).forEach(([key, value]) => {
@@ -423,6 +491,7 @@ function setupProject() {
       configSheet.appendRow([key, value]);
     }
   });
-
-  ui.alert("Projet 'Gestion Compte' initialisé avec succès ! Les onglets 'Utilisateurs', 'Commandes', 'Logs' et 'Config' sont prêts.");
+  
+  CacheService.getScriptCache().remove('script_config'); // Vider le cache pour prendre en compte les changements
+  ui.alert("Projet Central initialisé avec succès ! Tous les onglets sont prêts.");
 }
