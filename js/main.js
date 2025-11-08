@@ -1,14 +1,15 @@
 const CONFIG = {
     // URL de l'API pour la gestion des comptes (authentification, etc.)
-    ACCOUNT_API_URL: "https://script.google.com/macros/s/AKfycbwQ0B7PFpGhes-Bjf1Fv2FfvoAZ2sohEjOTG1V52MFybUl4JkZxMnO_EJupQA_sgmUh/exec",
-    // ⚠️ REMPLACEZ PAR L'URL DE VOTRE NOUVEAU SCRIPT DE GESTION DES COMMANDES
-    ORDER_API_URL: "URL_DU_SCRIPT_GESTION_COMMANDES",
+    ACCOUNT_API_URL:"https://script.google.com/macros/s/AKfycbxl2teYJfhLRALtoucMMQWmguCNbNZrrcI2VDwacQdiibrYTcWtsS_rqMjL7udMwOyJDg/exec",
+    // ⚠️ REMPLACEZ PAR VOS URLS DE DÉPLOIEMENT
+    // Script "Gestion Commandes"
+    ORDER_API_URL: "https://script.google.com/macros/s/AKfycbx-aYAV2xS-bO82HE2nO3ymw32a25q2J2W2gOaYJjY-s-gL8sYd8K8f8N8e8W8g8H8/exec", // URL fictive, à remplacer
 
-    // TODO: URL de l'API dédiée à la gestion des livraisons (à créer)
-    DELIVERY_API_URL: "URL_DU_SCRIPT_GESTION_LIVRAISONS",
+    // Script "Gestion Livraisons"
+    DELIVERY_API_URL: "https://script.google.com/macros/s/AKfycbw-bZAV2xS-cO82HE2nO3ymw32a25q2J2W2gOaYJjY-s-gL8sYd8K8f8N8e8W8g8H8/exec", // URL fictive, à remplacer
 
-    // NOUVEAU: URL de l'API dédiée aux notifications
-    NOTIFICATION_API_URL: "URL_DU_SCRIPT_GESTION_NOTIFICATIONS",
+    // Script "Gestion Notifications"
+    NOTIFICATION_API_URL: "https://script.google.com/macros/s/AKfycby-dZAV2xS-eO82HE2nO3ymw32a25q2J2W2gOaYJjY-s-gL8sYd8K8f8N8e8W8g8H8/exec", // URL fictive, à remplacer
 
     // URL du script central pour le catalogue de produits.
     CENTRAL_API_URL: "https://script.google.com/macros/s/AKfycbwYJ20BjaSTD1MjOAJbGXbmPKZGdbrVgp4j6w0eg8dVEMmPfpxkoTyvT69rlbe7Fx8R/exec",
@@ -1003,11 +1004,17 @@ function populateDeliverySelectorsCheckout() {
  * NOUVEAU: Met à jour les méthodes de livraison en fonction de la localité choisie.
  */
 function updateDeliveryMethodsCheckout() {
-    const locationSelect = document.getElementById('delivery-location');
-    const methodSelect = document.getElementById('delivery-method');
-    const selectedLocation = locationSelect.value;
+    const locationSelect = document.getElementById('delivery-location'); // Sélecteur de ville/localité
+    const methodSelect = document.getElementById('delivery-method'); // Sélecteur de méthode (Standard, Express)
+    const selectedLocation = locationSelect.value; // ex: "Dakar"
 
+    // Si aucune localité n'est choisie, vider et désactiver le sélecteur de méthode.
     if (!selectedLocation) {
+        methodSelect.innerHTML = '<option value="">-- Choisir une méthode --</option>';
+        methodSelect.disabled = true;
+        updateCheckoutTotal(); // Mettre à jour le total (sans frais de port)
+        return;
+    }
     const cart = getCart();
     if (!container) return;
 
@@ -1078,8 +1085,14 @@ async function processCheckout(event) {
 
     // 4. Calculer le total final
     const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    const region = Object.keys(DELIVERY_OPTIONS).find(r => DELIVERY_OPTIONS[r][customerData.location]);
-    const shippingCost = DELIVERY_OPTIONS[region]?.[customerData.location]?.[customerData.deliveryMethod] || 0;
+    // AMÉLIORATION: Logique de recherche des frais de port plus robuste
+    let shippingCost = 0;
+    for (const region in DELIVERY_OPTIONS) {
+        if (DELIVERY_OPTIONS[region][customerData.location]) {
+            shippingCost = DELIVERY_OPTIONS[region][customerData.location][customerData.deliveryMethod] || 0;
+            break;
+        }
+    }
     const total = subtotal + shippingCost;
 
     // 3. Préparer l'objet de la commande pour le backend
@@ -1108,6 +1121,24 @@ async function processCheckout(event) {
             statusDiv.textContent = `Commande #${result.id.split('-')[1]} enregistrée avec succès ! Vous allez être redirigé.`;
             statusDiv.className = 'mt-4 text-center font-semibold text-green-600';
             saveCart([]); // Vider le panier après la commande
+
+            // NOUVEAU: Envoyer une notification de manière asynchrone ("fire and forget")
+            try {
+                fetch(CONFIG.NOTIFICATION_API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'sendOrderConfirmation',
+                        data: {
+                            orderId: result.id,
+                            clientId: clientId,
+                            total: total,
+                            products: cart
+                        }
+                    })
+                });
+            } catch (notifError) { console.error("Échec de l'envoi de la notification:", notifError); }
+
             setTimeout(() => {
                 window.location.href = 'compte.html'; // Rediriger vers la page de compte pour voir la commande
             }, 3000);
@@ -1279,28 +1310,42 @@ function updateWhatsAppLinkForCategory(catalog) {
  */
 async function getCatalogAndRefreshInBackground() {
     const CACHE_KEY = 'abmcyFullCatalog';
-    const VERSION_KEY = 'abmcyCacheVersion';
+    const CACHE_VERSION_KEY = 'abmcyCacheVersion';
     const TIMESTAMP_KEY = 'abmcyCacheTimestamp';
     const CACHE_LIFETIME = 5 * 60 * 1000; // 5 minutes en millisecondes
 
     const cachedData = sessionStorage.getItem(CACHE_KEY);
+    const cachedVersion = sessionStorage.getItem(CACHE_VERSION_KEY);
     const cacheTimestamp = sessionStorage.getItem(TIMESTAMP_KEY);
 
     // Fonction pour récupérer les nouvelles données du réseau
     const fetchAndUpdateCache = async () => {
-        console.log("Mise à jour du cache en arrière-plan...");
+        console.log("Tentative de mise à jour du cache en arrière-plan...");
         try {
             const response = await fetch(`${CONFIG.CENTRAL_API_URL}?action=getPublicCatalog`);
             if (!response.ok) return; // Échoue silencieusement
             const result = await response.json();
             if (result.success) {
                 sessionStorage.setItem(CACHE_KEY, JSON.stringify(result));
-                sessionStorage.setItem(VERSION_KEY, result.cacheVersion);
+                sessionStorage.setItem(CACHE_VERSION_KEY, result.cacheVersion);
                 sessionStorage.setItem(TIMESTAMP_KEY, Date.now().toString());
                 console.log("Cache mis à jour avec succès en arrière-plan.");
             }
         } catch (error) {
             console.error("Échec de la mise à jour du cache en arrière-plan:", error);
+        }
+    };
+
+    // Fonction pour vérifier la version du cache sur le serveur
+    const checkCacheVersion = async () => {
+        try {
+            const response = await fetch(`${CONFIG.CENTRAL_API_URL}?action=getCacheVersion`);
+            const result = await response.json();
+            if (result.success && result.cacheVersion !== cachedVersion) {
+                fetchAndUpdateCache(); // La version a changé, on met à jour
+            }
+        } catch (error) {
+            console.error("Impossible de vérifier la version du cache:", error);
         }
     };
 
@@ -1310,7 +1355,8 @@ async function getCatalogAndRefreshInBackground() {
         
         if (isCacheStale) {
             // Le cache est "périmé", on lance une mise à jour en arrière-plan sans attendre la réponse.
-            fetchAndUpdateCache();
+            // AMÉLIORATION: On vérifie d'abord si la version a changé avant de tout télécharger.
+            checkCacheVersion();
         }
         // On retourne immédiatement les données du cache, qu'elles soient périmées ou non.
         return JSON.parse(cachedData);
@@ -1733,19 +1779,7 @@ async function handleAuthForm(event, type) {
         form.querySelector('button[type="submit"]').disabled = true;
         const response = await fetch(CONFIG.ACCOUNT_API_URL, {
             method: 'POST',
-           AMÉIORATION: SpécifirlCtn-Tyet crucal pou qulbakend
-            // sche q'il rçoituJSON
-           AMÉIORATION: SpécifirlCtn-Tyet crucal pou qulbake
-            // sche q'il rçoituJSON
-           AMÉIORATION: SpécifirlCtn-Tyet crucal pou qulbake
-            // sche q'il rçoituJSON
-           AMÉIORATION: SpécifirlCtn-Tyet crucal pou qulbake
-            // sche q'il rçoituJSON
-           AMÉIORATION: SpécifirlCtn-Tyet crucal pou qulbake
-            // sche q'il rçoituJSON
-           AMÉIORATION: SpécifirlCtn-Tyet crucal pou qulbake
-            // sche q'il rçoituJSON
-            // AMÉLIORATION: Spécifier le Content-Type est c
+            // AMÉLIORATION: Spécifier le Content-Type est crucial pour que le backend
             // sache qu'il reçoit du JSON.
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload),
