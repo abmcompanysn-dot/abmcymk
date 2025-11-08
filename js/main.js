@@ -1778,10 +1778,8 @@ async function handleAuthForm(event, type) {
     try {
         form.querySelector('button[type="submit"]').disabled = true;
         const response = await fetch(CONFIG.ACCOUNT_API_URL, {
+
             method: 'POST',
-            // AMÉLIORATION: Spécifier le Content-Type est crucial pour que le backend
-            // sache qu'il reçoit du JSON.
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload),
         });
 
