@@ -339,7 +339,8 @@ function getAppLogs(params, origin) {
 function createJsonResponse(data, origin) {
     const response = ContentService.createTextOutput(JSON.stringify(data))
         .setMimeType(ContentService.MimeType.JSON);
-    if (origin && ALLOWED_ORIGINS[origin]) {
+    // CORRECTION: La vérification doit se faire avec une recherche de clé dans l'objet, pas avec .includes()
+    if (origin && ALLOWED_ORIGINS[origin] === true) {
         response.addHeader('Access-Control-Allow-Origin', origin);
     }
     return response;
