@@ -33,23 +33,49 @@
                 <h1 class="text-2xl font-bold mb-6">Informations de livraison et paiement</h1>
                 <form id="checkout-form" class="bg-white p-8 rounded-lg shadow-md space-y-6">
                     <!-- Informations Personnelles -->
-                    <div>
+                    <section>
                         <h2 class="text-lg font-semibold mb-3">Vos coordonnées</h2>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label for="firstname" class="block text-sm font-medium text-gray-700">Prénom</label>
-                                <input type="text" id="firstname" required class="mt-1 block w-full p-2 border border-gray-300 rounded-md">
+                                <input type="text" id="firstname" name="firstname" required class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-gold focus:border-gold">
                             </div>
                             <div>
                                 <label for="lastname" class="block text-sm font-medium text-gray-700">Nom</label>
-                                <input type="text" id="lastname" required class="mt-1 block w-full p-2 border border-gray-300 rounded-md">
+                                <input type="text" id="lastname" name="lastname" required class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-gold focus:border-gold">
                             </div>
                         </div>
                         <div class="mt-4">
-                            <label for="address" class="block text-sm font-medium text-gray-700">Adresse de livraison</label>
-                            <input type="text" id="address" required class="mt-1 block w-full p-2 border border-gray-300 rounded-md">
+                            <label for="email" class="block text-sm font-medium text-gray-700">Email</label>
+                            <input type="email" id="email" name="email" required class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-gold focus:border-gold">
                         </div>
-                    </div>
+                        <div class="mt-4">
+                            <label for="phone" class="block text-sm font-medium text-gray-700">Téléphone</label>
+                            <input type="tel" id="phone" name="phone" required class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-gold focus:border-gold">
+                        </div>
+                    </section>
+
+                    <!-- Options de Livraison -->
+                    <section id="delivery-options-section">
+                        <h2 class="text-lg font-semibold mb-3">Options de Livraison</h2>
+                        <div class="space-y-4">
+                            <div>
+                                <label for="delivery-address" class="block text-sm font-medium text-gray-700">Adresse de livraison complète</label>
+                                <input type="text" id="delivery-address" name="delivery-address" required placeholder="Ex: Cité Keur Gorgui, Villa 25B" class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-gold focus:border-gold">
+                            </div>
+                            <div>
+                                <label for="delivery-location" class="block text-sm font-medium text-gray-700">Ville / Localité</label>
+                                <select id="delivery-location" name="delivery-location" required class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-gold focus:border-gold"></select>
+                            </div>
+                            <div>
+                                <label for="delivery-method" class="block text-sm font-medium text-gray-700">Mode de livraison</label>
+                                <select id="delivery-method" name="delivery-method" required class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-gold focus:border-gold"></select>
+                            </div>
+                            <div id="delivery-method-details" class="text-xs text-gray-600 bg-gray-50 p-2 rounded">
+                                <!-- Les détails du mode de livraison s'afficheront ici -->
+                            </div>
+                        </div>
+                    </section>
 
                     <!-- Méthodes de paiement -->
                     <div>
@@ -67,6 +93,7 @@
                     <button type="submit" class="w-full bg-black text-white font-bold py-3 px-4 rounded-lg hover:bg-gray-800 transition">
                         Confirmer la commande
                     </button>
+                    <div id="checkout-status" class="mt-4 text-center font-semibold"></div>
                 </form>
             </div>
 
@@ -83,7 +110,11 @@
                     </div>
                     <div class="flex justify-between">
                         <span>Livraison</span>
-                        <span id="checkout-shipping">0 F CFA</span>
+                        <span id="checkout-shipping" class="font-semibold">À calculer</span>
+                    </div>
+                    <div id="checkout-discount-row" class="flex justify-between text-green-600 hidden">
+                        <span>Réduction</span>
+                        <span id="checkout-discount" class="font-semibold"></span>
                     </div>
                     <div class="flex justify-between font-bold text-xl mt-2">
                         <span>Total</span>

@@ -3,7 +3,7 @@
  * @description Gère l'authentification des clients,
  * la journalisation des événements et la récupération des données spécifiques au client.
  *
- * @version 3.1.0 (Correction CORS pour Apps Script)
+ * @version 3.2.0 (Correction CORS robuste)
  * @author Gemini Code Assist
  */
 
@@ -15,6 +15,12 @@ const SHEET_NAMES = {
     ORDERS: "Commandes",
     LOGS: "Logs",
     CONFIG: "Config"
+};
+
+// Origines autorisées à accéder à cette API.
+const ALLOWED_ORIGINS = {
+    "https://abmcymarket.vercel.app": true,
+    "http://127.0.0.1:5500": true
 };
 
 // --- POINTS D'ENTRÉE DE L'API WEB (doGet, doPost, doOptions) ---
@@ -30,7 +36,6 @@ function doGet(e) {
     const action = e.parameter.action;
 
     if (action === 'getAppLogs') {
-        // CORRECTION: N'appelle plus addCorsHeaders
         return getAppLogs(e.parameter, origin);
     }
 
@@ -49,8 +54,8 @@ function doGet(e) {
  * @returns {GoogleAppsScript.Content.TextOutput} La réponse JSON.
  */
 function doPost(e) {
-    // Dans le cas de POST, l'entête CORS est souvent géré par la réponse du navigateur
-    // si l'origine est autorisée dans le déploiement.
+    const lock = LockService.getScriptLock();
+    lock.waitLock(30000); // Attendre 30s max
     const origin = e.headers.Origin || e.headers.origin; 
 
     try {
@@ -83,21 +88,28 @@ function doPost(e) {
     } catch (error) {
         logError(e.postData ? e.postData.contents : 'No postData', error);
         return createJsonResponse({ success: false, error: `Erreur serveur: ${error.message}` }, origin);
+    } finally {
+        lock.releaseLock();
     }
 }
 
 /**
  * Gère les requêtes HTTP OPTIONS pour la pré-vérification CORS.
- * CORRECTION: Simplification pour Apps Script, car TextOutput n'a pas setHeader.
+ * C'est une étape de sécurité obligatoire demandée par le navigateur pour les requêtes POST.
  * @param {object} e - L'objet événement de la requête.
- * @returns {GoogleAppsScript.Content.TextOutput} Une réponse vide.
+ * @returns {GoogleAppsScript.Content.TextOutput} Une réponse vide avec les en-têtes CORS.
  */
 function doOptions(e) {
-    // Renvoie simplement un TextOutput vide (réponse 200 OK)
-    // Les en-têtes CORS nécessaires doivent être gérés par le client et le service Apps Script.
-    return ContentService.createTextOutput('');
+  const origin = e.headers.Origin || e.headers.origin;
+  const response = ContentService.createTextOutput(null);
+  
+  if (ALLOWED_ORIGINS[origin]) {
+      response.addHeader('Access-Control-Allow-Origin', origin);
+      response.addHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
+      response.addHeader('Access-Control-Allow-Headers', 'Content-Type');
+  }
+  return response;
 }
-
 
 // --- LOGIQUE MÉTIER (ACTIONS DE L'API) ---
 
@@ -256,13 +268,18 @@ function getAppLogs(params, origin) {
 
 /**
  * Crée une réponse JSON standardisée avec le MimeType.
+ * CORRECTION: Ajoute systématiquement l'en-tête CORS à chaque réponse.
  * @param {object} data - L'objet à convertir en JSON.
- * @param {string} [origin] - L'origine de la requête pour l'en-tête CORS (non utilisé directement).
+ * @param {string} [origin] - L'origine de la requête pour l'en-tête CORS.
  * @returns {GoogleAppsScript.Content.TextOutput} Un objet TextOutput.
  */
 function createJsonResponse(data, origin) {
-    return ContentService.createTextOutput(JSON.stringify(data))
+    const response = ContentService.createTextOutput(JSON.stringify(data))
         .setMimeType(ContentService.MimeType.JSON);
+    if (origin && ALLOWED_ORIGINS[origin]) {
+        response.addHeader('Access-Control-Allow-Origin', origin);
+    }
+    return response;
 }
 
 /**
@@ -408,50 +425,4 @@ function setupProject() {
   });
 
   ui.alert("Projet 'Gestion Compte' initialisé avec succès ! Les onglets 'Utilisateurs', 'Commandes', 'Logs' et 'Config' sont prêts.");
-}
-
-/**
- * ANCIENNE FONCTION - SUPPRIMÉE.
- * La méthode setHeader() n'existe pas sur l'objet ContentService.TextOutput.
- * La gestion des en-têtes CORS doit être effectuée via le déploiement Apps Script
- * ou en utilisant setMimeType (déjà fait dans createJsonResponse).
- */
-/*
-function addCorsHeaders(response, origin) {
-    const output = response;
-    const corsHeaders = getCorsHeaders(origin);
-
-    if (corsHeaders['Access-Control-Allow-Origin']) {
-        output.setHeader('Access-Control-Allow-Origin', corsHeaders['Access-Control-Allow-Origin']);
-    }
-    if (corsHeaders['Access-Control-Allow-Credentials']) {
-        output.setHeader('Access-Control-Allow-Credentials', corsHeaders['Access-Control-Allow-Credentials']);
-    }
-
-    return output;
-}
-*/
-
-/**
- * Construit un objet d'en-têtes CORS basé sur la configuration.
- * (Conservée, bien que non utilisée directement pour setHeader.)
- * @param {string} origin - L'origine de la requête.
- * @returns {object} Un objet contenant les en-têtes CORS.
- */
-function getCorsHeaders(origin) {
-    const config = getConfig();
-    const headers = {};
-
-    if (origin && config.allowed_origins.includes(origin)) {
-        headers['Access-Control-Allow-Origin'] = origin;
-        headers['Access-Control-Allow-Methods'] = config.allowed_methods;
-        headers['Access-Control-Allow-Headers'] = config.allowed_headers;
-        if (config.allow_credentials) {
-            headers['Access-Control-Allow-Credentials'] = 'true';
-        }
-    } else {
-        // Pour les requêtes GET simples sans origine (ex: test direct), on reste permissif.
-        headers['Access-Control-Allow-Origin'] = '*';
-    }
-    return headers;
 }

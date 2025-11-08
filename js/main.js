@@ -1,10 +1,10 @@
 const CONFIG = {
     // URL de l'API pour la gestion des comptes (authentification, etc.)
     ACCOUNT_API_URL: "https://script.google.com/macros/s/AKfycbwQ0B7PFpGhes-Bjf1Fv2FfvoAZ2sohEjOTG1V52MFybUl4JkZxMnO_EJupQA_sgmUh/exec",
-    // NOUVEAU: URL de l'API dédiée à la gestion des commandes
-    ORDER_API_URL: "https://script.google.com/macros/s/AKfycbwrLOxtez1UrrXVj2iugSiLtAYOhhaef9x-HlpvvvxmQxsMVYRVQeShy4V56vfhjBxq/exec",
+    // ⚠️ REMPLACEZ PAR L'URL DE VOTRE NOUVEAU SCRIPT DE GESTION DES COMMANDES
+    ORDER_API_URL: "URL_DU_SCRIPT_GESTION_COMMANDES",
 
-    // NOUVEAU: URL de l'API dédiée à la gestion des livraisons
+    // TODO: URL de l'API dédiée à la gestion des livraisons (à créer)
     DELIVERY_API_URL: "URL_DU_SCRIPT_GESTION_LIVRAISONS",
 
     // NOUVEAU: URL de l'API dédiée aux notifications
@@ -47,6 +47,10 @@ async function initializeApp() {
     }
     if (document.getElementById('panier-page')) {
         renderCartPage(); // Le panier lit depuis le localStorage, pas besoin d'attendre l'API.
+    }
+    // NOUVEAU: Initialiser la page de paiement
+    if (document.querySelector('#checkout-form')) {
+        initializeCheckoutPage();
     }
     // NOUVEAU: Initialiser immédiatement le squelette de la page catégorie si on y est.
     if (window.location.pathname.endsWith('categorie.html')) {
@@ -221,29 +225,12 @@ function addToCart(event, productId, name, price, imageUrl) {
         event.stopPropagation();
     }
 
-    const cart = getCart();
     const quantityInput = document.getElementById('quantity');
     const quantity = quantityInput ? parseInt(quantityInput.value, 10) : 1;
 
-    // NOUVEAU: Récupérer les variantes sélectionnées (taille, couleur, etc.)
-    const locationSelect = document.getElementById('delivery-location');
-    const methodSelect = document.getElementById('delivery-method');
-
-    let selectedDelivery = {};
-    const product = allLoadedProducts.find(p => p.IDProduit === productId);
-
-    if (product && (product.LivraisonGratuite === true || product.LivraisonGratuite === "TRUE" || product.LivraisonGratuite === "Oui")) {
-        selectedDelivery = { location: 'Spéciale', method: 'Gratuite', cost: 0 };
-    } else {
-        if (locationSelect && !locationSelect.value) {
-            showToast("Veuillez sélectionner une localité de livraison.", true);
-            return;
-        }
-        selectedDelivery = {
-            location: locationSelect ? locationSelect.value : 'Non spécifié',
-            method: methodSelect ? methodSelect.value : 'Standard'
-        };
-    }
+    // La logique de livraison est retirée de l'ajout au panier.
+    // Elle sera gérée au checkout.
+    const cart = getCart();
 
     const selectedVariants = {};
     const variantButtons = document.querySelectorAll('.variant-btn.selected');
@@ -253,14 +240,19 @@ function addToCart(event, productId, name, price, imageUrl) {
         selectedVariants[group] = value;
     });
 
-    // CORRECTION: La recherche de produit existant doit aussi prendre en compte les variantes.
-    const existingProductIndex = cart.findIndex(item => item.productId === productId && JSON.stringify(item.variants) === JSON.stringify(selectedVariants));
+    // NOUVEAU: Créer une clé unique pour l'article basé sur l'ID et les variantes
+    const variantKey = Object.keys(selectedVariants).sort().map(k => `${k}:${selectedVariants[k]}`).join('|');
+    const itemKey = `${productId}-${variantKey}`;
+
+    const existingProductIndex = cart.findIndex(item => item.key === itemKey);
+
     if (existingProductIndex > -1) {
         // Le produit existe déjà, on augmente la quantité
         cart[existingProductIndex].quantity += quantity;
     } else {
         // Nouveau produit
-        cart.push({ productId, name, price, imageUrl, quantity, variants: selectedVariants, delivery: selectedDelivery });
+        // On ne stocke plus les infos de livraison ici.
+        cart.push({ key: itemKey, productId, name, price, imageUrl, quantity, variants: selectedVariants });
     }
     
     saveCart(cart);
@@ -363,28 +355,9 @@ function updateCartSummary() {
     const cart = getCart() || [];
     if (!document.getElementById('summary-subtotal')) return;
 
-    const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-
-    // Calcul initial des frais de livraison
-    let shippingCost = cart.reduce((sum, item) => {
-        const location = item.delivery.location;
-        // Si la livraison est gratuite pour cet article, on n'ajoute rien au coût.
-        if (item.delivery.cost === 0) {
-            return sum;
-        }
-        const method = item.delivery.method;
-        const region = Object.keys(DELIVERY_OPTIONS).find(r => DELIVERY_OPTIONS[r][location]);
-        const cost = region ? (DELIVERY_OPTIONS[region][location][method] || DELIVERY_OPTIONS[region][location]['Standard'] || 0) : 0;
-        return sum + cost;
-    }, 0);
-
-    // NOUVEAU: Appliquer la règle de livraison gratuite pour Dakar
-    const dakarLocations = Object.keys(DELIVERY_OPTIONS["Dakar"]);
-    const isAllDakar = cart.length > 0 && cart.every(item => dakarLocations.includes(item.delivery.location));
-
-    if (isAllDakar && subtotal > 50000) {
-        shippingCost = 0;
-    }
+    const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);    
+    // Les frais de livraison sont maintenant calculés sur la page de paiement.
+    const shippingCost = parseFloat(localStorage.getItem('shippingCost') || 0);
 
     const total = subtotal + shippingCost;
 
@@ -717,21 +690,6 @@ function loadProductPage(catalog) {
         // Enlever les classes de chargement
         nameEl.classList.remove('h-12', 'bg-gray-200', 'animate-pulse');
         
-        const deliveryContent = document.getElementById('delivery-content');
-        if (product.LivraisonGratuite === true || product.LivraisonGratuite === "TRUE" || product.LivraisonGratuite === "Oui") {
-            deliveryContent.innerHTML = `
-                <div class="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 rounded-md">
-                    <h3 class="text-xl font-bold text-gray-800 mb-2">🎉 Livraison Gratuite !</h3>
-                    <p class="font-bold">🎉 Livraison Gratuite !</p>
-                    <p>Ce produit bénéficie de la livraison gratuite partout au Sénégal.</p>
-                </div>
-            `;
-        } else {
-            // NOUVEAU: Remplir les sélecteurs de livraison si elle n'est pas gratuite
-            populateDeliverySelectors();
-            updateDeliveryCost();
-        }
-
         // NOUVEAU: Conteneur pour les boutons d'action
         const actionButtonsContainer = document.getElementById('action-buttons-container');
         const contactSellerButton = document.getElementById('contact-seller-button');
@@ -825,79 +783,6 @@ function loadProductPage(catalog) {
         console.error("Erreur de chargement du produit:", error);
         const mainContent = document.querySelector('main');
         if(mainContent) mainContent.innerHTML = `<p class="text-center text-red-500">Impossible de charger les informations du produit. Veuillez réessayer.</p>`;
-    }
-}
-
-/**
- * NOUVEAU: Remplit les sélecteurs de livraison sur la page produit.
- */
-function populateDeliverySelectors() {
-    // NOUVEAU: Récupérer les options de livraison depuis l'API
-    fetch(`${CONFIG.DELIVERY_API_URL}?action=getDeliveryOptions`)
-        .then(response => response.json())
-        .then(result => {
-            if (result.success) {
-                DELIVERY_OPTIONS = result.data;
-                fillDeliverySelectors();
-            }
-        });
-}
-
-function fillDeliverySelectors() {
-    const locationSelect = document.getElementById('delivery-location');
-    const methodSelect = document.getElementById('delivery-method');
-    if (!locationSelect || !methodSelect) return;
-    let locationHTML = '<option value="">-- Choisir une localité --</option>';
-    for (const region in DELIVERY_OPTIONS) {
-        locationHTML += `<optgroup label="${region}">`;
-        for (const city in DELIVERY_OPTIONS[region]) {
-            locationHTML += `<option value="${city}">${city}</option>`;
-        }
-        locationHTML += `</optgroup>`;
-    }
-    locationSelect.innerHTML = locationHTML;
-
-    // Au début, on ne remplit les méthodes que si une localité est choisie
-    methodSelect.innerHTML = '<option value="">-- D\'abord choisir une localité --</option>';
-}
-
-/**
- * NOUVEAU: Met à jour les options de méthode de livraison et le coût estimé.
- */
-function updateDeliveryCost() {
-    const locationSelect = document.getElementById('delivery-location');
-    const methodSelect = document.getElementById('delivery-method');
-    const costEstimateEl = document.getElementById('delivery-cost-estimate');
-    const methodDetailsEl = document.getElementById('delivery-method-details');
-
-    if (!locationSelect || !methodSelect || !costEstimateEl || !methodDetailsEl) return;
-
-    const selectedLocation = locationSelect.value;
-    if (!selectedLocation) {
-        methodSelect.innerHTML = '<option value="">-- D\'abord choisir une localité --</option>';
-        costEstimateEl.textContent = 'Veuillez sélectionner une option';
-        methodDetailsEl.innerHTML = ''; // Vider les détails
-        return;
-    }
-
-    const region = Object.keys(DELIVERY_OPTIONS).find(r => DELIVERY_OPTIONS[r][selectedLocation]);
-    const methods = DELIVERY_OPTIONS[region][selectedLocation];
-
-    methodSelect.innerHTML = Object.keys(methods).map(method => `<option value="${method}">${method}</option>`).join('');
-    
-    const selectedMethod = methodSelect.value;
-    const cost = methods[selectedMethod];
-
-    costEstimateEl.textContent = `${cost.toLocaleString('fr-FR')} F CFA`;
-
-    // NOUVEAU: Afficher les détails pour Yango
-    if (selectedMethod === "Livraison par Yango") {
-        methodDetailsEl.innerHTML = `
-            <p class="font-semibold">Info: Les frais Yango sont à votre charge à la réception.</p>
-            <p>Le colis sera déposé à notre point relais de Dakar Marché Tilène.</p>
-        `;
-    } else {
-        methodDetailsEl.innerHTML = ''; // Vider les détails pour les autres méthodes
     }
 }
 
@@ -1055,6 +940,98 @@ function renderSimilarProducts(currentProduct, allProducts, container) {
 // --- LOGIQUE DE PAIEMENT (CHECKOUT) ---
 
 /**
+ * NOUVEAU: Initialise la page de paiement.
+ */
+function initializeCheckoutPage() {
+    const form = document.getElementById('checkout-form');
+    if (!form) return;
+
+    // Pré-remplir les infos si l'utilisateur est connecté
+    const user = JSON.parse(localStorage.getItem('abmcyUser'));
+    if (user) {
+        form.querySelector('#firstname').value = user.Nom.split(' ')[0] || '';
+        form.querySelector('#lastname').value = user.Nom.split(' ').slice(1).join(' ') || '';
+        form.querySelector('#email').value = user.Email || '';
+        form.querySelector('#phone').value = user.Telephone || '';
+        form.querySelector('#delivery-address').value = user.Adresse || '';
+    }
+
+    // Charger les options de livraison
+    populateDeliverySelectorsCheckout();
+
+    // Afficher les articles du résumé
+    renderCheckoutSummaryItems();
+
+    // Mettre à jour le total
+    updateCheckoutTotal();
+
+    // Ajouter l'écouteur pour la soumission du formulaire
+    form.addEventListener('submit', processCheckout);
+}
+
+/**
+ * NOUVEAU: Remplit les sélecteurs de livraison sur la page de paiement.
+ */
+function populateDeliverySelectorsCheckout() {
+    // Simulé pour l'instant, devrait venir de l'API de livraison
+    DELIVERY_OPTIONS = {
+        "Dakar": { "Dakar": { "Standard": 1500, "Express": 3000 } },
+        "Régions": { "Thiès": { "Standard": 2500 }, "Saint-Louis": { "Standard": 3500 } }
+    };
+
+    const locationSelect = document.getElementById('delivery-location');
+    const methodSelect = document.getElementById('delivery-method');
+    if (!locationSelect || !methodSelect) return;
+
+    let locationHTML = '<option value="">-- Choisir une localité --</option>';
+    for (const region in DELIVERY_OPTIONS) {
+        locationHTML += `<optgroup label="${region}">`;
+        for (const city in DELIVERY_OPTIONS[region]) {
+            locationHTML += `<option value="${city}">${city}</option>`;
+        }
+        locationHTML += `</optgroup>`;
+    }
+    locationSelect.innerHTML = locationHTML;
+
+    locationSelect.addEventListener('change', updateDeliveryMethodsCheckout);
+    methodSelect.addEventListener('change', updateCheckoutTotal);
+
+    updateDeliveryMethodsCheckout(); // Appel initial
+}
+
+/**
+ * NOUVEAU: Met à jour les méthodes de livraison en fonction de la localité choisie.
+ */
+function updateDeliveryMethodsCheckout() {
+    const locationSelect = document.getElementById('delivery-location');
+    const methodSelect = document.getElementById('delivery-method');
+    const selectedLocation = locationSelect.value;
+
+    if (!selectedLocation) {
+    const cart = getCart();
+    if (!container) return;
+
+    if (cart.length === 0) {
+        container.innerHTML = '<p class="text-gray-500">Votre panier est vide.</p>';
+        return;
+    }
+
+    container.innerHTML = cart.map(item => `
+        <div class="flex items-center space-x-4">
+            <div class="relative w-16 h-16 bg-gray-100 rounded-md overflow-hidden">
+                <img src="${item.imageUrl}" alt="${item.name}" class="w-full h-full object-cover">
+                <span class="absolute top-0 right-0 bg-gray-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">${item.quantity}</span>
+            </div>
+            <div class="flex-grow">
+                <p class="font-semibold text-sm">${item.name}</p>
+                <p class="text-xs text-gray-500">${Object.values(item.variants).join(', ')}</p>
+            </div>
+            <p class="text-sm font-semibold">${(item.price * item.quantity).toLocaleString('fr-FR')} F</p>
+        </div>
+    `).join('');
+}
+
+/**
  * Traite la commande et l'envoie au backend.
  * @param {Event} event - L'événement du formulaire.
  */
@@ -1062,51 +1039,63 @@ async function processCheckout(event) {
     event.preventDefault(); // Empêche le rechargement de la page
 
     const form = event.target;
+    const statusDiv = document.getElementById('checkout-status');
     const submitButton = form.querySelector('button[type="submit"]');
     submitButton.disabled = true;
     submitButton.textContent = 'Traitement en cours...';
+    statusDiv.textContent = 'Veuillez patienter...';
 
     // 1. Récupérer les données du formulaire
-    const deliveryData = {
+    const customerData = {
         firstname: form.querySelector('#firstname').value,
         lastname: form.querySelector('#lastname').value,
-        address: form.querySelector('#address').value,
-        city: form.querySelector('#city').value,
-        zip: form.querySelector('#zip').value,
+        email: form.querySelector('#email').value,
+        phone: form.querySelector('#phone').value,
+        address: form.querySelector('#delivery-address').value,
+        location: form.querySelector('#delivery-location').value,
+        deliveryMethod: form.querySelector('#delivery-method').value,
     };
 
     // 2. Récupérer les données du panier depuis le localStorage
     const cart = getCart();
     if (cart.length === 0) {
-        alert("Votre panier est vide.");
+        statusDiv.textContent = "Votre panier est vide.";
+        statusDiv.className = 'mt-4 text-center font-semibold text-red-600';
+        submitButton.disabled = false;
+        submitButton.textContent = 'Confirmer la commande';
         return;
     }
 
     // 3. Vérifier si l'utilisateur est connecté
     const user = JSON.parse(localStorage.getItem('abmcyUser'));
     let clientId = "INVITÉ-" + new Date().getTime(); // ID unique pour l'invité
-    let clientName = deliveryData.firstname + " " + deliveryData.lastname;
+    let clientName = customerData.firstname + " " + customerData.lastname;
 
     if (user && user.IDClient) {
         clientId = user.IDClient;
         clientName = user.Nom;
     }
 
+    // 4. Calculer le total final
+    const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const region = Object.keys(DELIVERY_OPTIONS).find(r => DELIVERY_OPTIONS[r][customerData.location]);
+    const shippingCost = DELIVERY_OPTIONS[region]?.[customerData.location]?.[customerData.deliveryMethod] || 0;
+    const total = subtotal + shippingCost;
+
     // 3. Préparer l'objet de la commande pour le backend
     const orderPayload = {
-        action: 'enregistrerCommande', // Correspond à la fonction du Script 2
+        action: 'enregistrerCommande',
         data: {
             idClient: clientId,
-            produits: cart.map(item => item.id), // On utilise l'ID du produit
-            quantites: cart.map(item => item.quantity),
-            adresseLivraison: `${deliveryData.address}, ${deliveryData.zip} ${deliveryData.city}`,
-            total: cart.reduce((sum, item) => sum + (item.price * item.quantity), 0) + (cart.reduce((sum, item) => sum + (item.price * item.quantity), 0) > 30000 ? 0 : 5000),
-            moyenPaiement: "Carte de crédit", // Exemple
-            notes: "Client: " + clientName
+            produits: cart, // Envoyer le panier complet
+            adresseLivraison: `${customerData.address}, ${customerData.location}`,
+            total: total,
+            moyenPaiement: "Paiement à la livraison", // Pour l'instant
+            notes: `Client: ${clientName}, Tél: ${customerData.phone}`
         }
     };
 
-    // 4. Envoyer la commande à l'API Client (Script 2)
+    // 5. Envoyer la commande à l'API des commandes
     try {
         const response = await fetch(CONFIG.ORDER_API_URL, { // NOUVEAU: Utilise l'API des commandes
             method: 'POST',
@@ -1116,26 +1105,20 @@ async function processCheckout(event) {
         const result = await response.json();
 
         if (result.success) {
-            alert(`Commande ${result.id} enregistrée avec succès !`);
+            statusDiv.textContent = `Commande #${result.id.split('-')[1]} enregistrée avec succès ! Vous allez être redirigé.`;
+            statusDiv.className = 'mt-4 text-center font-semibold text-green-600';
             saveCart([]); // Vider le panier après la commande
-            window.location.href = 'index.html'; // Rediriger vers la page d'accueil
+            setTimeout(() => {
+                window.location.href = 'compte.html'; // Rediriger vers la page de compte pour voir la commande
+            }, 3000);
         } else {
-            // NOUVEAU: Envoyer une notification même si la commande réussit
-            fetch(CONFIG.NOTIFICATION_API_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    action: 'sendOrderConfirmation',
-                    data: { orderId: result.id, ...orderPayload.data }
-                }),
-                keepalive: true
-            });
             throw new Error(result.error || "Une erreur inconnue est survenue.");
         }
     } catch (error) {
-        alert(`Erreur lors de la commande: ${error.message}`);
+        statusDiv.textContent = `Erreur lors de la commande: ${error.message}`;
+        statusDiv.className = 'mt-4 text-center font-semibold text-red-600';
         submitButton.disabled = false;
-        submitButton.textContent = 'Payer';
+        submitButton.textContent = 'Confirmer la commande';
     }
 }
 
@@ -1749,8 +1732,22 @@ async function handleAuthForm(event, type) {
     try {
         form.querySelector('button[type="submit"]').disabled = true;
         const response = await fetch(CONFIG.ACCOUNT_API_URL, {
-            method: 'POST', // Le mode 'no-cors' n'est pas nécessaire et cause des problèmes.
-            headers: { 'Content-Type': 'application/json' }, // Ajout de cet en-tête essentiel
+            method: 'POST',
+           AMÉIORATION: SpécifirlCtn-Tyet crucal pou qulbakend
+            // sche q'il rçoituJSON
+           AMÉIORATION: SpécifirlCtn-Tyet crucal pou qulbake
+            // sche q'il rçoituJSON
+           AMÉIORATION: SpécifirlCtn-Tyet crucal pou qulbake
+            // sche q'il rçoituJSON
+           AMÉIORATION: SpécifirlCtn-Tyet crucal pou qulbake
+            // sche q'il rçoituJSON
+           AMÉIORATION: SpécifirlCtn-Tyet crucal pou qulbake
+            // sche q'il rçoituJSON
+           AMÉIORATION: SpécifirlCtn-Tyet crucal pou qulbake
+            // sche q'il rçoituJSON
+            // AMÉLIORATION: Spécifier le Content-Type est c
+            // sache qu'il reçoit du JSON.
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload),
         });
 
