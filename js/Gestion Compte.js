@@ -68,14 +68,21 @@ function doGet(e) {
 function doPost(e) {
     const lock = LockService.getScriptLock();
     lock.waitLock(30000); // Attendre 30s max
-    const origin = e.headers.Origin || e.headers.origin; 
+    const origin = e.headers ? (e.headers.Origin || e.headers.origin) : null;
 
     try {
-        if (!e || !e.postData ||  !e.postData.contents) {
+        if (!e || !e.postData || !e.postData.contents) {
             throw new Error("Requête POST invalide ou vide.");
         }
 
-        const request = JSON.parse(e.postData.contents);
+        let request;
+        // NOUVEAU: Gestion robuste du corps de la requête.
+        // Tente de parser comme text/plain (pour les requêtes simples) puis comme application/json.
+        try {
+            request = JSON.parse(e.postData.contents);
+        } catch (jsonError) {
+            throw new Error("Le corps de la requête n'est pas un JSON valide.");
+        }
         const { action, data } = request;
 
         if (!action) {
@@ -104,7 +111,7 @@ function doPost(e) {
         }
 
     } catch (error) {
-        logError(e.postData ? e.postData.contents : 'No postData', error);
+        logError(e.postData ? e.postData.contents : 'No postData', error, origin);
         return createJsonResponse({ success: false, error: `Erreur serveur: ${error.message}` }, origin);
     } finally {
         lock.releaseLock();
@@ -118,7 +125,7 @@ function doPost(e) {
  * @returns {GoogleAppsScript.Content.TextOutput} Une réponse vide avec les en-têtes CORS.
  */
 function doOptions(e) {
-  const origin = e.headers.Origin || e.headers.origin;
+  const origin = e.headers ? (e.headers.Origin || e.headers.origin) : null;
   const response = ContentService.createTextOutput(null);
   
   if (ALLOWED_ORIGINS[origin]) {
