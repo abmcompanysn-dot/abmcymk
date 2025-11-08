@@ -1755,8 +1755,10 @@ async function handleAuthForm(event, type) {
                 nom: form.querySelector('#register-nom').value,
                 email: form.querySelector('#register-email').value,
                 motDePasse: password,
-                adresse: '',
-                telephone: ''
+                adresse: form.querySelector('#register-adresse').value || '',
+                telephone: form.querySelector('#register-telephone').value || ''
+            }form.querySelector('#register-adresse').value || '',
+                telephone: form.querySelector('#register-telephone').value || ''
             }
         };
     } else { // type === 'login'
