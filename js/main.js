@@ -1757,8 +1757,6 @@ async function handleAuthForm(event, type) {
                 motDePasse: password,
                 adresse: form.querySelector('#register-adresse').value || '',
                 telephone: form.querySelector('#register-telephone').value || ''
-            }form.querySelector('#register-adresse').value || '',
-                telephone: form.querySelector('#register-telephone').value || ''
             }
         };
     } else { // type === 'login'
