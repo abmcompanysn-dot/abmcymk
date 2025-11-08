@@ -1,6 +1,6 @@
 const CONFIG = {
     // NOUVEAU: URL de l'API CENTRALE qui gère maintenant tout (comptes, commandes, etc.)
-    ACCOUNT_API_URL:"https://script.google.com/macros/s/AKfycbxoVzZT8oSM3TlIL08ZSGfROWqEnP7KaskVzogo1t06mPtYB-ddwgXDc2gy12yCD27NSQ/exec",
+    ACCOUNT_API_URL:"https://script.google.com/macros/s/AKfycbz6us2UiivYY4yA_lTjxwKQKZzW-P8aZwerMhbFu42PDzMgorIG7vQ7tUMiVxFU6r9BZQ/exec",
     // Les URL spécifiques pour commandes, livraisons et notifications sont maintenant obsolètes
     // car tout est géré par l'API centrale (ACCOUNT_API_URL).
     
@@ -1671,7 +1671,7 @@ function renderAllCategoriesSection(catalog) {
  * @param {string} type Le type d'événement (ex: 'FETCH_SUCCESS', 'FETCH_ERROR').
  * @param {object} data Les données associées à l'événement.
  */
-function logAppEvent(type, data) {
+async function logAppEvent(type, data) {
     const LOG_KEY = 'abmcyAppLogs';
     const MAX_LOGS = 50;
     try {
@@ -1690,13 +1690,15 @@ function logAppEvent(type, data) {
             data: logEntry
         };
         try {
-            fetch(CONFIG.ACCOUNT_API_URL, { // CORRECTION: Utiliser l'API des comptes pour la journalisation
+            // NOUVEAU: Utiliser async/await pour capturer les erreurs de fetch (comme CORS)
+            // et s'assurer que le log est bien envoyé.
+            await fetch(CONFIG.ACCOUNT_API_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'text/plain' }, // NOUVEAU: Aligné sur les autres requêtes pour éviter le preflight.
                 body: JSON.stringify(logPayload),
                 keepalive: true
             });
-        } catch (e) { console.error("Échec de l'envoi du log au serveur:", e); }
+        } catch (e) { console.error("Échec critique de l'envoi du log au serveur:", e); }
 
         logs.push(logEntry);
         if (logs.length > MAX_LOGS) {

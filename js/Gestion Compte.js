@@ -25,7 +25,8 @@ const SHEET_NAMES = {
 // Origines autorisées à accéder à cette API.
 const ALLOWED_ORIGINS = {
     "https://abmcymarket.vercel.app": true,
-    "http://127.0.0.1:5500": true
+    "http://127.0.0.1:5500": true,
+    "https://abmcymarket.abmcy.com": true // NOUVEAU: Ajout du nouveau domaine pour corriger l'erreur CORS.
 };
 
 // --- POINTS D'ENTRÉE DE L'API WEB (doGet, doPost, doOptions) ---
