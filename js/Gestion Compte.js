@@ -376,18 +376,55 @@ function logAction(action, details) {
  * Journalise une erreur dans la feuille "Logs".
  * @param {string} context - Le contexte où l'erreur s'est produite.
  * @param {Error} error - L'objet erreur.
+ * @param {string} [origin] - L'origine de la requête pour plus de contexte.
  */
-function logError(context, error) {
+function logError(context, error, origin) {
     try {
         const logSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.LOGS);
+        
+        // NOUVEAU: Obtenir une suggestion de correction basée sur l'erreur.
+        const suggestion = getCorrectionSuggestion(error, context);
+
         const errorDetails = {
             context: context,
             message: error.message,
-            stack: error.stack
+            stack: error.stack,
+            suggestion: suggestion, // NOUVEAU: Ajout de la suggestion au log.
+            origin: origin || 'N/A'
         };
         logSheet.appendRow([new Date(), "BACK-END", "ERROR", JSON.stringify(errorDetails)]);
+
+        // NOUVEAU: Surligner la ligne de l'erreur en rouge pour une meilleure visibilité.
+        const lastRow = logSheet.getLastRow();
+        logSheet.getRange(lastRow, 1, 1, logSheet.getLastColumn()).setBackground('#fce8e6'); // Rouge clair
+
     } catch (e) {
         console.error("Échec de la journalisation d'erreur: " + e.message);
+    }
+}
+
+/**
+ * NOUVEAU: Analyse une erreur et retourne une suggestion de correction.
+ * @param {Error} error - L'objet erreur.
+ * @param {string} context - Le contexte de l'erreur.
+ * @returns {string} Une suggestion textuelle pour corriger le problème.
+ */
+function getCorrectionSuggestion(error, context) {
+    const errorMessage = error.message.toLowerCase();
+
+    if (errorMessage.includes("action non reconnue")) {
+        return "Vérifiez que la valeur 'action' envoyée depuis le front-end (main.js) correspond exactement à un 'case' dans la fonction doPost() du script 'Gestion Compte.js'.";
+    }
+    if (errorMessage.includes("json.parse")) {
+        return "La requête reçue n'est pas un JSON valide. Vérifiez que le front-end envoie bien une chaîne JSON correcte via JSON.stringify() dans le corps de la requête fetch().";
+    }
+    if (errorMessage.includes("cannot read property") || errorMessage.includes("of undefined")) {
+        return `L'objet 'data' reçu est incomplet. Le code a tenté d'accéder à une propriété qui n'existe pas. Vérifiez que l'objet envoyé depuis le front-end pour l'action dans le contexte '${context}' contient toutes les propriétés requises.`;
+    }
+    if (errorMessage.includes("service invoked too many times")) {
+        return "L'API Google a été appelée trop fréquemment. Vérifiez s'il y a des boucles ou des appels excessifs dans le code. Envisagez d'utiliser le cache pour réduire le nombre d'appels.";
+    } else {
+        return "Erreur générique. Vérifiez les détails du contexte et la trace de la pile (stack trace) pour identifier la source du problème. Assurez-vous que les données envoyées par le client sont conformes à ce que le serveur attend.";
     }
 }
 
@@ -456,11 +493,11 @@ function setupProject() {
 
   const sheetsToCreate = {
     [SHEET_NAMES.USERS]: ["IDClient", "Nom", "Email", "PasswordHash", "Salt", "Telephone", "Adresse", "DateInscription", "Statut", "Role"],
-    [SHEET_NAMES.ORDERS]: ["IDCommande", "IDClient", "Produits", "MontantTotal", "Statut", "Date", "AdresseLivraison", "MoyenPaiement", "Notes"],
+    [SHEET_NAMES.ORDERS]: ["IDCommande", "IDClient", "DetailsProduits", "MontantTotal", "Statut", "Date", "AdresseLivraison", "MoyenPaiement", "Notes"],
     [SHEET_NAMES.LOGS]: ["Timestamp", "Source", "Action", "Détails"],
     [SHEET_NAMES.CONFIG]: ["Clé", "Valeur"],
-    [SHEET_NAMES.LIVRAISONS]: ["IDLivraison", "IDCommande", "Client", "Adresse", "Statut", "DateMiseAJour", "Transporteur"],
-    [SHEET_NAMES.NOTIFICATIONS]: ["IDNotification", "EmailClient", "Type", "Message", "Statut", "Date"]
+    [SHEET_NAMES.LIVRAISONS]: ["IDLivraison", "IDCommande", "IDClient", "Adresse", "Statut", "DateMiseAJour", "Transporteur"],
+    [SHEET_NAMES.NOTIFICATIONS]: ["IDNotification", "IDCommande", "Type", "Message", "Statut", "Date"]
   };
 
   Object.entries(sheetsToCreate).forEach(([sheetName, headers]) => {

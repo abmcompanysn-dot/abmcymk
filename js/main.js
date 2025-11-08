@@ -1688,7 +1688,7 @@ function logAppEvent(type, data) {
         try {
             fetch(CONFIG.ACCOUNT_API_URL, { // CORRECTION: Utiliser l'API des comptes pour la journalisation
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'text/plain' }, // NOUVEAU: Aligné sur les autres requêtes pour éviter le preflight.
                 body: JSON.stringify(logPayload),
                 keepalive: true
             });
