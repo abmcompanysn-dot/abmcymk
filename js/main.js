@@ -55,40 +55,44 @@ async function initializeApp() {
         startCountdown(); // Le compte à rebours est indépendant.
     }
 
-    // --- ÉTAPE 2: Lancer le chargement des données en arrière-plan ---
-    // On ne bloque PAS le reste de l'exécution de la page.
-    const catalogPromise = getCatalogAndRefreshInBackground();
+    // NOUVEAU: Optimisation pour la page d'authentification.
+    // On ne charge pas le catalogue complet sur cette page pour la rendre plus rapide.
+    if (window.location.pathname.includes('authentification.html')) {
+        console.log("Page d'authentification détectée. Le chargement du catalogue est ignoré.");
+        return; // On arrête l'initialisation ici.
+    }
 
-    // --- ÉTAPE 3: Remplir les sections qui dépendent des données une fois qu'elles sont prêtes ---
-    catalogPromise.then(catalog => {
-        if (!catalog || !catalog.success) {
-            console.error("Impossible de charger le catalogue. Le site pourrait ne pas fonctionner correctement.");
-            return;
-        }
-
-        // Remplir les menus et les liens de navigation
-        populateCategoryMenu(catalog);
-        populateNavLinks(catalog);
-
-        // Remplir le contenu spécifique à la page actuelle
-        if (window.location.pathname.endsWith('recherche.html')) displaySearchResults(catalog);
-        if (window.location.pathname.endsWith('categorie.html')) fillCategoryProducts(catalog);
-        if (window.location.pathname.endsWith('categorie.html')) updateWhatsAppLinkForCategory(catalog); // NOUVEAU
-        if (window.location.pathname.endsWith('promotions.html')) displayPromotionProducts(catalog);
-        if (window.location.pathname.endsWith('produit.html')) loadProductPage(catalog);
-        
-        // Remplir les sections de la page d'accueil
-        if (document.getElementById('superdeals-products')) {
-            renderDailyDealsHomepage(catalog);
-            renderAllCategoriesSection(catalog);
-            renderHomepageCategorySections(catalog);
-        }
-
-        // NOUVEAU: Si on est sur la page panier, on charge aussi les promos
-        if (document.getElementById('panier-page')) {
-            renderPromoProductsInCart(catalog);
-        }
-    });
+    // --- ÉTAPE 2 & 3: Lancer le chargement des données et remplir le contenu ---
+    // Ce bloc ne s'exécutera que si on n'est PAS sur la page d'authentification.
+    getCatalogAndRefreshInBackground().then(catalog => {
+      if (!catalog || !catalog.success) {
+          console.error("Impossible de charger le catalogue. Le site pourrait ne pas fonctionner correctement.");
+          return;
+      }
+  
+      // Remplir les menus et les liens de navigation
+      populateCategoryMenu(catalog);
+      populateNavLinks(catalog);
+  
+      // Remplir le contenu spécifique à la page actuelle
+      if (window.location.pathname.endsWith('recherche.html')) displaySearchResults(catalog);
+      if (window.location.pathname.endsWith('categorie.html')) fillCategoryProducts(catalog);
+      if (window.location.pathname.endsWith('categorie.html')) updateWhatsAppLinkForCategory(catalog); // NOUVEAU
+      if (window.location.pathname.endsWith('promotions.html')) displayPromotionProducts(catalog);
+      if (window.location.pathname.endsWith('produit.html')) loadProductPage(catalog);
+      
+      // Remplir les sections de la page d'accueil
+      if (document.getElementById('superdeals-products')) {
+          renderDailyDealsHomepage(catalog);
+          renderAllCategoriesSection(catalog);
+          renderHomepageCategorySections(catalog);
+      }
+  
+      // NOUVEAU: Si on est sur la page panier, on charge aussi les promos
+      if (document.getElementById('panier-page')) {
+          renderPromoProductsInCart(catalog);
+      }
+  });
 }
 
 /**
