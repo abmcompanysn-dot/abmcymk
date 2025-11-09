@@ -241,9 +241,12 @@ function enregistrerCommande(data, origin) {
         // Convertir les produits (qui sont des objets) en une chaîne lisible
         const produitsDetails = data.produits.map(p => `${p.name} (x${p.quantity})`).join(', ');
 
+        // NOUVEAU: Déterminer le statut en fonction du moyen de paiement
+        const statutInitial = data.moyenPaiement === 'Paiement à la livraison' ? 'Confirmée (PàL)' : 'En attente';
+
         sheet.appendRow([
             idCommande, data.idClient, produitsDetails, // Correspond à IDCommande, IDClient, DetailsProduits
-            data.total, "En attente", new Date(),
+            data.total, statutInitial, new Date(),
             data.adresseLivraison, data.moyenPaiement,
             data.notes || ''
         ]);
@@ -315,9 +318,32 @@ function createPayduniaInvoice(data, origin) {
             'payload': JSON.stringify(payduniaPayload)
         };
 
-        const response = UrlFetchApp.fetch("https://app.paydunia.com/api/v1/soft-invoice/create", options);
-        const responseData = JSON.parse(response.getContentText());
+        // NOUVEAU: Logique de tentatives multiples pour gérer les erreurs réseau intermittentes
+        let response;
+        let lastError;
+        const maxRetries = 3;
 
+        for (let i = 0; i < maxRetries; i++) {
+            try {
+                response = UrlFetchApp.fetch("https://app.paydunia.com/api/v1/soft-invoice/create", options);
+                // Si la requête réussit, on sort de la boucle
+                break;
+            } catch (e) {
+                lastError = e;
+                logAction('Paydunia Fetch Retry', { attempt: i + 1, error: e.message });
+                // Attendre 1 seconde avant de réessayer
+                if (i < maxRetries - 1) {
+                    Utilities.sleep(1000);
+                }
+            }
+        }
+
+        // Si après toutes les tentatives, la réponse est toujours nulle, on lance l'erreur
+        if (!response) {
+            throw lastError;
+        }
+
+        const responseData = JSON.parse(response.getContentText());
         return createJsonResponse({ success: true, payment_url: responseData.response_text }, origin);
 
     } catch (error) {

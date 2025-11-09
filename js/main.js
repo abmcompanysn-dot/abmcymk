@@ -1098,6 +1098,7 @@ async function processCheckout(event) {
         address: form.querySelector('#delivery-address').value,
         location: form.querySelector('#delivery-location').value,
         deliveryMethod: form.querySelector('#delivery-method').value,
+        paymentMethod: form.querySelector('input[name="payment-method"]:checked').value
     };
 
     // 2. Récupérer les données du panier depuis le localStorage
@@ -1106,7 +1107,7 @@ async function processCheckout(event) {
         statusDiv.textContent = "Votre panier est vide.";
         statusDiv.className = 'mt-4 text-center font-semibold text-red-600';
         submitButton.disabled = false;
-        submitButton.textContent = 'Confirmer la commande';
+        submitButton.textContent = 'Valider la commande';
         return;
     }
 
@@ -1132,20 +1133,31 @@ async function processCheckout(event) {
     }
     const total = subtotal + shippingCost;
 
-    // 3. Préparer l'objet de la commande pour le backend
+    // 5. Préparer l'objet de la commande pour le backend en fonction du mode de paiement
+    let action = '';
+    let paymentNote = '';
+
+    if (customerData.paymentMethod === 'paydunia') {
+        action = 'createPayduniaInvoice';
+        paymentNote = 'Paydunia (en ligne)';
+    } else { // 'cod' pour Cash On Delivery
+        action = 'enregistrerCommandeEtNotifier';
+        paymentNote = 'Paiement à la livraison';
+    }
+
     const orderPayload = {
-        action: 'createPayduniaInvoice', // NOUVEAU: Action pour créer la facture Paydunia
+        action: action,
         data: {
             idClient: clientId,
-            produits: cart.map(item => ({ name: item.name, quantity: item.quantity, price: item.price, productId: item.productId })), // Formatter les produits pour Paydunia
+            produits: cart.map(item => ({ name: item.name, quantity: item.quantity, price: item.price, productId: item.productId })),
             adresseLivraison: `${customerData.address}, ${customerData.location}`,
             total: total,
-            moyenPaiement: "Paiement à la livraison", // Pour l'instant
-            notes: `Client: ${clientName}, Tél: ${customerData.phone}`
+            moyenPaiement: paymentNote,
+            notes: `Client: ${clientName}, Tél: ${customerData.phone}. ${customerData.notes || ''}`.trim()
         }
     };
 
-    // 5. Envoyer la commande à l'API des commandes
+    // 6. Envoyer la commande à l'API centrale
     // NOUVEAU: Un seul appel à l'API centrale
     try {
         const response = await fetch(CONFIG.ACCOUNT_API_URL, {
@@ -1156,20 +1168,51 @@ async function processCheckout(event) {
         const result = await response.json();
 
         if (result.success) {
-            statusDiv.textContent = `Facture créée. Redirection vers la page de paiement...`;
             statusDiv.className = 'mt-4 text-center font-semibold text-green-600';
             saveCart([]); // Vider le panier après la commande
 
-            // Rediriger l'utilisateur vers l'URL de paiement de Paydunia
-            window.location.href = result.payment_url;
+            if (customerData.paymentMethod === 'paydunia') {
+                statusDiv.textContent = `Facture créée. Redirection vers la page de paiement...`;
+                // Rediriger l'utilisateur vers l'URL de paiement de Paydunia
+                window.location.href = result.payment_url;
+            } else {
+                statusDiv.textContent = `Commande #${result.id} enregistrée avec succès ! Vous allez être redirigé.`;
+                // Rediriger vers la page de confirmation pour le paiement à la livraison
+                setTimeout(() => {
+                    window.location.href = `confirmation.html?orderId=${result.id}`;
+                }, 3000);
+            }
         } else {
             throw new Error(result.error || "Une erreur inconnue est survenue.");
         }
     } catch (error) {
-        statusDiv.textContent = `Erreur lors de la commande: ${error.message}`;
+        let userFriendlyMessage = "Une erreur inattendue est survenue lors du traitement de votre paiement. Veuillez réessayer.";
+
+        // Vérifier les erreurs réseau côté client (ex: pas de connexion internet)
+        if (error.message.includes("Failed to fetch") || error.message.includes("NetworkError")) {
+            userFriendlyMessage = "Impossible de contacter le service de paiement. Veuillez vérifier votre connexion internet ou réessayer plus tard.";
+        }
+        // Vérifier les erreurs spécifiques à Paydunia remontées par le backend
+        else if (error.message.includes("Erreur Paydunia")) {
+            const payduniaErrorDetail = error.message.split("Erreur Paydunia:")[1]?.trim();
+            if (payduniaErrorDetail && payduniaErrorDetail.includes("Erreur DNS")) {
+                userFriendlyMessage = `Le service de paiement Paydunia est temporairement indisponible. Veuillez réessayer dans quelques instants.`;
+            } else if (payduniaErrorDetail) {
+                userFriendlyMessage = `Le service de paiement Paydunia a rencontré un problème: ${payduniaErrorDetail}. Veuillez réessayer ou contacter le support.`;
+            } else {
+                userFriendlyMessage = `Le service de paiement Paydunia a rencontré un problème inattendu. Veuillez réessayer ou contacter le support.`;
+            }
+        }
+        // Erreur générique de l'API backend (si result.error n'était pas spécifique)
+        else if (error.message.includes("Une erreur inconnue est survenue.")) {
+            userFriendlyMessage = "Une erreur est survenue lors de la communication avec notre serveur. Veuillez réessayer.";
+        }
+        // Autres erreurs inattendues
+        // statusDiv.textContent = `Erreur lors de la commande: ${error.message}`; // Pour le débogage, on pourrait laisser le message technique ici
+        statusDiv.textContent = userFriendlyMessage;
         statusDiv.className = 'mt-4 text-center font-semibold text-red-600';
         submitButton.disabled = false;
-        submitButton.textContent = 'Confirmer la commande';
+        submitButton.textContent = 'Valider la commande'; // Restaurer le texte original du bouton
     }
 }
 
