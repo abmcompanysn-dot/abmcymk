@@ -1435,6 +1435,62 @@ async function getCatalogAndRefreshInBackground() {
 }
 
 /**
+ * NOUVEAU: Récupère les favoris depuis le localStorage.
+ * @returns {string[]} Un tableau d'ID de produits favoris.
+ */
+function getFavorites() {
+    return JSON.parse(localStorage.getItem('abmcyFavorites')) || [];
+}
+
+/**
+ * NOUVEAU: Sauvegarde les favoris dans le localStorage.
+ * @param {string[]} favorites - Le tableau d'ID de produits favoris.
+ */
+function saveFavorites(favorites) {
+    localStorage.setItem('abmcyFavorites', JSON.stringify(favorites));
+}
+
+/**
+ * NOUVEAU: Ajoute ou retire un produit des favoris.
+ * @param {Event} event - L'événement du clic.
+ * @param {string} productId - L'ID du produit.
+ */
+function toggleFavorite(event, productId) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    let favorites = getFavorites();
+    const button = event.currentTarget;
+    const isFavorited = favorites.includes(productId);
+
+    if (isFavorited) {
+        favorites = favorites.filter(id => id !== productId);
+        showToast('Retiré des favoris.');
+    } else {
+        favorites.push(productId);
+        showToast('Ajouté aux favoris !');
+    }
+
+    saveFavorites(favorites);
+    updateFavoriteIcon(button, !isFavorited);
+}
+
+/**
+ * NOUVEAU: Met à jour l'apparence de l'icône de favori.
+ * @param {HTMLElement} button - Le bouton sur lequel l'utilisateur a cliqué.
+ * @param {boolean} isFavorited - True si le produit est maintenant en favori.
+ */
+function updateFavoriteIcon(button, isFavorited) {
+    if (isFavorited) {
+        button.classList.add('text-red-500'); // Couleur pour un favori
+        button.innerHTML = '<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd"></path></svg>';
+    } else {
+        button.classList.remove('text-red-500');
+        button.innerHTML = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 016.364 0L12 7.636l1.318-1.318a4.5 4.5 0 116.364 6.364L12 20.364l-7.682-7.682a4.5 4.5 0 010-6.364z"></path></svg>';
+    }
+}
+
+/**
  * Génère le HTML pour une carte de produit.
  * @param {object} product - L'objet produit.
  * @returns {string} Le HTML de la carte.
@@ -1557,6 +1613,7 @@ function copySiteLink() {
  */
 function renderHomepageCategorySections(catalog) {
     const mainContainer = document.getElementById('category-products-sections-container');
+    // CORRECTION: Déplacer la déclaration de 'container' ici pour qu'elle soit accessible dans le bloc catch.
     if (!mainContainer) return;
     try {
         const { data } = catalog;
@@ -1672,7 +1729,7 @@ function renderHomepageCategorySections(catalog) {
 
     } catch (error) {
         console.error("Erreur lors de l'affichage des sections par catégorie:", error);
-        container.innerHTML = '<p class="text-center text-red-500">Impossible de charger les sections de produits.</p>';
+        mainContainer.innerHTML = '<p class="text-center text-red-500">Impossible de charger les sections de produits.</p>';
     }
 }
 
