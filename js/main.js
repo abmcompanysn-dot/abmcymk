@@ -1,6 +1,6 @@
 const CONFIG = {
     // NOUVEAU: URL de l'API CENTRALE qui gère maintenant tout (comptes, commandes, etc.)
-    ACCOUNT_API_URL:"https://script.google.com/macros/s/AKfycbxn4zUa1mkp0-8bH0OwuR0BDhDQeKliCIDJ9HsAOKWTmMfBX8sO6W9PVqH0uQkvdvPY0w/exec",
+    ACCOUNT_API_URL:"https://script.google.com/macros/s/AKfycbxfaAqRWezRCfCtpBtJ0kje4EveXeAddt43PfZVucZEKnnFYvqXcTot9DHXrH2MaEebpQ/exec",
     // Les URL spécifiques pour commandes, livraisons et notifications sont maintenant obsolètes
     // car tout est géré par l'API centrale (ACCOUNT_API_URL).
     
@@ -1440,12 +1440,19 @@ async function getCatalogAndRefreshInBackground() {
  * @returns {string} Le HTML de la carte.
  */
 function renderProductCard(product) { // This function remains synchronous as it only formats data
+    const favorites = getFavorites(); // NOUVEAU: Récupérer les favoris
+    const isFavorited = favorites.includes(product.IDProduit); // NOUVEAU: Vérifier si ce produit est en favori
+
     const price = product.PrixActuel || 0;
     const oldPrice = product.PrixAncien || 0;
     const discount = product['Réduction%'] || 0;
     const stock = product.Stock || 0;
 
-    // Pour la nouvelle carte de type AliExpress, on simplifie l'affichage
+    // NOUVEAU: Définir l'icône de favori en fonction de son état
+    const favoriteIcon = isFavorited
+        ? '<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd"></path></svg>'
+        : '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 016.364 0L12 7.636l1.318-1.318a4.5 4.5 0 116.364 6.364L12 20.364l-7.682-7.682a4.5 4.5 0 010-6.364z"></path></svg>';
+
     return `
     <div class="product-card bg-white rounded-lg shadow overflow-hidden flex flex-col justify-between group">
         <div>
@@ -1460,6 +1467,9 @@ function renderProductCard(product) { // This function remains synchronous as it
                     <div class="absolute top-2 right-2 flex flex-col space-y-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                         <button onclick="addToCart(event, '${product.IDProduit}', '${product.Nom}', ${price}, '${product.ImageURL}')" title="Ajouter au panier" class="bg-white p-2 rounded-full shadow-lg hover:bg-gold hover:text-white">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
+                        </button>
+                        <button onclick="toggleFavorite(event, '${product.IDProduit}')" title="Ajouter aux favoris" class="bg-white p-2 rounded-full shadow-lg hover:text-red-500 ${isFavorited ? 'text-red-500' : ''}">
+                            ${favoriteIcon}
                         </button>
                         <button onclick="shareProduct(event, '${product.IDProduit}')" title="Partager" class="bg-white p-2 rounded-full shadow-lg hover:bg-gold hover:text-white">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12s-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.368a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z"></path></svg>
@@ -1934,18 +1944,49 @@ function switchTab(tabName) {
  * Vérifie si l'utilisateur est connecté, sinon le redirige.
  * Affiche les informations de l'utilisateur.
  */
-function initializeAccountPage() {
-    const user = JSON.parse(localStorage.getItem('abmcyUser'));
+async function initializeAccountPage() {
+    let user = JSON.parse(localStorage.getItem('abmcyUser'));
 
     // Si l'utilisateur n'est pas connecté, on le renvoie à la page d'authentification
     if (!user) {
         window.location.href = 'authentification.html';
         return;
     }
+    
+    // NOUVEAU: Recharger les informations de l'utilisateur depuis le serveur pour avoir les données à jour.
+    try {
+        const response = await fetch(CONFIG.ACCOUNT_API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain' },
+            body: JSON.stringify({
+                action: 'connecterClient', // On réutilise l'action de connexion qui retourne les infos utilisateur
+                data: { email: user.Email, motDePasse: user.PasswordHash, isHash: true } // On envoie un flag pour indiquer que le mdp est déjà un hash
+            })
+        });
+        const result = await response.json();
+        if (result.success && result.user) {
+            user = result.user; // Mettre à jour l'objet utilisateur avec les dernières données
+            localStorage.setItem('abmcyUser', JSON.stringify(user)); // Mettre à jour le localStorage
+        } else {
+            // Si la récupération échoue (ex: compte supprimé), on déconnecte l'utilisateur
+            localStorage.removeItem('abmcyUser');
+            window.location.href = 'authentification.html';
+            return;
+        }
+    } catch (error) {
+        console.error("Impossible de rafraîchir les données utilisateur. Utilisation des données locales.", error);
+        // En cas d'erreur réseau, on continue avec les données du localStorage.
+    }
 
     // Afficher les informations de l'utilisateur
     document.getElementById('user-name-display').textContent = user.Nom;
     document.getElementById('user-email-display').textContent = user.Email;
+    // NOUVEAU: Afficher aussi le téléphone et l'adresse s'ils existent
+    const phoneDisplay = document.getElementById('user-phone-display');
+    const addressDisplay = document.getElementById('user-address-display');
+    if (phoneDisplay) phoneDisplay.textContent = user.Telephone || 'Non renseigné';
+    if (addressDisplay) addressDisplay.textContent = user.Adresse || 'Non renseignée';
+
     document.getElementById('dashboard-user-name').textContent = user.Nom;
     document.getElementById('dashboard-user-name-link').textContent = user.Nom;
 

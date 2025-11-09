@@ -95,6 +95,8 @@ function doPost(e) {
                 return creerCompteClient(data, origin);
             case 'connecterClient':
                 return connecterClient(data, origin);
+            case 'getOrderById': // NOUVEAU
+                return getOrderById(data, origin);
             case 'getOrdersByClientId':
                 return getOrdersByClientId(data, origin);
             case 'createPaydunyaInvoice': // NOUVEAU: Action pour créer une facture Paydunya
@@ -203,7 +205,14 @@ function connecterClient(data, origin) {
 
         const storedHash = userRow[hashIndex];
         const salt = userRow[saltIndex];
-        const { passwordHash: providedPasswordHash } = hashPassword(data.motDePasse, salt);
+        let providedPasswordHash;
+
+        // NOUVEAU: Gérer le cas où le mot de passe envoyé est déjà un hash (pour le rafraîchissement des données)
+        if (data.isHash) {
+            providedPasswordHash = data.motDePasse;
+        } else {
+            providedPasswordHash = hashPassword(data.motDePasse, salt).passwordHash;
+        }
 
         if (providedPasswordHash !== storedHash) {
             logAction('connecterClient', { email: data.email, success: false });
@@ -437,6 +446,41 @@ function getOrdersByClientId(data, origin) {
         return createJsonResponse({ success: true, data: clientOrders }, origin);
     } catch (error) {
         logError(JSON.stringify({ action: 'getOrdersByClientId', data }), error);
+        return createJsonResponse({ success: false, error: error.message }, origin);
+    }
+}
+
+/**
+ * NOUVEAU: Récupère une commande spécifique par son ID.
+ * @param {object} data - Contient { orderId }.
+ * @param {string} origin - L'origine de la requête.
+ * @returns {GoogleAppsScript.Content.TextOutput} Réponse JSON avec les détails de la commande.
+ */
+function getOrderById(data, origin) {
+    try {
+        const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.ORDERS);
+        const allOrders = sheet.getDataRange().getValues();
+        const headers = allOrders.shift() || [];
+        const idCommandeIndex = headers.indexOf("IDCommande");
+
+        if (!data.orderId) {
+            return createJsonResponse({ success: false, error: "L'ID de la commande est manquant." }, origin);
+        }
+
+        const orderRow = allOrders.find(row => row[idCommandeIndex] === data.orderId);
+
+        if (!orderRow) {
+            return createJsonResponse({ success: false, error: "Commande non trouvée." }, origin);
+        }
+
+        const orderObject = headers.reduce((obj, header, index) => {
+            obj[header] = orderRow[index];
+            return obj;
+        }, {});
+
+        return createJsonResponse({ success: true, data: orderObject }, origin);
+    } catch (error) {
+        logError(JSON.stringify({ action: 'getOrderById', data }), error);
         return createJsonResponse({ success: false, error: error.message }, origin);
     }
 }
