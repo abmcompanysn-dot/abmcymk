@@ -672,10 +672,10 @@ function setupProject() {
     'allowed_headers': 'Content-Type, X-Requested-With',
     'allow_credentials': 'true',
     'delivery_options': JSON.stringify({"Dakar":{"Dakar - Plateau":{"Standard":1500,"ABMCY Express":2500},"Rufisque":{"Standard":3000}},"Thiès":{"Thiès Ville":{"Standard":3500}}}),
-    'PAYDUNIA_MASTER_KEY': 'METTRE_VOTRE_CLE_ICI',
-    'PAYDUNIA_PRIVATE_KEY': 'METTRE_VOTRE_CLE_ICI',
-    'PAYDUNIA_PUBLIC_KEY': 'METTRE_VOTRE_CLE_ICI',
-    'PAYDUNIA_TOKEN': 'METTRE_VOTRE_CLE_ICI'
+    'PAYDUNIA_MASTER_KEY': 'ZosA6n35-Tyd6-KhH9-TaPR-7ZOFqyBxfjvz',
+    'PAYDUNIA_PRIVATE_KEY': 'test_private_551JVMnbbxXNRMSh7oTxG0c0tMk',
+    'PAYDUNIA_PUBLIC_KEY': 'test_public_jP3lknsWNRO6A1rDCcMIq5pjng8I',
+    'PAYDUNIA_TOKEN': 'MlxUBfHp3G7UAoKyxiWw'
   };
 
   Object.entries(defaultConfigValues).forEach(([key, value]) => {
