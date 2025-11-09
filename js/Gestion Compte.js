@@ -343,7 +343,7 @@ function createPaydunyaInvoice(data, origin) {
         for (let i = 0; i < maxRetries; i++) {
             try {
                 // CORRECTION: Utilisation de l'URL de test (sandbox) pour correspondre aux clés de test.
-                response = UrlFetchApp.fetch("https://app.paydunya.com/sandbox-api/v1/checkout-invoice/create", options);
+                response = UrlFetchApp.fetch("https://app.paydunya.com/api/v1/checkout-invoice/create", options);
                 // Si la requête réussit, on sort de la boucle
                 break;
             } catch (e) {
@@ -743,9 +743,9 @@ function setupProject() {
       "Dakar": {"Dakar - Plateau":{"Standard":1500,"ABMCY Express":2500},"Rufisque":{"Standard":3000}},"Thiès":{"Thiès Ville":{"Standard":3500}}
     }),
     'PAYDUNYA_MASTER_KEY': 'ZosA6n35-Tyd6-KhH9-TaPR-7ZOFqyBxfjvz',
-    'PAYDUNYA_PRIVATE_KEY': 'test_private_551JVMnbbxXNRMSh7oTxG0c0tMk',
-    'PAYDUNYA_PUBLIC_KEY': 'test_public_jP3lknsWNRO6A1rDCcMIq5pjng8I',
-    'PAYDUNYA_TOKEN': 'MlxUBfHp3G7UAoKyxiWw'
+    'PAYDUNYA_PRIVATE_KEY': 'live_private_3CzZajIPeFrcWxNOvDxyTuan3dm',
+    'PAYDUNYA_PUBLIC_KEY': 'live_public_TgcjrnTM5MmbDajbWjZQJdFjuro',
+    'PAYDUNYA_TOKEN': 'QSUiqdHl3U7iaXsnoT69'
   };
 
   Object.entries(defaultConfigValues).forEach(([key, value]) => {
