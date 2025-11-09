@@ -361,12 +361,20 @@ function createPaydunyaInvoice(data, origin) {
         }
 
         // NOUVEAU: Gérer les réponses qui ne sont pas des succès (ex: 404, 401, 500)
-        if (response.getResponseCode() !== 200) {
-            const errorResponse = response.getContentText();
-            throw new Error(`Paydunya a répondu avec le code ${response.getResponseCode()}: ${errorResponse}`);
+        const responseCode = response.getResponseCode();
+        const responseText = response.getContentText();
+
+        if (responseCode !== 200) {
+            // Essayer de parser la réponse d'erreur pour un message plus clair
+            let errorMessage = `Paydunya a répondu avec le code ${responseCode}.`;
+            try {
+                const errorJson = JSON.parse(responseText);
+                errorMessage = errorJson.response_text || errorJson.message || responseText;
+            } catch (e) { /* Ignorer si ce n'est pas du JSON */ }
+            throw new Error(errorMessage);
         }
 
-        const responseData = JSON.parse(response.getContentText());
+        const responseData = JSON.parse(responseText);
         return createJsonResponse({ success: true, payment_url: responseData.response_text }, origin);
 
     } catch (error) {

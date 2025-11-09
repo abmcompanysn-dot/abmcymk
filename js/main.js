@@ -1192,7 +1192,7 @@ async function processCheckout(event) {
         }
     } catch (error) {
         let userFriendlyMessage = "Une erreur inattendue est survenue lors du traitement de votre paiement. Veuillez réessayer.";
-
+        
         // Vérifier les erreurs réseau côté client (ex: pas de connexion internet)
         if (error.message.includes("Failed to fetch") || error.message.includes("NetworkError")) {
             userFriendlyMessage = "Impossible de contacter le service de paiement. Veuillez vérifier votre connexion internet ou réessayer plus tard.";
@@ -1207,10 +1207,10 @@ async function processCheckout(event) {
             } else {
                 userFriendlyMessage = `Le service de paiement Paydunya a rencontré un problème inattendu. Veuillez réessayer ou contacter le support.`;
             }
-        }
-        // Erreur générique de l'API backend (si result.error n'était pas spécifique)
-        else if (error.message.includes("Une erreur inconnue est survenue.")) {
-            userFriendlyMessage = "Une erreur est survenue lors de la communication avec notre serveur. Veuillez réessayer.";
+        } else {
+            // CORRECTION: Capturer le message d'erreur spécifique renvoyé par notre API
+            // (qui contient maintenant le message de Paydunya)
+            userFriendlyMessage = `Erreur de paiement : ${error.message}`;
         }
         // Autres erreurs inattendues
         // statusDiv.textContent = `Erreur lors de la commande: ${error.message}`; // Pour le débogage, on pourrait laisser le message technique ici
