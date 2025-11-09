@@ -1,6 +1,6 @@
 const CONFIG = {
     // NOUVEAU: URL de l'API CENTRALE qui gère maintenant tout (comptes, commandes, etc.)
-    ACCOUNT_API_URL:"https://script.google.com/macros/s/AKfycbxC5kggLUoX5-_YdIkez1LXkfllbWWxeGu0UXuMQBVpEHr5OdhD4XRLVjJftNVM2mXD5g/exec",
+    ACCOUNT_API_URL:"https://script.google.com/macros/s/AKfycbxOCMZ9lCn1klTt1zQPYFg4eEQjIcQM0FbEJwRnp-ykRwBkeh_rK5uSPXJkdAMp_vK69w/exec",
     // Les URL spécifiques pour commandes, livraisons et notifications sont maintenant obsolètes
     // car tout est géré par l'API centrale (ACCOUNT_API_URL).
     
@@ -971,14 +971,14 @@ function initializeCheckoutPage() {
  * NOUVEAU: Remplit les sélecteurs de livraison sur la page de paiement.
  */
 function populateDeliverySelectorsCheckout() {
-    // Simulé pour l'instant, devrait venir de l'API de livraison
+    // NOUVEAU: Options de livraison, y compris "Retrait en magasin" gratuit.
     DELIVERY_OPTIONS = {
+        "Point de retrait": { "Retrait en magasin": { "Gratuit": 0 } },
         "Dakar": { "Dakar": { "Standard": 1500, "Express": 3000 } },
         "Régions": { "Thiès": { "Standard": 2500 }, "Saint-Louis": { "Standard": 3500 } }
     };
 
     const locationSelect = document.getElementById('delivery-location');
-    const methodSelect = document.getElementById('delivery-method');
     if (!locationSelect || !methodSelect) return;
 
     let locationHTML = '<option value="">-- Choisir une localité --</option>';
@@ -991,6 +991,7 @@ function populateDeliverySelectorsCheckout() {
     }
     locationSelect.innerHTML = locationHTML;
 
+    const methodSelect = document.getElementById('delivery-method');
     locationSelect.addEventListener('change', updateDeliveryMethodsCheckout);
     methodSelect.addEventListener('change', updateCheckoutTotal);
 
@@ -1047,9 +1048,12 @@ function updateDeliveryMethodsCheckout() {
     }
 
     if (methodsForLocation) {
-        methodSelect.innerHTML = Object.keys(methodsForLocation).map(methodName =>
-            `<option value="${methodName}">${methodName} - ${methodsForLocation[methodName].toLocaleString('fr-FR')} F CFA</option>`
-        ).join('');
+        // CORRECTION: Gérer le cas de la livraison gratuite où le prix est 0.
+        methodSelect.innerHTML = Object.keys(methodsForLocation).map(methodName => {
+            const price = methodsForLocation[methodName];
+            const priceText = price > 0 ? `${price.toLocaleString('fr-FR')} F CFA` : 'Gratuit';
+            return `<option value="${methodName}" data-cost="${price}">${methodName} - ${priceText}</option>`;
+        }).join('');
         methodSelect.disabled = false;
     } else {
         methodSelect.innerHTML = '<option value="">Pas de méthode pour cette zone</option>';
@@ -1066,7 +1070,9 @@ function updateCheckoutTotal() {
     const cart = getCart();
     const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
-    const shippingCost = parseFloat(document.getElementById('delivery-method').selectedOptions[0]?.text.split(' - ')[1] || 0);
+    // CORRECTION: Lire le coût depuis l'attribut data-cost pour plus de fiabilité.
+    const selectedOption = document.getElementById('delivery-method').selectedOptions[0];
+    const shippingCost = parseFloat(selectedOption ? selectedOption.dataset.cost : 0);
     const total = subtotal + shippingCost;
 
     document.getElementById('checkout-subtotal').textContent = `${subtotal.toLocaleString('fr-FR')} F CFA`;
@@ -1123,14 +1129,8 @@ async function processCheckout(event) {
 
     // 4. Calculer le total final
     const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    // AMÉLIORATION: Logique de recherche des frais de port plus robuste
-    let shippingCost = 0;
-    for (const region in DELIVERY_OPTIONS) {
-        if (DELIVERY_OPTIONS[region][customerData.location]) {
-            shippingCost = DELIVERY_OPTIONS[region][customerData.location][customerData.deliveryMethod] || 0;
-            break;
-        }
-    }
+    const selectedOption = document.getElementById('delivery-method').selectedOptions[0];
+    const shippingCost = parseFloat(selectedOption ? selectedOption.dataset.cost : 0);
     const total = subtotal + shippingCost;
 
     // 5. Préparer l'objet de la commande pour le backend en fonction du mode de paiement
@@ -1153,6 +1153,10 @@ async function processCheckout(event) {
             adresseLivraison: `${customerData.address}, ${customerData.location}`,
             total: total,
             moyenPaiement: paymentNote,
+                name: clientName,
+                email: customerData.email,
+                phone: customerData.phone
+            },
             notes: `Client: ${clientName}, Tél: ${customerData.phone}. ${customerData.notes || ''}`.trim()
         }
     };
@@ -1214,7 +1218,7 @@ async function processCheckout(event) {
         submitButton.disabled = false;
         submitButton.textContent = 'Valider la commande'; // Restaurer le texte original du bouton
     }
-}
+
 
 /**
  * NOUVEAU: Affiche les produits dans les sections "SuperDeals" et "Big Save" de la page d'accueil.
@@ -1942,11 +1946,10 @@ function initializeAccountPage() {
     document.getElementById('user-name-display').textContent = user.Nom;
     document.getElementById('user-email-display').textContent = user.Email;
     document.getElementById('dashboard-user-name').textContent = user.Nom;
-    document.getElementById('dashboard-user-name-link').textContent = user.Nom;
 
     // Initiales pour l'avatar
     const initials = user.Nom.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
-    document.getElementById('user-initials').textContent = initials;
+    document.getElementById('user-initials-avatar').textContent = initials;
 
     // Logique de déconnexion
     const logoutLink = document.getElementById('logout-link');
@@ -1961,7 +1964,9 @@ function initializeAccountPage() {
     };
 
     logoutLink.addEventListener('click', logoutAction);
-    logoutNav.addEventListener('click', logoutAction);
+    if (logoutNav) {
+        logoutNav.addEventListener('click', logoutAction);
+    }
 
     // Charger et afficher les commandes récentes
     loadRecentOrdersForAccount(user.IDClient);
@@ -1996,7 +2001,6 @@ async function loadRecentOrdersForAccount(clientId) {
         }
 
         const ordersHTML = `
-            <h4 class="text-lg font-semibold mb-4">Mes commandes récentes</h4>
             <div class="overflow-x-auto">
                 <table class="min-w-full text-sm text-left">
                     <thead class="bg-gray-100">
@@ -2011,7 +2015,7 @@ async function loadRecentOrdersForAccount(clientId) {
                         ${result.data.map(order => `
                             <tr class="border-b">
                                 <td class="p-3 font-medium text-blue-600">#${order.IDCommande}</td>
-                                <td class="p-3">${new Date(order.Date).toLocaleDateString('fr-FR')}</td>
+                                <td class="p-3">${new Date(order.Date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })}</td>
                                 <td class="p-3"><span class="px-2 py-1 text-xs font-semibold rounded-full bg-yellow-200 text-yellow-800">${order.Statut}</span></td>
                                 <td class="p-3 text-right font-semibold">${Number(order.Total).toLocaleString('fr-FR')} F CFA</td>
                             </tr>

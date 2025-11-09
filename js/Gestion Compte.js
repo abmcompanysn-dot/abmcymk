@@ -285,17 +285,24 @@ function createPaydunyaInvoice(data, origin) {
 
         // 2. Préparer la requête pour l'API Paydunya
         const paydunyaPayload = {
-            "invoice": {
-                "total_amount": data.total,
-                "description": `Paiement pour commande #${idCommande} sur ABMCY MARKET`,
-                "items": data.produits.reduce((acc, p) => {
-                    acc[`item_${p.productId}`] = { "name": p.name, "quantity": p.quantity, "unit_price": p.price, "total_price": p.price * p.quantity };
-                    return acc;
-                }, {}),
-            },
             "store": {
                 "name": "ABMCY MARKET",
                 "website_url": "https://abmcymarket.vercel.app"
+            },
+            "invoice": {
+                "items": data.produits.map(p => ({
+                    "name": p.name,
+                    "quantity": p.quantity,
+                    "unit_price": p.price,
+                    "total_price": p.price * p.quantity
+                })),
+                "total_amount": data.total,
+                "description": `Paiement pour commande #${idCommande} sur ABMCY MARKET`,
+                "customer": { // NOUVEAU: Ajout des informations client
+                    "name": data.customer.name,
+                    "phone": data.customer.phone,
+                    "email": data.customer.email
+                }
             },
             "actions": {
                 "cancel_url": "https://abmcymarket.vercel.app/panier.html",
@@ -315,7 +322,8 @@ function createPaydunyaInvoice(data, origin) {
                 'PAYDUNYA-PRIVATE-KEY': config.PAYDUNYA_PRIVATE_KEY,
                 'PAYDUNYA-TOKEN': config.PAYDUNYA_TOKEN
             },
-            'payload': JSON.stringify(paydunyaPayload)
+            'payload': JSON.stringify(paydunyaPayload),
+            'muteHttpExceptions': true // NOUVEAU: Pour capturer les erreurs 4xx/5xx
         };
 
         // NOUVEAU: Logique de tentatives multiples pour gérer les erreurs réseau intermittentes
@@ -325,7 +333,7 @@ function createPaydunyaInvoice(data, origin) {
 
         for (let i = 0; i < maxRetries; i++) {
             try {
-                response = UrlFetchApp.fetch("https://app.paydunya.com/api/v1/soft-invoice/create", options);
+                response = UrlFetchApp.fetch("https://app.paydunya.com/api/v1/checkout-invoice/create", options);
                 // Si la requête réussit, on sort de la boucle
                 break;
             } catch (e) {
@@ -341,6 +349,12 @@ function createPaydunyaInvoice(data, origin) {
         // Si après toutes les tentatives, la réponse est toujours nulle, on lance l'erreur
         if (!response) {
             throw lastError;
+        }
+
+        // NOUVEAU: Gérer les réponses qui ne sont pas des succès (ex: 404, 401, 500)
+        if (response.getResponseCode() !== 200) {
+            const errorResponse = response.getContentText();
+            throw new Error(`Paydunya a répondu avec le code ${response.getResponseCode()}: ${errorResponse}`);
         }
 
         const responseData = JSON.parse(response.getContentText());
@@ -671,7 +685,10 @@ function setupProject() {
     'allowed_methods': 'POST, GET, OPTIONS',
     'allowed_headers': 'Content-Type, X-Requested-With',
     'allow_credentials': 'true',
-    'delivery_options': JSON.stringify({"Dakar":{"Dakar - Plateau":{"Standard":1500,"ABMCY Express":2500},"Rufisque":{"Standard":3000}},"Thiès":{"Thiès Ville":{"Standard":3500}}}),
+    'delivery_options': JSON.stringify({
+      "Point de retrait": { "Retrait en magasin": { "Gratuit": 0 } },
+      "Dakar": {"Dakar - Plateau":{"Standard":1500,"ABMCY Express":2500},"Rufisque":{"Standard":3000}},"Thiès":{"Thiès Ville":{"Standard":3500}}
+    }),
     'PAYDUNYA_MASTER_KEY': 'ZosA6n35-Tyd6-KhH9-TaPR-7ZOFqyBxfjvz',
     'PAYDUNYA_PRIVATE_KEY': 'test_private_551JVMnbbxXNRMSh7oTxG0c0tMk',
     'PAYDUNYA_PUBLIC_KEY': 'test_public_jP3lknsWNRO6A1rDCcMIq5pjng8I',
