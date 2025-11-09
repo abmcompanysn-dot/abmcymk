@@ -97,8 +97,8 @@ function doPost(e) {
                 return connecterClient(data, origin);
             case 'getOrdersByClientId':
                 return getOrdersByClientId(data, origin);
-            case 'createPayduniaInvoice': // NOUVEAU: Action pour créer une facture Paydunia
-                return createPayduniaInvoice(data, origin);
+            case 'createPaydunyaInvoice': // NOUVEAU: Action pour créer une facture Paydunya
+                return createPaydunyaInvoice(data, origin);
             // NOUVEAU: Action fusionnée depuis Gestion Commandes & Notifications
             case 'enregistrerCommandeEtNotifier':
                 const orderResult = enregistrerCommande(data, origin);
@@ -107,8 +107,8 @@ function doPost(e) {
                 return orderResult;
             case 'logClientEvent':
                 return logClientEvent(data, origin);
-            // NOUVEAU: Gérer le webhook de Paydunia
-            case 'paydunia-webhook':
+            // NOUVEAU: Gérer le webhook de Paydunya
+            case 'paydunya-webhook':
                 // Paydunia envoie des données en `application/x-www-form-urlencoded`
                 // donc e.parameter sera utilisé.
                 logAction('paydunia-webhook', e.parameter);
@@ -261,12 +261,12 @@ function enregistrerCommande(data, origin) {
 }
 
 /**
- * NOUVEAU: Crée une facture Paydunia et retourne l'URL de paiement.
+ * NOUVEAU: Crée une facture Paydunya et retourne l'URL de paiement.
  * @param {object} data - Les données de la commande.
  * @param {string} origin - L'origine de la requête.
  * @returns {GoogleAppsScript.Content.TextOutput} Réponse JSON avec l'URL de paiement.
  */
-function createPayduniaInvoice(data, origin) {
+function createPaydunyaInvoice(data, origin) {
     const lock = LockService.getScriptLock();
     lock.waitLock(30000);
 
@@ -280,11 +280,11 @@ function createPayduniaInvoice(data, origin) {
         orderSheet.appendRow([
             idCommande, data.idClient, produitsDetails,
             data.total, "En attente de paiement", new Date(),
-            data.adresseLivraison, "Paydunia", data.notes || ''
+            data.adresseLivraison, "Paydunya", data.notes || ''
         ]);
 
-        // 2. Préparer la requête pour l'API Paydunia
-        const payduniaPayload = {
+        // 2. Préparer la requête pour l'API Paydunya
+        const paydunyaPayload = {
             "invoice": {
                 "total_amount": data.total,
                 "description": `Paiement pour commande #${idCommande} sur ABMCY MARKET`,
@@ -300,7 +300,7 @@ function createPayduniaInvoice(data, origin) {
             "actions": {
                 "cancel_url": "https://abmcymarket.vercel.app/panier.html",
                 "return_url": `https://abmcymarket.vercel.app/confirmation.html?orderId=${idCommande}`,
-                "callback_url": ScriptApp.getService().getUrl() + "?action=paydunia-webhook"
+                "callback_url": ScriptApp.getService().getUrl() + "?action=paydunya-webhook"
             },
             "custom_data": {
                 "order_id": idCommande
@@ -311,11 +311,11 @@ function createPayduniaInvoice(data, origin) {
             'method': 'post',
             'contentType': 'application/json',
             'headers': {
-                'PAYDUNIA-MASTER-KEY': config.PAYDUNIA_MASTER_KEY,
-                'PAYDUNIA-PRIVATE-KEY': config.PAYDUNIA_PRIVATE_KEY,
-                'PAYDUNIA-TOKEN': config.PAYDUNIA_TOKEN
+                'PAYDUNYA-MASTER-KEY': config.PAYDUNYA_MASTER_KEY,
+                'PAYDUNYA-PRIVATE-KEY': config.PAYDUNYA_PRIVATE_KEY,
+                'PAYDUNYA-TOKEN': config.PAYDUNYA_TOKEN
             },
-            'payload': JSON.stringify(payduniaPayload)
+            'payload': JSON.stringify(paydunyaPayload)
         };
 
         // NOUVEAU: Logique de tentatives multiples pour gérer les erreurs réseau intermittentes
@@ -325,12 +325,12 @@ function createPayduniaInvoice(data, origin) {
 
         for (let i = 0; i < maxRetries; i++) {
             try {
-                response = UrlFetchApp.fetch("https://app.paydunia.com/api/v1/soft-invoice/create", options);
+                response = UrlFetchApp.fetch("https://app.paydunya.com/api/v1/soft-invoice/create", options);
                 // Si la requête réussit, on sort de la boucle
                 break;
             } catch (e) {
                 lastError = e;
-                logAction('Paydunia Fetch Retry', { attempt: i + 1, error: e.message });
+                logAction('Paydunya Fetch Retry', { attempt: i + 1, error: e.message });
                 // Attendre 1 seconde avant de réessayer
                 if (i < maxRetries - 1) {
                     Utilities.sleep(1000);
@@ -347,8 +347,8 @@ function createPayduniaInvoice(data, origin) {
         return createJsonResponse({ success: true, payment_url: responseData.response_text }, origin);
 
     } catch (error) {
-        logError(JSON.stringify({ action: 'createPayduniaInvoice', data }), error);
-        return createJsonResponse({ success: false, error: `Erreur Paydunia: ${error.message}` }, origin);
+        logError(JSON.stringify({ action: 'createPaydunyaInvoice', data }), error);
+        return createJsonResponse({ success: false, error: `Erreur Paydunya: ${error.message}` }, origin);
     } finally {
         lock.releaseLock();
     }
@@ -371,11 +371,11 @@ function sendOrderConfirmationEmail(orderResult, originalData) {
 }
 
 /**
- * NOUVEAU: Gère le webhook de confirmation de paiement de Paydunia.
- * @param {object} webhookData - Les données envoyées par Paydunia (e.parameter).
+ * NOUVEAU: Gère le webhook de confirmation de paiement de Paydunya.
+ * @param {object} webhookData - Les données envoyées par Paydunya (e.parameter).
  */
-function handlePayduniaWebhook(webhookData) {
-    // Paydunia envoie le statut dans `invoice_token` et les données custom dans `custom_data`
+function handlePaydunyaWebhook(webhookData) {
+    // Paydunya envoie le statut dans `invoice_token` et les données custom dans `custom_data`
     const status = webhookData.status;
 
     if (status === 'completed') {
@@ -599,10 +599,10 @@ function getConfig() {
     allowed_headers: "Content-Type, X-Requested-With", // Ajout pour compatibilité
     delivery_options: {}, // NOUVEAU: Ajout depuis Gestion Livraisons
     allow_credentials: "true",
-    PAYDUNIA_MASTER_KEY: "VOTRE_MASTER_KEY",
-    PAYDUNIA_PRIVATE_KEY: "VOTRE_PRIVATE_KEY",
-    PAYDUNIA_PUBLIC_KEY: "VOTRE_PUBLIC_KEY",
-    PAYDUNIA_TOKEN: "VOTRE_TOKEN"
+    PAYDUNYA_MASTER_KEY: "VOTRE_MASTER_KEY",
+    PAYDUNYA_PRIVATE_KEY: "VOTRE_PRIVATE_KEY",
+    PAYDUNYA_PUBLIC_KEY: "VOTRE_PUBLIC_KEY",
+    PAYDUNYA_TOKEN: "VOTRE_TOKEN"
   };
 
   try {
@@ -622,10 +622,10 @@ function getConfig() {
       allowed_headers: config.allowed_headers || defaultConfig.allowed_headers,
       allow_credentials: config.allow_credentials === 'true',
       delivery_options: config.delivery_options ? JSON.parse(config.delivery_options) : defaultConfig.delivery_options,
-      PAYDUNIA_MASTER_KEY: config.PAYDUNIA_MASTER_KEY || defaultConfig.PAYDUNIA_MASTER_KEY,
-      PAYDUNIA_PRIVATE_KEY: config.PAYDUNIA_PRIVATE_KEY || defaultConfig.PAYDUNIA_PRIVATE_KEY,
-      PAYDUNIA_PUBLIC_KEY: config.PAYDUNIA_PUBLIC_KEY || defaultConfig.PAYDUNIA_PUBLIC_KEY,
-      PAYDUNIA_TOKEN: config.PAYDUNIA_TOKEN || defaultConfig.PAYDUNIA_TOKEN
+      PAYDUNYA_MASTER_KEY: config.PAYDUNYA_MASTER_KEY || defaultConfig.PAYDUNYA_MASTER_KEY,
+      PAYDUNYA_PRIVATE_KEY: config.PAYDUNYA_PRIVATE_KEY || defaultConfig.PAYDUNYA_PRIVATE_KEY,
+      PAYDUNYA_PUBLIC_KEY: config.PAYDUNYA_PUBLIC_KEY || defaultConfig.PAYDUNYA_PUBLIC_KEY,
+      PAYDUNYA_TOKEN: config.PAYDUNYA_TOKEN || defaultConfig.PAYDUNYA_TOKEN
     };
 
     cache.put(CACHE_KEY, JSON.stringify(finalConfig), 600); // Cache pendant 10 minutes
@@ -672,10 +672,10 @@ function setupProject() {
     'allowed_headers': 'Content-Type, X-Requested-With',
     'allow_credentials': 'true',
     'delivery_options': JSON.stringify({"Dakar":{"Dakar - Plateau":{"Standard":1500,"ABMCY Express":2500},"Rufisque":{"Standard":3000}},"Thiès":{"Thiès Ville":{"Standard":3500}}}),
-    'PAYDUNIA_MASTER_KEY': 'ZosA6n35-Tyd6-KhH9-TaPR-7ZOFqyBxfjvz',
-    'PAYDUNIA_PRIVATE_KEY': 'test_private_551JVMnbbxXNRMSh7oTxG0c0tMk',
-    'PAYDUNIA_PUBLIC_KEY': 'test_public_jP3lknsWNRO6A1rDCcMIq5pjng8I',
-    'PAYDUNIA_TOKEN': 'MlxUBfHp3G7UAoKyxiWw'
+    'PAYDUNYA_MASTER_KEY': 'ZosA6n35-Tyd6-KhH9-TaPR-7ZOFqyBxfjvz',
+    'PAYDUNYA_PRIVATE_KEY': 'test_private_551JVMnbbxXNRMSh7oTxG0c0tMk',
+    'PAYDUNYA_PUBLIC_KEY': 'test_public_jP3lknsWNRO6A1rDCcMIq5pjng8I',
+    'PAYDUNYA_TOKEN': 'MlxUBfHp3G7UAoKyxiWw'
   };
 
   Object.entries(defaultConfigValues).forEach(([key, value]) => {
