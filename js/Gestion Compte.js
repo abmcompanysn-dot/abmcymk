@@ -342,7 +342,8 @@ function createPaydunyaInvoice(data, origin) {
 
         for (let i = 0; i < maxRetries; i++) {
             try {
-                response = UrlFetchApp.fetch("https://app.paydunya.com/api/v1/checkout-invoice/create", options);
+                // CORRECTION: Utilisation de l'URL de test (sandbox) pour correspondre aux clés de test.
+                response = UrlFetchApp.fetch("https://app.paydunya.com/sandbox-api/v1/checkout-invoice/create", options);
                 // Si la requête réussit, on sort de la boucle
                 break;
             } catch (e) {
