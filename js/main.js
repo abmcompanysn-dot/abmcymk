@@ -1,6 +1,6 @@
 const CONFIG = {
     // NOUVEAU: URL de l'API CENTRALE qui gère maintenant tout (comptes, commandes, etc.)
-    ACCOUNT_API_URL:"https://script.google.com/macros/s/AKfycbyaQ7iSFF8f4eEdaUmuXAh44pDRkYInHh5pfPCi_EeXF_caihO-Kf0f09Qwp67WVveCvg/exec",
+    ACCOUNT_API_URL:"https://script.google.com/macros/s/AKfycbw7aTLayupT2Nldk4-fQnDvOrtRt99nPrsMZ7Ctgdr5IB5BSdAdTDOQ6AjFUwmWpWH6dw/exec",
     // Les URL spécifiques pour commandes, livraisons et notifications sont maintenant obsolètes
     // car tout est géré par l'API centrale (ACCOUNT_API_URL).
     
@@ -50,6 +50,11 @@ async function initializeApp() {
     if (window.location.pathname.endsWith('categorie.html')) {
         initializeCategoryPage();
     }
+    // NOUVEAU: Initialiser la page de suivi de commande
+    if (window.location.pathname.endsWith('suivi-commande.html')) {
+        initializeOrderTrackingPage();
+    }
+
 
     if (document.getElementById('countdown')) {
         startCountdown(); // Le compte à rebours est indépendant.
@@ -1192,7 +1197,7 @@ async function processCheckout(event) {
         }
     } catch (error) {
         let userFriendlyMessage = "Une erreur inattendue est survenue lors du traitement de votre paiement. Veuillez réessayer.";
-        
+
         // Vérifier les erreurs réseau côté client (ex: pas de connexion internet)
         if (error.message.includes("Failed to fetch") || error.message.includes("NetworkError")) {
             userFriendlyMessage = "Impossible de contacter le service de paiement. Veuillez vérifier votre connexion internet ou réessayer plus tard.";
@@ -1207,10 +1212,10 @@ async function processCheckout(event) {
             } else {
                 userFriendlyMessage = `Le service de paiement Paydunya a rencontré un problème inattendu. Veuillez réessayer ou contacter le support.`;
             }
-        } else {
-            // CORRECTION: Capturer le message d'erreur spécifique renvoyé par notre API
-            // (qui contient maintenant le message de Paydunya)
-            userFriendlyMessage = `Erreur de paiement : ${error.message}`;
+        }
+        // Erreur générique de l'API backend (si result.error n'était pas spécifique)
+        else if (error.message.includes("Une erreur inconnue est survenue.")) {
+            userFriendlyMessage = "Une erreur est survenue lors de la communication avec notre serveur. Veuillez réessayer.";
         }
         // Autres erreurs inattendues
         // statusDiv.textContent = `Erreur lors de la commande: ${error.message}`; // Pour le débogage, on pourrait laisser le message technique ici
@@ -1435,80 +1440,17 @@ async function getCatalogAndRefreshInBackground() {
 }
 
 /**
- * NOUVEAU: Récupère les favoris depuis le localStorage.
- * @returns {string[]} Un tableau d'ID de produits favoris.
- */
-function getFavorites() {
-    return JSON.parse(localStorage.getItem('abmcyFavorites')) || [];
-}
-
-/**
- * NOUVEAU: Sauvegarde les favoris dans le localStorage.
- * @param {string[]} favorites - Le tableau d'ID de produits favoris.
- */
-function saveFavorites(favorites) {
-    localStorage.setItem('abmcyFavorites', JSON.stringify(favorites));
-}
-
-/**
- * NOUVEAU: Ajoute ou retire un produit des favoris.
- * @param {Event} event - L'événement du clic.
- * @param {string} productId - L'ID du produit.
- */
-function toggleFavorite(event, productId) {
-    event.preventDefault();
-    event.stopPropagation();
-
-    let favorites = getFavorites();
-    const button = event.currentTarget;
-    const isFavorited = favorites.includes(productId);
-
-    if (isFavorited) {
-        favorites = favorites.filter(id => id !== productId);
-        showToast('Retiré des favoris.');
-    } else {
-        favorites.push(productId);
-        showToast('Ajouté aux favoris !');
-    }
-
-    saveFavorites(favorites);
-    updateFavoriteIcon(button, !isFavorited);
-}
-
-/**
- * NOUVEAU: Met à jour l'apparence de l'icône de favori.
- * @param {HTMLElement} button - Le bouton sur lequel l'utilisateur a cliqué.
- * @param {boolean} isFavorited - True si le produit est maintenant en favori.
- */
-function updateFavoriteIcon(button, isFavorited) {
-    if (isFavorited) {
-        button.classList.add('text-red-500'); // Couleur pour un favori
-        button.innerHTML = '<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd"></path></svg>';
-    } else {
-        button.classList.remove('text-red-500');
-        button.innerHTML = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 016.364 0L12 7.636l1.318-1.318a4.5 4.5 0 116.364 6.364L12 20.364l-7.682-7.682a4.5 4.5 0 010-6.364z"></path></svg>';
-    }
-}
-
-/**
  * Génère le HTML pour une carte de produit.
  * @param {object} product - L'objet produit.
  * @returns {string} Le HTML de la carte.
  */
 function renderProductCard(product) { // This function remains synchronous as it only formats data
-    const favorites = getFavorites(); // NOUVEAU: Récupérer les favoris
-    const isFavorited = favorites.includes(product.IDProduit); // NOUVEAU: Vérifier si ce produit est en favori
-
     const price = product.PrixActuel || 0;
     const oldPrice = product.PrixAncien || 0;
     const discount = product['Réduction%'] || 0;
     const stock = product.Stock || 0;
 
-    // NOUVEAU: Définir l'icône de favori en fonction de son état
-    const favoriteIcon = isFavorited
-        ? '<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd"></path></svg>'
-        : '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 016.364 0L12 7.636l1.318-1.318a4.5 4.5 0 116.364 6.364L12 20.364l-7.682-7.682a4.5 4.5 0 010-6.364z"></path></svg>';
-
+    // Pour la nouvelle carte de type AliExpress, on simplifie l'affichage
     return `
     <div class="product-card bg-white rounded-lg shadow overflow-hidden flex flex-col justify-between group">
         <div>
@@ -1523,9 +1465,6 @@ function renderProductCard(product) { // This function remains synchronous as it
                     <div class="absolute top-2 right-2 flex flex-col space-y-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                         <button onclick="addToCart(event, '${product.IDProduit}', '${product.Nom}', ${price}, '${product.ImageURL}')" title="Ajouter au panier" class="bg-white p-2 rounded-full shadow-lg hover:bg-gold hover:text-white">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
-                        </button>
-                        <button onclick="toggleFavorite(event, '${product.IDProduit}')" title="Ajouter aux favoris" class="bg-white p-2 rounded-full shadow-lg hover:text-red-500 ${isFavorited ? 'text-red-500' : ''}">
-                            ${favoriteIcon}
                         </button>
                         <button onclick="shareProduct(event, '${product.IDProduit}')" title="Partager" class="bg-white p-2 rounded-full shadow-lg hover:bg-gold hover:text-white">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12s-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.368a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z"></path></svg>
@@ -1613,7 +1552,6 @@ function copySiteLink() {
  */
 function renderHomepageCategorySections(catalog) {
     const mainContainer = document.getElementById('category-products-sections-container');
-    // CORRECTION: Déplacer la déclaration de 'container' ici pour qu'elle soit accessible dans le bloc catch.
     if (!mainContainer) return;
     try {
         const { data } = catalog;
@@ -1729,7 +1667,7 @@ function renderHomepageCategorySections(catalog) {
 
     } catch (error) {
         console.error("Erreur lors de l'affichage des sections par catégorie:", error);
-        mainContainer.innerHTML = '<p class="text-center text-red-500">Impossible de charger les sections de produits.</p>';
+        container.innerHTML = '<p class="text-center text-red-500">Impossible de charger les sections de produits.</p>';
     }
 }
 
@@ -2068,6 +2006,7 @@ async function initializeAccountPage() {
 
     // Charger et afficher les commandes récentes
     loadRecentOrdersForAccount(user.IDClient);
+    loadFavoriteProducts(); // NOUVEAU: Charger les produits favoris
 }
 
 /**
@@ -2098,6 +2037,21 @@ async function loadRecentOrdersForAccount(clientId) {
             return;
         }
 
+        // NOUVEAU: Logique pour l'affichage des statuts avec des couleurs
+        const getStatusBadge = (status) => {
+            switch (status) {
+                case 'Livrée':
+                    return `<span class="px-2 py-1 text-xs font-semibold rounded-full bg-green-200 text-green-800">${status}</span>`;
+                case 'Expédiée':
+                case 'En cours de livraison':
+                    return `<span class="px-2 py-1 text-xs font-semibold rounded-full bg-blue-200 text-blue-800">${status}</span>`;
+                case 'Annulée':
+                    return `<span class="px-2 py-1 text-xs font-semibold rounded-full bg-red-200 text-red-800">${status}</span>`;
+                default: // En préparation, Confirmée, En attente...
+                    return `<span class="px-2 py-1 text-xs font-semibold rounded-full bg-yellow-200 text-yellow-800">${status}</span>`;
+            }
+        };
+
         const ordersHTML = `
             <h4 class="text-lg font-semibold mb-4">Mes commandes récentes</h4>
             <div class="overflow-x-auto">
@@ -2113,9 +2067,11 @@ async function loadRecentOrdersForAccount(clientId) {
                     <tbody>
                         ${result.data.map(order => `
                             <tr class="border-b">
-                                <td class="p-3 font-medium text-blue-600">#${order.IDCommande}</td>
+                                <td class="p-3 font-medium">
+                                    <a href="suivi-commande.html?orderId=${order.IDCommande}" class="text-blue-600 hover:underline">#${order.IDCommande}</a>
+                                </td>
                                 <td class="p-3">${new Date(order.Date).toLocaleDateString('fr-FR')}</td>
-                                <td class="p-3"><span class="px-2 py-1 text-xs font-semibold rounded-full bg-yellow-200 text-yellow-800">${order.Statut}</span></td>
+                                <td class="p-3">${getStatusBadge(order.Statut)}</td>
                                 <td class="p-3 text-right font-semibold">${Number(order.Total).toLocaleString('fr-FR')} F CFA</td>
                             </tr>
                         `).join('')}
@@ -2128,5 +2084,239 @@ async function loadRecentOrdersForAccount(clientId) {
     } catch (error) {
         console.error("Erreur lors du chargement des commandes:", error);
         ordersSection.innerHTML = '<h4 class="text-lg font-semibold mb-4">Mes commandes récentes</h4><p class="text-red-500">Une erreur est survenue lors du chargement de vos commandes.</p>';
+    }
+}
+
+// --- NOUVEAU: LOGIQUE DES FAVORIS ---
+
+/**
+ * Récupère les favoris depuis le localStorage.
+ * @returns {string[]} Un tableau d'ID de produits favoris.
+ */
+function getFavorites() {
+    return JSON.parse(localStorage.getItem('abmcyFavorites')) || [];
+}
+
+/**
+ * Sauvegarde les favoris dans le localStorage.
+ * @param {string[]} favorites - Le tableau d'ID de produits favoris.
+ */
+function saveFavorites(favorites) {
+    localStorage.setItem('abmcyFavorites', JSON.stringify(favorites));
+}
+
+/**
+ * Ajoute ou retire un produit des favoris.
+ * @param {Event} event - L'événement du clic.
+ * @param {string} productId - L'ID du produit.
+ */
+function toggleFavorite(event, productId) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    let favorites = getFavorites();
+    const button = event.currentTarget;
+    const isFavorited = favorites.includes(productId);
+
+    if (isFavorited) {
+        favorites = favorites.filter(id => id !== productId);
+        showToast('Retiré des favoris.');
+    } else {
+        favorites.push(productId);
+        showToast('Ajouté aux favoris !');
+    }
+
+    saveFavorites(favorites);
+    updateFavoriteIcon(button, !isFavorited);
+}
+
+/**
+ * Met à jour l'apparence de l'icône de favori.
+ * @param {HTMLElement} button - Le bouton sur lequel l'utilisateur a cliqué.
+ * @param {boolean} isFavorited - True si le produit est maintenant en favori.
+ */
+function updateFavoriteIcon(button, isFavorited) {
+    if (isFavorited) {
+        button.classList.add('text-red-500'); // Couleur pour un favori
+        button.innerHTML = '<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd"></path></svg>';
+    } else {
+        button.classList.remove('text-red-500');
+        button.innerHTML = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 016.364 0L12 7.636l1.318-1.318a4.5 4.5 0 116.364 6.364L12 20.364l-7.682-7.682a4.5 4.5 0 010-6.364z"></path></svg>';
+    }
+}
+
+/**
+ * Charge et affiche les produits favoris sur la page de compte.
+ */
+async function loadFavoriteProducts() {
+    const container = document.getElementById('favorite-products-section');
+    if (!container) return;
+
+    const favoriteIds = getFavorites();
+    if (favoriteIds.length === 0) {
+        container.innerHTML = '<h4 class="text-lg font-semibold mb-4">Mes produits favoris</h4><p class="text-gray-500">Vous n\'avez aucun produit en favori pour le moment.</p>';
+        return;
+    }
+
+    container.innerHTML = '<h4 class="text-lg font-semibold mb-4">Mes produits favoris</h4><div class="loader mx-auto"></div>';
+
+    try {
+        const catalog = await getCatalogAndRefreshInBackground();
+        const allProducts = catalog.data.products || [];
+
+        const favoriteProducts = allProducts.filter(p => favoriteIds.includes(p.IDProduit));
+
+        if (favoriteProducts.length === 0) {
+            container.innerHTML = '<h4 class="text-lg font-semibold mb-4">Mes produits favoris</h4><p class="text-gray-500">Certains de vos favoris ne sont plus disponibles.</p>';
+            return;
+        }
+
+        const productsHTML = favoriteProducts.map(p => renderProductCard(p)).join('');
+        container.innerHTML = `
+            <h4 class="text-lg font-semibold mb-4">Mes produits favoris</h4>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                ${productsHTML}
+            </div>
+        `;
+    } catch (error) {
+        console.error("Erreur lors du chargement des favoris:", error);
+        container.innerHTML = '<h4 class="text-lg font-semibold mb-4">Mes produits favoris</h4><p class="text-red-500">Impossible de charger vos favoris.</p>';
+    }
+}
+
+// --- NOUVEAU: LOGIQUE DE SUIVI DE COMMANDE ---
+
+/**
+ * Initialise la page de suivi de commande.
+ */
+function initializeOrderTrackingPage() {
+    const form = document.getElementById('tracking-form');
+    form.addEventListener('submit', handleTrackOrder);
+
+    // Pré-remplir et lancer la recherche si un orderId est dans l'URL
+    const params = new URLSearchParams(window.location.search);
+    const orderId = params.get('orderId');
+    if (orderId) {
+        form.querySelector('#order-id-input').value = orderId;
+        trackOrder(orderId);
+    }
+}
+
+/**
+ * Gère la soumission du formulaire de suivi.
+ * @param {Event} event 
+ */
+function handleTrackOrder(event) {
+    event.preventDefault();
+    const orderId = event.target.querySelector('#order-id-input').value.trim();
+    if (orderId) {
+        // Met à jour l'URL pour la rendre partageable
+        window.history.pushState({}, '', `?orderId=${orderId}`);
+        trackOrder(orderId);
+    }
+}
+
+/**
+ * Interroge l'API pour obtenir les détails d'une commande.
+ * @param {string} orderId 
+ */
+async function trackOrder(orderId) {
+    const resultsDiv = document.getElementById('tracking-results');
+    resultsDiv.innerHTML = '<div class="loader mx-auto"></div><p class="text-center text-gray-500 mt-2">Recherche de votre commande...</p>';
+    // NOUVEAU: Réinitialiser les classes d'animation
+    resultsDiv.classList.remove('results-enter', 'results-enter-active');
+
+    // NOUVEAU: Fonction pour afficher le contenu avec une animation
+    const renderResults = (html) => {
+        resultsDiv.innerHTML = html;
+        resultsDiv.classList.add('results-enter');
+        requestAnimationFrame(() => {
+            resultsDiv.classList.add('results-enter-active');
+        });
+    };
+
+    try {
+        const response = await fetch(CONFIG.ACCOUNT_API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain' },
+            body: JSON.stringify({ action: 'getOrderById', data: { orderId: orderId } })
+        });
+        const result = await response.json();
+
+        if (result.success && result.data) {
+            const order = result.data;
+            const user = JSON.parse(localStorage.getItem('abmcyUser'));
+            const contactEmail = user ? user.Email : 'votre-email@domaine.com';
+            const contactPhone = user ? user.Telephone : 'XX XXX XX XX';
+
+            // NOUVEAU: Définir les étapes et le statut actuel
+            const steps = ['Confirmée', 'En préparation', 'Expédiée', 'Livrée'];
+            let currentStepIndex = steps.indexOf(order.Statut);
+            // Si le statut est "Payée et confirmée" ou autre, on le considère comme "Confirmée"
+            if (currentStepIndex === -1) {
+                if (order.Statut.toLowerCase().includes('confirmée')) currentStepIndex = 0;
+                else if (order.Statut.toLowerCase().includes('payée')) currentStepIndex = 0;
+            }
+
+            const timelineHTML = `
+                <div class="grid grid-cols-4 gap-4 text-center mb-16">
+                    ${steps.map((step, index) => `
+                        <div class="relative">
+                            <div class="timeline-step ${index < currentStepIndex ? 'completed' : ''} ${index === currentStepIndex ? 'active' : ''}">
+                                ${index < currentStepIndex ? '✓' : (index + 1)}
+                            </div>
+                            <p class="timeline-label ${index === currentStepIndex ? 'text-gold' : ''}">${step}</p>
+                            ${index < steps.length - 1 ? `
+                                <div class="timeline-line">
+                                    <div class="timeline-line-progress ${index < currentStepIndex ? 'completed' : ''}"></div>
+                                </div>
+                            ` : ''}
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+
+            const finalHTML = `
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <div class="flex justify-between items-start mb-6">
+                        <div>
+                            <h3 class="text-xl font-bold text-gray-800">Commande #${order.IDCommande}</h3>
+                            <p class="text-sm text-gray-500">Passée le ${new Date(order.Date).toLocaleDateString('fr-FR')}</p>
+                        </div>
+                        <span class="font-semibold px-3 py-1 text-sm rounded-full bg-blue-100 text-blue-800">${order.Statut}</span>
+                    </div>
+
+                    ${timelineHTML}
+
+                    <div class="border-t pt-6">
+                        <h4 class="font-semibold text-lg mb-4">Détails de la commande</h4>
+                        <div class="space-y-3 text-sm">
+                            <div class="flex justify-between"><span>Total:</span> <span class="font-semibold">${Number(order.MontantTotal).toLocaleString('fr-FR')} F CFA</span></div>
+                            <div class="flex justify-between"><span>Produits:</span> <span class="font-semibold text-right">${order.DetailsProduits}</span></div>
+                            <div class="flex justify-between"><span>Adresse:</span> <span class="font-semibold text-right">${order.AdresseLivraison}</span></div>
+                        </div>
+                    </div>
+
+                    <!-- NOUVEAU: Section SAV -->
+                    <div class="border-t pt-6 mt-6 bg-gray-50 p-4 rounded-lg">
+                        <h4 class="font-semibold text-lg mb-3">Un problème avec votre commande ?</h4>
+                        <p class="text-sm text-gray-600 mb-4">Notre service client est là pour vous aider. Contactez-nous via l'un des canaux ci-dessous.</p>
+                        <div class="flex gap-4">
+                            <a href="https://wa.me/221769047999?text=Bonjour, j'ai une question concernant ma commande #${order.IDCommande}" target="_blank" class="flex-1 text-center bg-green-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-600 transition">
+                                Contacter sur WhatsApp
+                            </a>
+                            <a href="mailto:abmcompanysn@gmail.com?subject=Réclamation Commande #${order.IDCommande}" class="flex-1 text-center bg-gray-700 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-800 transition">
+                                Envoyer un Email
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            `;
+            renderResults(finalHTML);
+        } else {
+            throw new Error(result.error || 'Commande non trouvée.');
+        }
+    } catch (error) {
+        renderResults(`<p class="text-center text-red-500 font-semibold p-4 bg-red-50 rounded-lg">${error.message}</p>`);
     }
 }

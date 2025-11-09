@@ -251,10 +251,10 @@ function enregistrerCommande(data, origin) {
         const produitsDetails = data.produits.map(p => `${p.name} (x${p.quantity})`).join(', ');
 
         // NOUVEAU: Déterminer le statut en fonction du moyen de paiement
-        const statutInitial = data.moyenPaiement === 'Paiement à la livraison' ? 'Confirmée (PàL)' : 'En attente';
+        const statutInitial = 'Confirmée';
 
         sheet.appendRow([
-            idCommande, data.idClient, produitsDetails, // Correspond à IDCommande, IDClient, DetailsProduits
+            idCommande, data.idClient, produitsDetails,
             data.total, statutInitial, new Date(),
             data.adresseLivraison, data.moyenPaiement,
             data.notes || ''
@@ -262,7 +262,13 @@ function enregistrerCommande(data, origin) {
 
         logAction('enregistrerCommande', { id: idCommande, client: data.idClient });
         // Retourne plus d'infos pour la notification
-        return createJsonResponse({ success: true, id: idCommande, total: data.total, clientId: data.idClient }, origin);
+        return createJsonResponse({ 
+            success: true, 
+            id: idCommande, 
+            total: data.total, 
+            clientId: data.idClient,
+            customerEmail: data.customer.email // NOUVEAU: Retourner l'email du client
+        }, origin);
     } catch (error) {
         logError(JSON.stringify({ action: 'enregistrerCommande', data }), error);
         return createJsonResponse({ success: false, error: error.message }, origin);
@@ -391,12 +397,31 @@ function createPaydunyaInvoice(data, origin) {
  * @param {object} orderResult - Le résultat de la fonction enregistrerCommande.
  * @param {object} originalData - Les données originales de la commande contenant les détails des produits.
  */
-function sendOrderConfirmationEmail(orderResult, originalData) {
+function sendOrderConfirmationEmail(orderData, originalData) {
     try {
-        const subject = `Nouvelle commande #${orderResult.id}`;
-        const body = `Une nouvelle commande a été passée.\n\nID Commande: ${orderResult.id}\nClient: ${orderResult.clientId}\nTotal: ${orderResult.total} F CFA\n\nDétails: ${JSON.stringify(originalData.produits, null, 2)}`;
-        MailApp.sendEmail(ADMIN_EMAIL, subject, body);
-        logAction('sendOrderConfirmationEmail', { orderId: orderResult.id });
+        // 1. Envoyer l'email à l'administrateur
+        const adminSubject = `Nouvelle commande #${orderData.id}`;
+        const adminBody = `Une nouvelle commande a été passée.\n\nID Commande: ${orderData.id}\nClient: ${orderData.clientId}\nTotal: ${orderData.total} F CFA\nEmail Client: ${orderData.customerEmail}\n\nDétails: ${JSON.stringify(originalData.produits, null, 2)}`;
+        MailApp.sendEmail(ADMIN_EMAIL, adminSubject, adminBody);
+        logAction('sendAdminConfirmationEmail', { orderId: orderData.id });
+
+        // 2. Envoyer l'email de confirmation au client
+        if (orderData.customerEmail) {
+            const customerSubject = `Confirmation de votre commande #${orderData.id}`;
+            const productDetailsHTML = originalData.produits.map(p => `<li>${p.name} (x${p.quantity}) - ${p.price.toLocaleString('fr-FR')} F CFA</li>`).join('');
+            const customerBodyHTML = `
+                <h2>Bonjour,</h2>
+                <p>Merci pour votre commande sur ABMCY MARKET !</p>
+                <p>Nous avons bien reçu votre commande <strong>#${orderData.id}</strong> et nous la préparons pour l'expédition.</p>
+                <h3>Récapitulatif :</h3>
+                <ul>${productDetailsHTML}</ul>
+                <p><strong>Total : ${orderData.total.toLocaleString('fr-FR')} F CFA</strong></p>
+                <p>Vous pouvez suivre l'avancement de votre commande à tout moment ici : <a href="https://abmcymarket.abmcy.com/suivi-commande.html?orderId=${orderData.id}">Suivre ma commande</a></p>
+                <p>L'équipe ABMCY MARKET.</p>
+            `;
+            MailApp.sendEmail(orderData.customerEmail, customerSubject, "", { htmlBody: customerBodyHTML });
+            logAction('sendCustomerConfirmationEmail', { orderId: orderData.id, email: orderData.customerEmail });
+        }
     } catch (error) {
         logError('sendOrderConfirmationEmail', error);
     }
@@ -423,7 +448,7 @@ function handlePaydunyaWebhook(webhookData) {
             const rowIndex = data.findIndex(row => row[idCommandeIndex] === orderId);
 
             if (rowIndex > 0) {
-                sheet.getRange(rowIndex + 1, statutIndex + 1).setValue("Payée");
+                sheet.getRange(rowIndex + 1, statutIndex + 1).setValue("Payée et confirmée");
                 logAction('Paiement Réussi', { orderId: orderId, webhookData: webhookData });
             }
         }

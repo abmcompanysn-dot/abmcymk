@@ -28,6 +28,62 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+        /* NOUVEAU: Styles pour la chronologie de suivi */
+        .timeline-step {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 3rem; /* 48px */
+            height: 3rem; /* 48px */
+            background-color: #E5E7EB; /* gray-200 */
+            color: #6B7280; /* gray-500 */
+            border-radius: 9999px;
+            font-size: 1.25rem; /* 20px */
+        }
+        .timeline-step.completed {
+            background-color: #22C55E; /* green-500 */
+            color: #FFFFFF;
+        }
+        .timeline-step.active {
+            background-color: var(--gold-color);
+            color: #FFFFFF;
+            box-shadow: 0 0 0 4px #FEF08A; /* ring-4 ring-yellow-200 */
+        }
+        .timeline-line {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            height: 0.25rem; /* 4px */
+            width: 100%;
+            left: 50%;
+        }
+        .timeline-line-progress {
+            height: 100%;
+            background-color: #E5E7EB; /* gray-200 */
+        }
+        .timeline-line-progress.completed {
+            background-color: #22C55E; /* green-500 */
+        }
+        .timeline-label {
+            position: absolute;
+            top: 4rem; /* 64px */
+            text-align: center;
+            width: 6rem; /* 96px */
+            font-size: 0.75rem; /* 12px */
+            font-weight: 600;
+            color: #6B7280; /* gray-500 */
+        }
+        /* NOUVEAU: Styles pour l'animation d'apparition */
+        .results-enter {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        .results-enter-active {
+            opacity: 1;
+            transform: translateY(0);
+            transition: opacity 300ms ease-out, transform 300ms ease-out;
+        }
     </style>
 </head>
 <body class="bg-gray-100 font-montserrat">
@@ -59,7 +115,7 @@
             </form>
 
             <div id="tracking-results">
-                <!-- Les résultats du suivi s'afficheront ici -->
+                <p class="text-center text-gray-400">Entrez un numéro de commande pour commencer le suivi.</p>
             </div>
         </div>
     </main>
