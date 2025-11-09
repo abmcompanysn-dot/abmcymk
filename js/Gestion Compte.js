@@ -97,6 +97,8 @@ function doPost(e) {
                 return connecterClient(data, origin);
             case 'getOrdersByClientId':
                 return getOrdersByClientId(data, origin);
+            case 'createPayduniaInvoice': // NOUVEAU: Action pour créer une facture Paydunia
+                return createPayduniaInvoice(data, origin);
             // NOUVEAU: Action fusionnée depuis Gestion Commandes & Notifications
             case 'enregistrerCommandeEtNotifier':
                 const orderResult = enregistrerCommande(data, origin);
@@ -105,6 +107,13 @@ function doPost(e) {
                 return orderResult;
             case 'logClientEvent':
                 return logClientEvent(data, origin);
+            // NOUVEAU: Gérer le webhook de Paydunia
+            case 'paydunia-webhook':
+                // Paydunia envoie des données en `application/x-www-form-urlencoded`
+                // donc e.parameter sera utilisé.
+                logAction('paydunia-webhook', e.parameter);
+                handlePayduniaWebhook(e.parameter);
+                return createJsonResponse({ success: true }, origin);
             default:
                 logAction('doPost', { error: 'Action non reconnue', action: action });
                 return createJsonResponse({ success: false, error: `Action non reconnue: ${action}` }, origin);
@@ -249,6 +258,77 @@ function enregistrerCommande(data, origin) {
 }
 
 /**
+ * NOUVEAU: Crée une facture Paydunia et retourne l'URL de paiement.
+ * @param {object} data - Les données de la commande.
+ * @param {string} origin - L'origine de la requête.
+ * @returns {GoogleAppsScript.Content.TextOutput} Réponse JSON avec l'URL de paiement.
+ */
+function createPayduniaInvoice(data, origin) {
+    const lock = LockService.getScriptLock();
+    lock.waitLock(30000);
+
+    try {
+        const config = getConfig();
+        const orderSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.ORDERS);
+        const idCommande = "CMD-" + new Date().getTime();
+
+        // 1. Enregistrer la commande avec un statut "En attente de paiement"
+        const produitsDetails = data.produits.map(p => `${p.name} (x${p.quantity})`).join(', ');
+        orderSheet.appendRow([
+            idCommande, data.idClient, produitsDetails,
+            data.total, "En attente de paiement", new Date(),
+            data.adresseLivraison, "Paydunia", data.notes || ''
+        ]);
+
+        // 2. Préparer la requête pour l'API Paydunia
+        const payduniaPayload = {
+            "invoice": {
+                "total_amount": data.total,
+                "description": `Paiement pour commande #${idCommande} sur ABMCY MARKET`,
+                "items": data.produits.reduce((acc, p) => {
+                    acc[`item_${p.productId}`] = { "name": p.name, "quantity": p.quantity, "unit_price": p.price, "total_price": p.price * p.quantity };
+                    return acc;
+                }, {}),
+            },
+            "store": {
+                "name": "ABMCY MARKET",
+                "website_url": "https://abmcymarket.vercel.app"
+            },
+            "actions": {
+                "cancel_url": "https://abmcymarket.vercel.app/panier.html",
+                "return_url": `https://abmcymarket.vercel.app/confirmation.html?orderId=${idCommande}`,
+                "callback_url": ScriptApp.getService().getUrl() + "?action=paydunia-webhook"
+            },
+            "custom_data": {
+                "order_id": idCommande
+            }
+        };
+
+        const options = {
+            'method': 'post',
+            'contentType': 'application/json',
+            'headers': {
+                'PAYDUNIA-MASTER-KEY': config.PAYDUNIA_MASTER_KEY,
+                'PAYDUNIA-PRIVATE-KEY': config.PAYDUNIA_PRIVATE_KEY,
+                'PAYDUNIA-TOKEN': config.PAYDUNIA_TOKEN
+            },
+            'payload': JSON.stringify(payduniaPayload)
+        };
+
+        const response = UrlFetchApp.fetch("https://app.paydunia.com/api/v1/soft-invoice/create", options);
+        const responseData = JSON.parse(response.getContentText());
+
+        return createJsonResponse({ success: true, payment_url: responseData.response_text }, origin);
+
+    } catch (error) {
+        logError(JSON.stringify({ action: 'createPayduniaInvoice', data }), error);
+        return createJsonResponse({ success: false, error: `Erreur Paydunia: ${error.message}` }, origin);
+    } finally {
+        lock.releaseLock();
+    }
+}
+
+/**
  * NOUVEAU: Envoie un email de confirmation de commande à l'admin. Fusionné depuis Gestion Notifications.
  * @param {object} orderResult - Le résultat de la fonction enregistrerCommande.
  * @param {object} originalData - Les données originales de la commande contenant les détails des produits.
@@ -261,6 +341,34 @@ function sendOrderConfirmationEmail(orderResult, originalData) {
         logAction('sendOrderConfirmationEmail', { orderId: orderResult.id });
     } catch (error) {
         logError('sendOrderConfirmationEmail', error);
+    }
+}
+
+/**
+ * NOUVEAU: Gère le webhook de confirmation de paiement de Paydunia.
+ * @param {object} webhookData - Les données envoyées par Paydunia (e.parameter).
+ */
+function handlePayduniaWebhook(webhookData) {
+    // Paydunia envoie le statut dans `invoice_token` et les données custom dans `custom_data`
+    const status = webhookData.status;
+
+    if (status === 'completed') {
+        const customData = JSON.parse(webhookData.custom_data || '{}');
+        const orderId = customData.order_id;
+
+        if (orderId) {
+            const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.ORDERS);
+            const data = sheet.getDataRange().getValues();
+            const idCommandeIndex = data[0].indexOf("IDCommande");
+            const statutIndex = data[0].indexOf("Statut");
+
+            const rowIndex = data.findIndex(row => row[idCommandeIndex] === orderId);
+
+            if (rowIndex > 0) {
+                sheet.getRange(rowIndex + 1, statutIndex + 1).setValue("Payée");
+                logAction('Paiement Réussi', { orderId: orderId, webhookData: webhookData });
+            }
+        }
     }
 }
 
@@ -464,7 +572,11 @@ function getConfig() {
     allowed_methods: "POST,GET,OPTIONS",
     allowed_headers: "Content-Type, X-Requested-With", // Ajout pour compatibilité
     delivery_options: {}, // NOUVEAU: Ajout depuis Gestion Livraisons
-    allow_credentials: "true"
+    allow_credentials: "true",
+    PAYDUNIA_MASTER_KEY: "VOTRE_MASTER_KEY",
+    PAYDUNIA_PRIVATE_KEY: "VOTRE_PRIVATE_KEY",
+    PAYDUNIA_PUBLIC_KEY: "VOTRE_PUBLIC_KEY",
+    PAYDUNIA_TOKEN: "VOTRE_TOKEN"
   };
 
   try {
@@ -483,7 +595,11 @@ function getConfig() {
       allowed_methods: config.allowed_methods || defaultConfig.allowed_methods,
       allowed_headers: config.allowed_headers || defaultConfig.allowed_headers,
       allow_credentials: config.allow_credentials === 'true',
-      delivery_options: config.delivery_options ? JSON.parse(config.delivery_options) : defaultConfig.delivery_options
+      delivery_options: config.delivery_options ? JSON.parse(config.delivery_options) : defaultConfig.delivery_options,
+      PAYDUNIA_MASTER_KEY: config.PAYDUNIA_MASTER_KEY || defaultConfig.PAYDUNIA_MASTER_KEY,
+      PAYDUNIA_PRIVATE_KEY: config.PAYDUNIA_PRIVATE_KEY || defaultConfig.PAYDUNIA_PRIVATE_KEY,
+      PAYDUNIA_PUBLIC_KEY: config.PAYDUNIA_PUBLIC_KEY || defaultConfig.PAYDUNIA_PUBLIC_KEY,
+      PAYDUNIA_TOKEN: config.PAYDUNIA_TOKEN || defaultConfig.PAYDUNIA_TOKEN
     };
 
     cache.put(CACHE_KEY, JSON.stringify(finalConfig), 600); // Cache pendant 10 minutes
@@ -529,7 +645,11 @@ function setupProject() {
     'allowed_methods': 'POST, GET, OPTIONS',
     'allowed_headers': 'Content-Type, X-Requested-With',
     'allow_credentials': 'true',
-    'delivery_options': JSON.stringify({"Dakar":{"Dakar - Plateau":{"Standard":1500,"ABMCY Express":2500},"Rufisque":{"Standard":3000}},"Thiès":{"Thiès Ville":{"Standard":3500}}})
+    'delivery_options': JSON.stringify({"Dakar":{"Dakar - Plateau":{"Standard":1500,"ABMCY Express":2500},"Rufisque":{"Standard":3000}},"Thiès":{"Thiès Ville":{"Standard":3500}}}),
+    'PAYDUNIA_MASTER_KEY': 'METTRE_VOTRE_CLE_ICI',
+    'PAYDUNIA_PRIVATE_KEY': 'METTRE_VOTRE_CLE_ICI',
+    'PAYDUNIA_PUBLIC_KEY': 'METTRE_VOTRE_CLE_ICI',
+    'PAYDUNIA_TOKEN': 'METTRE_VOTRE_CLE_ICI'
   };
 
   Object.entries(defaultConfigValues).forEach(([key, value]) => {

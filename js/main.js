@@ -1,6 +1,6 @@
 const CONFIG = {
     // NOUVEAU: URL de l'API CENTRALE qui gère maintenant tout (comptes, commandes, etc.)
-    ACCOUNT_API_URL:"https://script.google.com/macros/s/AKfycbzUAzq1HOve0ps12-nCrYMuhH5I1A803zkkWv0a8U5Afi8ENmUuvrN9BAMCbVlbhXEXTQ/exec",
+    ACCOUNT_API_URL:"https://script.google.com/macros/s/AKfycbzSTsMbuJRd3hynDeo0XbTE-vQUHdrwt4ns8GLqqrrx3Ta_1VP6V5JOIhEyL7CLcyePdw/exec",
     // Les URL spécifiques pour commandes, livraisons et notifications sont maintenant obsolètes
     // car tout est géré par l'API centrale (ACCOUNT_API_URL).
     
@@ -998,6 +998,30 @@ function populateDeliverySelectorsCheckout() {
 }
 
 /**
+ * NOUVEAU: Affiche les articles du panier dans le résumé de la page de paiement.
+ */
+function renderCheckoutSummaryItems() {
+    const container = document.getElementById('checkout-summary-items');
+    const cart = getCart();
+    if (!container) return;
+
+    if (cart.length === 0) {
+        container.innerHTML = '<p class="text-gray-500">Votre panier est vide.</p>';
+        return;
+    }
+
+    container.innerHTML = cart.map(item => `
+        <div class="flex items-center space-x-4 py-2">
+            <div class="relative w-16 h-16 bg-gray-100 rounded-md overflow-hidden">
+                <img src="${item.imageUrl}" alt="${item.name}" class="w-full h-full object-cover">
+                <span class="absolute -top-2 -right-2 bg-gray-600 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center">${item.quantity}</span>
+            </div>
+            <div class="flex-grow"><p class="font-semibold text-sm">${item.name}</p></div>
+            <p class="text-sm font-semibold">${(item.price * item.quantity).toLocaleString('fr-FR')} F</p>
+        </div>`).join('');
+}
+
+/**
  * NOUVEAU: Met à jour les méthodes de livraison en fonction de la localité choisie.
  */
 function updateDeliveryMethodsCheckout() {
@@ -1012,27 +1036,42 @@ function updateDeliveryMethodsCheckout() {
         updateCheckoutTotal(); // Mettre à jour le total (sans frais de port)
         return;
     }
-    const cart = getCart();
-    if (!container) return;
 
-    if (cart.length === 0) {
-        container.innerHTML = '<p class="text-gray-500">Votre panier est vide.</p>';
-        return;
+    let methodsForLocation = null;
+    // Parcourir les régions pour trouver la ville sélectionnée
+    for (const region in DELIVERY_OPTIONS) {
+        if (DELIVERY_OPTIONS[region][selectedLocation]) {
+            methodsForLocation = DELIVERY_OPTIONS[region][selectedLocation];
+            break;
+        }
     }
 
-    container.innerHTML = cart.map(item => `
-        <div class="flex items-center space-x-4">
-            <div class="relative w-16 h-16 bg-gray-100 rounded-md overflow-hidden">
-                <img src="${item.imageUrl}" alt="${item.name}" class="w-full h-full object-cover">
-                <span class="absolute top-0 right-0 bg-gray-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">${item.quantity}</span>
-            </div>
-            <div class="flex-grow">
-                <p class="font-semibold text-sm">${item.name}</p>
-                <p class="text-xs text-gray-500">${Object.values(item.variants).join(', ')}</p>
-            </div>
-            <p class="text-sm font-semibold">${(item.price * item.quantity).toLocaleString('fr-FR')} F</p>
-        </div>
-    `).join('');
+    if (methodsForLocation) {
+        methodSelect.innerHTML = Object.keys(methodsForLocation).map(methodName =>
+            `<option value="${methodName}">${methodName} - ${methodsForLocation[methodName].toLocaleString('fr-FR')} F CFA</option>`
+        ).join('');
+        methodSelect.disabled = false;
+    } else {
+        methodSelect.innerHTML = '<option value="">Pas de méthode pour cette zone</option>';
+        methodSelect.disabled = true;
+    }
+
+    updateCheckoutTotal(); // Mettre à jour le total avec la nouvelle méthode/coût
+}
+
+/**
+ * NOUVEAU: Met à jour le calcul du total sur la page de paiement.
+ */
+function updateCheckoutTotal() {
+    const cart = getCart();
+    const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+
+    const shippingCost = parseFloat(document.getElementById('delivery-method').selectedOptions[0]?.text.split(' - ')[1] || 0);
+    const total = subtotal + shippingCost;
+
+    document.getElementById('checkout-subtotal').textContent = `${subtotal.toLocaleString('fr-FR')} F CFA`;
+    document.getElementById('checkout-shipping').textContent = shippingCost > 0 ? `${shippingCost.toLocaleString('fr-FR')} F CFA` : 'Gratuite';
+    document.getElementById('checkout-total').textContent = `${total.toLocaleString('fr-FR')} F CFA`;
 }
 
 /**
@@ -1055,6 +1094,7 @@ async function processCheckout(event) {
         lastname: form.querySelector('#lastname').value,
         email: form.querySelector('#email').value,
         phone: form.querySelector('#phone').value,
+        notes: form.querySelector('#notes').value,
         address: form.querySelector('#delivery-address').value,
         location: form.querySelector('#delivery-location').value,
         deliveryMethod: form.querySelector('#delivery-method').value,
@@ -1094,10 +1134,10 @@ async function processCheckout(event) {
 
     // 3. Préparer l'objet de la commande pour le backend
     const orderPayload = {
-        action: 'enregistrerCommandeEtNotifier', // NOUVEAU: Action unique qui gère tout
+        action: 'createPayduniaInvoice', // NOUVEAU: Action pour créer la facture Paydunia
         data: {
             idClient: clientId,
-            produits: cart, // Envoyer le panier complet
+            produits: cart.map(item => ({ name: item.name, quantity: item.quantity, price: item.price, productId: item.productId })), // Formatter les produits pour Paydunia
             adresseLivraison: `${customerData.address}, ${customerData.location}`,
             total: total,
             moyenPaiement: "Paiement à la livraison", // Pour l'instant
@@ -1116,13 +1156,12 @@ async function processCheckout(event) {
         const result = await response.json();
 
         if (result.success) {
-            statusDiv.textContent = `Commande #${result.id} enregistrée avec succès ! Vous allez être redirigé.`;
+            statusDiv.textContent = `Facture créée. Redirection vers la page de paiement...`;
             statusDiv.className = 'mt-4 text-center font-semibold text-green-600';
             saveCart([]); // Vider le panier après la commande
 
-            setTimeout(() => {
-                window.location.href = 'compte.html'; // Rediriger vers la page de compte pour voir la commande
-            }, 3000);
+            // Rediriger l'utilisateur vers l'URL de paiement de Paydunia
+            window.location.href = result.payment_url;
         } else {
             throw new Error(result.error || "Une erreur inconnue est survenue.");
         }
