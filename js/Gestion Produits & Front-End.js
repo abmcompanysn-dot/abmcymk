@@ -92,8 +92,6 @@ function onOpen() {
       .createMenu('ABMCY Market [ADMIN]')
       .addItem('📦 Gérer le Catalogue', 'showAdminInterface')
       .addSeparator()
-      .addItem('🔄 Mettre à jour le système', 'updateSystem')
-      .addSeparator()
       .addItem('⚙️ Initialiser la feuille centrale', 'setupCentralSheet')
       .addToUi();
 }
@@ -391,10 +389,10 @@ function archiveAllOutOfStock() {
  * @returns {GoogleAppsScript.Content.TextOutput} Un objet TextOutput avec le contenu JSON et les en-têtes CORS.
  */
 function createJsonResponse(data, origin) {
+  // CORRECTION DÉFINITIVE : On crée l'objet, on définit son type, et on retourne.
+  // L'en-tête CORS est géré par la fonction doOptions et la réponse globale.
   const output = ContentService.createTextOutput(JSON.stringify(data));
   output.setMimeType(ContentService.MimeType.JSON);
-  // Autoriser toutes les origines à recevoir la réponse
-  output.addHeader('Access-Control-Allow-Origin', '*');
   return output;
 }
 
@@ -427,7 +425,7 @@ function setupCentralSheet() {
   }
   sheet.clear();
   // NOUVEAU: Ajout de ImageURL pour le front-end
-  const headers = ["IDCategorie", "NomCategorie", "SheetID", "ScriptURL", "ImageURL", "Numero", "AdImageURLs"];
+  const headers = ["IDCategorie", "NomCategorie", "SheetID", "ScriptURL", "ImageURL", "Numero"];
   sheet.appendRow(headers);
   sheet.setFrozenRows(1);
   sheet.getRange(1, 1, 1, headers.length).setFontWeight("bold");
@@ -439,7 +437,7 @@ function setupCentralSheet() {
     const catId = `CAT-${String(index + 1).padStart(3, '0')}`;
     const placeholderSheetId = `REMPLIR_ID_FEUILLE_${catName.replace(/[^a-zA-Z0-9]/g, '_').toUpperCase()}`;
     const placeholderScriptUrl = `REMPLIR_URL_SCRIPT_${catName.replace(/[^a-zA-Z0-9]/g, '_').toUpperCase()}`;
-    return [catId, catName, placeholderSheetId, placeholderScriptUrl, DEFAULT_LOGO_URL, DEFAULT_CONTACT_NUMBER, ""];
+    return [catId, catName, placeholderSheetId, placeholderScriptUrl, DEFAULT_LOGO_URL, DEFAULT_CONTACT_NUMBER];
   });
 
   if (rows.length > 0) {
@@ -447,41 +445,4 @@ function setupCentralSheet() {
   }
 
   SpreadsheetApp.getUi().alert(`Initialisation terminée. ${rows.length} catégories ont été ajoutées à la feuille "Catégories".`);
-}
-
-/**
- * NOUVEAU: Vérifie et met à jour la structure de la feuille de calcul centrale.
- * Ajoute les onglets ou les colonnes manquants.
- */
-function updateSystem() {
-  const ss = SpreadsheetApp.openById(CENTRAL_SHEET_ID);
-  const ui = SpreadsheetApp.getUi();
-
-  try {
-    const sheetConfigs = {
-      "Catégories": ["IDCategorie", "NomCategorie", "SheetID", "ScriptURL", "ImageURL", "Numero", "AdImageURLs"]
-    };
-
-    Object.entries(sheetConfigs).forEach(([name, expectedHeaders]) => {
-      let sheet = ss.getSheetByName(name);
-      if (!sheet) {
-        sheet = ss.insertSheet(name);
-        sheet.appendRow(expectedHeaders);
-        Logger.log(`Onglet '${name}' créé avec les en-têtes.`);
-      } else {
-        const headerRange = sheet.getRange(1, 1, 1, sheet.getLastColumn() || 1);
-        const currentHeaders = headerRange.getValues()[0];
-        const missingHeaders = expectedHeaders.filter(h => !currentHeaders.includes(h));
-
-        if (missingHeaders.length > 0) {
-          sheet.getRange(1, currentHeaders.length + 1, 1, missingHeaders.length).setValues([missingHeaders]);
-          Logger.log(`Colonnes manquantes ajoutées à '${name}': ${missingHeaders.join(', ')}`);
-        }
-      }
-    });
-    ui.alert('Mise à jour du système central terminée avec succès !');
-  } catch (e) {
-    Logger.log(e);
-    ui.alert('Erreur lors de la mise à jour', e.message, ui.ButtonSet.OK);
-  }
 }

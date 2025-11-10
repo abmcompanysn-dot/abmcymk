@@ -1,11 +1,11 @@
 const CONFIG = {
     // NOUVEAU: URL de l'API CENTRALE qui gère maintenant tout (comptes, commandes, etc.)
-    ACCOUNT_API_URL:"https://script.google.com/macros/s/AKfycbw7aTLayupT2Nldk4-fQnDvOrtRt99nPrsMZ7Ctgdr5IB5BSdAdTDOQ6AjFUwmWpWH6dw/exec",
+    ACCOUNT_API_URL:"https://script.google.com/macros/s/AKfycbxe6IW8L8jOMF8hLcGcBH8sY3GmtAHv7vavbqWcKvl-Xj0bLzLxqOFu4DroCDCeS-jamg/exec",
     // Les URL spécifiques pour commandes, livraisons et notifications sont maintenant obsolètes
     // car tout est géré par l'API centrale (ACCOUNT_API_URL).
     
     // URL du script central pour le catalogue de produits.
-    CENTRAL_API_URL: "https://script.google.com/macros/s/AKfycbwXJ7nGrftKjKHaG6r_I1i9HCmcFJHmDk8BEvmW1jbNpBnI7-DjnDw7eLEet9HeHRwF/exec",
+    CENTRAL_API_URL: "https://script.google.com/macros/s/AKfycbzBkUxBwzKJtiFQhI3DsJkXdneSIpqdmtTKUu5pdXlFQszBZhOG_8jPMYkSpPiiig9r/exec",
     
     // Autres configurations
     DEFAULT_PRODUCT_IMAGE: "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png",
@@ -29,6 +29,23 @@ document.addEventListener('DOMContentLoaded', () => {
  * Fonction principale ASYNCHRONE qui initialise l'application.
  */
 async function initializeApp() {
+    // NOUVEAU: Logique de redirection automatique
+    const user = JSON.parse(localStorage.getItem('abmcyUser'));
+    const currentPage = window.location.pathname.split('/').pop();
+
+    if (user) {
+        // Si l'utilisateur est connecté et sur la page d'authentification, on le redirige vers son compte.
+        if (currentPage === 'authentification.html') {
+            window.location.href = 'compte.html';
+            return; // Arrêter l'exécution pour laisser la redirection se faire
+        }
+    } else {
+        // Si l'utilisateur n'est pas connecté et essaie d'accéder à la page compte, on le redirige vers l'authentification.
+        if (currentPage === 'compte.html') {
+            window.location.href = 'authentification.html';
+            return; // Arrêter l'exécution
+        }
+    }
     // --- ÉTAPE 1: Rendu immédiat de ce qui ne dépend pas des données distantes ---
     updateCartBadges();
     initializeSearch(); // Les formulaires de recherche peuvent être initialisés immédiatement.
@@ -750,6 +767,27 @@ function loadProductPage(catalog) {
                 item.classList.add('border-gold');
             });
         });
+
+        // NOUVEAU: Afficher le délai de livraison
+        const deliveryInfoContainer = document.getElementById('product-delivery-info');
+        if (deliveryInfoContainer) {
+            const deliveryDays = parseInt(product['Délai de livraison (jours)'], 10) || 10; // 10 jours par défaut si non spécifié
+            const deliveryDate = new Date();
+            deliveryDate.setDate(deliveryDate.getDate() + deliveryDays);
+            
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            const formattedDate = deliveryDate.toLocaleDateString('fr-FR', options);
+
+            deliveryInfoContainer.innerHTML = `
+                <div class="flex items-center gap-3 text-sm">
+                    <svg class="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                    <div>
+                        <span class="font-semibold">Livraison à partir du</span>
+                        <span class="text-green-600 font-bold">${formattedDate}</span>
+                    </div>
+                </div>
+            `;
+        }
 
         // NOUVEAU: Afficher les détails spécifiques à la catégorie
         renderCategorySpecificDetails(product, variantsContainer, specsContainer, catalog);
@@ -2221,10 +2259,10 @@ function handleTrackOrder(event) {
  * @param {string} orderId 
  */
 async function trackOrder(orderId) {
-    const resultsDiv = document.getElementById('tracking-results');
-    resultsDiv.innerHTML = '<div class="loader mx-auto"></div><p class="text-center text-gray-500 mt-2">Recherche de votre commande...</p>';
-    // NOUVEAU: Réinitialiser les classes d'animation
-    resultsDiv.classList.remove('results-enter', 'results-enter-active');
+    const resultsContainer = document.getElementById('tracking-results');
+    resultsContainer.innerHTML = '<div class="loader mx-auto"></div><p class="text-center text-gray-500 mt-2">Recherche de votre commande...</p>';
+    // Réinitialiser les classes d'animation pour une nouvelle recherche
+    resultsContainer.classList.remove('results-enter', 'results-enter-active');
 
     // NOUVEAU: Fonction pour afficher le contenu avec une animation
     const renderResults = (html) => {
@@ -2244,79 +2282,99 @@ async function trackOrder(orderId) {
         const result = await response.json();
 
         if (result.success && result.data) {
-            const order = result.data;
-            const user = JSON.parse(localStorage.getItem('abmcyUser'));
-            const contactEmail = user ? user.Email : 'votre-email@domaine.com';
-            const contactPhone = user ? user.Telephone : 'XX XXX XX XX';
-
-            // NOUVEAU: Définir les étapes et le statut actuel
-            const steps = ['Confirmée', 'En préparation', 'Expédiée', 'Livrée'];
-            let currentStepIndex = steps.indexOf(order.Statut);
-            // Si le statut est "Payée et confirmée" ou autre, on le considère comme "Confirmée"
-            if (currentStepIndex === -1) {
-                if (order.Statut.toLowerCase().includes('confirmée')) currentStepIndex = 0;
-                else if (order.Statut.toLowerCase().includes('payée')) currentStepIndex = 0;
-            }
-
-            const timelineHTML = `
-                <div class="grid grid-cols-4 gap-4 text-center mb-16">
-                    ${steps.map((step, index) => `
-                        <div class="relative">
-                            <div class="timeline-step ${index < currentStepIndex ? 'completed' : ''} ${index === currentStepIndex ? 'active' : ''}">
-                                ${index < currentStepIndex ? '✓' : (index + 1)}
-                            </div>
-                            <p class="timeline-label ${index === currentStepIndex ? 'text-gold' : ''}">${step}</p>
-                            ${index < steps.length - 1 ? `
-                                <div class="timeline-line">
-                                    <div class="timeline-line-progress ${index < currentStepIndex ? 'completed' : ''}"></div>
-                                </div>
-                            ` : ''}
-                        </div>
-                    `).join('')}
-                </div>
-            `;
-
-            const finalHTML = `
-                <div class="bg-white p-6 rounded-lg shadow-md">
-                    <div class="flex justify-between items-start mb-6">
-                        <div>
-                            <h3 class="text-xl font-bold text-gray-800">Commande #${order.IDCommande}</h3>
-                            <p class="text-sm text-gray-500">Passée le ${new Date(order.Date).toLocaleDateString('fr-FR')}</p>
-                        </div>
-                        <span class="font-semibold px-3 py-1 text-sm rounded-full bg-blue-100 text-blue-800">${order.Statut}</span>
-                    </div>
-
-                    ${timelineHTML}
-
-                    <div class="border-t pt-6">
-                        <h4 class="font-semibold text-lg mb-4">Détails de la commande</h4>
-                        <div class="space-y-3 text-sm">
-                            <div class="flex justify-between"><span>Total:</span> <span class="font-semibold">${Number(order.MontantTotal).toLocaleString('fr-FR')} F CFA</span></div>
-                            <div class="flex justify-between"><span>Produits:</span> <span class="font-semibold text-right">${order.DetailsProduits}</span></div>
-                            <div class="flex justify-between"><span>Adresse:</span> <span class="font-semibold text-right">${order.AdresseLivraison}</span></div>
-                        </div>
-                    </div>
-
-                    <!-- NOUVEAU: Section SAV -->
-                    <div class="border-t pt-6 mt-6 bg-gray-50 p-4 rounded-lg">
-                        <h4 class="font-semibold text-lg mb-3">Un problème avec votre commande ?</h4>
-                        <p class="text-sm text-gray-600 mb-4">Notre service client est là pour vous aider. Contactez-nous via l'un des canaux ci-dessous.</p>
-                        <div class="flex gap-4">
-                            <a href="https://wa.me/221769047999?text=Bonjour, j'ai une question concernant ma commande #${order.IDCommande}" target="_blank" class="flex-1 text-center bg-green-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-600 transition">
-                                Contacter sur WhatsApp
-                            </a>
-                            <a href="mailto:abmcompanysn@gmail.com?subject=Réclamation Commande #${order.IDCommande}" class="flex-1 text-center bg-gray-700 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-800 transition">
-                                Envoyer un Email
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            `;
-            renderResults(finalHTML);
+            // La commande a été trouvée, on génère l'affichage.
+            const orderHTML = createOrderTrackingHTML(result.data);
+            renderResults(orderHTML);
         } else {
-            throw new Error(result.error || 'Commande non trouvée.');
+            // L'API a répondu mais la commande n'a pas été trouvée.
+            const errorMessage = result.error || 'Commande non trouvée. Vérifiez le numéro et réessayez.';
+            throw new Error(errorMessage);
         }
     } catch (error) {
-        renderResults(`<p class="text-center text-red-500 font-semibold p-4 bg-red-50 rounded-lg">${error.message}</p>`);
+        // Erreur réseau ou commande non trouvée.
+        const errorHTML = `
+            <div class="text-center p-6 bg-red-50 border border-red-200 rounded-lg">
+                <svg class="w-12 h-12 text-red-400 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                <h3 class="text-lg font-semibold text-red-800">Oups ! Commande introuvable</h3>
+                <p class="text-red-600 mt-1">${error.message}</p>
+            </div>
+        `;
+        renderResults(errorHTML);
     }
+}
+
+/**
+ * NOUVEAU: Crée le HTML complet pour l'affichage du suivi de commande.
+ * @param {object} order - L'objet de la commande retourné par l'API.
+ * @returns {string} Le code HTML à afficher.
+ */
+function createOrderTrackingHTML(order) {
+    // Définition des étapes avec plus de détails (icônes, descriptions)
+    const steps = [
+        { name: 'Confirmée', completed: order.EtapeConfirmee === true, icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z', description: 'Nous avons bien reçu votre commande.' },
+        { name: 'En préparation', completed: order.EtapePreparation === true, icon: 'M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10', description: 'Nos équipes préparent vos articles.' },
+        { name: 'Expédiée', completed: order.EtapeExpediee === true, icon: 'M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v8a2 2 0 01-2 2h-2l-4 4z', description: 'Votre colis est en route vers vous.' },
+        { name: 'Livrée', completed: order.EtapeLivree === true, icon: 'M5 13l4 4L19 7', description: 'Votre commande a été livrée. Merci !' }
+    ];
+
+    // Trouver l'index de la dernière étape complétée pour l'affichage
+    let currentStepIndex = -1;
+    for (let i = steps.length - 1; i >= 0; i--) {
+        if (steps[i].completed) {
+            currentStepIndex = i;
+            break;
+        }
+    }
+
+    // Génération de la chronologie (timeline) visuelle
+    const timelineHTML = `
+        <div class="grid grid-cols-4 gap-4 text-center mb-16">
+            ${steps.map((step, index) => `
+                <div class="relative">
+                    <div class="timeline-step ${step.completed ? 'completed' : ''} ${index === currentStepIndex ? 'active' : ''}">
+                        ${step.completed ? '✓' : (index + 1)}
+                    </div>
+                    <p class="timeline-label ${index === currentStepIndex ? 'text-gold' : ''}">${step.name}</p>
+                    ${index < steps.length - 1 ? `<div class="timeline-line"><div class="timeline-line-progress ${step.completed ? 'completed' : ''}"></div></div>` : ''}
+                </div>
+            `).join('')}
+        </div>
+    `;
+
+    // Assemblage final du HTML
+    return `
+        <div class="bg-white p-6 rounded-lg shadow-md">
+            <div class="flex flex-col sm:flex-row justify-between items-start mb-6 gap-4">
+                <div>
+                    <h3 class="text-xl font-bold text-gray-800">Commande #${order.IDCommande}</h3>
+                    <p class="text-sm text-gray-500">Passée le ${new Date(order.Date).toLocaleDateString('fr-FR', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                </div>
+                <span class="font-semibold px-3 py-1 text-sm rounded-full bg-blue-100 text-blue-800 self-start sm:self-center">${order.Statut}</span>
+            </div>
+
+            ${timelineHTML}
+
+            <div class="border-t pt-6">
+                <h4 class="font-semibold text-lg mb-4">Détails de la commande</h4>
+                <div class="space-y-3 text-sm">
+                    <div class="flex justify-between"><span>Total :</span> <span class="font-semibold">${Number(order.MontantTotal).toLocaleString('fr-FR')} F CFA</span></div>
+                    <div class="flex justify-between"><span>Produits :</span> <span class="font-semibold text-right">${order.DetailsProduits}</span></div>
+                    <div class="flex justify-between"><span>Adresse :</span> <span class="font-semibold text-right">${order.AdresseLivraison}</span></div>
+                </div>
+            </div>
+
+            <div class="border-t pt-6 mt-6 bg-gray-50 p-4 rounded-lg">
+                <h4 class="font-semibold text-lg mb-3">Un problème avec votre commande ?</h4>
+                <p class="text-sm text-gray-600 mb-4">Notre service client est là pour vous aider. Contactez-nous via l'un des canaux ci-dessous.</p>
+                <div class="flex flex-col sm:flex-row gap-4">
+                    <a href="https://wa.me/221769047999?text=Bonjour, j'ai une question concernant ma commande #${order.IDCommande}" target="_blank" class="flex-1 text-center bg-green-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-600 transition">
+                        Contacter sur WhatsApp
+                    </a>
+                    <a href="mailto:abmcompanysn@gmail.com?subject=Réclamation Commande #${order.IDCommande}" class="flex-1 text-center bg-gray-700 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-800 transition">
+                        Envoyer un Email
+                    </a>
+                </div>
+            </div>
+        </div>
+    `;
 }
