@@ -5,7 +5,7 @@ const CONFIG = {
     // car tout est géré par l'API centrale (ACCOUNT_API_URL).
     
     // URL du script central pour le catalogue de produits.
-    CENTRAL_API_URL: "https://script.google.com/macros/s/AKfycbzBkUxBwzKJtiFQhI3DsJkXdneSIpqdmtTKUu5pdXlFQszBZhOG_8jPMYkSpPiiig9r/exec",
+    CENTRAL_API_URL: "https://script.google.com/macros/s/AKfycbxNth6RZqKpR80KZefmD2l9FWT5SRDo-NAeUvQ-fD8KXxt7UAxWiJolMwr1mIfInsDf/exec",
     
     // Autres configurations
     DEFAULT_PRODUCT_IMAGE: "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png",
