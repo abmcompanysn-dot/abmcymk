@@ -108,6 +108,7 @@ async function initializeApp() {
           renderDailyDealsHomepage(catalog);
           renderAllCategoriesSection(catalog);
           renderHomepageCategorySections(catalog);
+          initializeBannerTextAnimation(); // NOUVEAU: Lancer l'animation du texte de la bannière
       }
   
       // NOUVEAU: Si on est sur la page panier, on charge aussi les promos
@@ -115,6 +116,52 @@ async function initializeApp() {
           renderPromoProductsInCart(catalog);
       }
   });
+}
+
+/**
+ * NOUVEAU: Gère l'animation du texte de la bannière sur la page d'accueil.
+ */
+function initializeBannerTextAnimation() {
+    const mainTextElement = document.getElementById('banner-main-text');
+    const subTextElement = document.getElementById('banner-sub-text');
+
+    // Ne rien faire si les éléments n'existent pas (on n'est pas sur la page d'accueil)
+    if (!mainTextElement || !subTextElement) {
+        return;
+    }
+
+    const phrases = [
+        {
+            main: "Achetez avec sens — chaque produit est une mission.",
+            sub: "Jëfandikoo ak xel — benn lu nekk mooy yoon."
+        },
+        {
+            main: "La qualité exceptionnelle, livrée à votre porte.",
+            sub: "Kalite gu mucc ayib, ci sa bunt kërug."
+        },
+        {
+            main: "Découvrez des trésors uniques, chaque jour.",
+            sub: "Gisal ay pokotaan yu amul moroom, bés bu nekk."
+        }
+    ];
+
+    let currentIndex = 0;
+
+    setInterval(() => {
+        currentIndex = (currentIndex + 1) % phrases.length;
+
+        // Appliquer un effet de fondu
+        mainTextElement.classList.add('opacity-0');
+        subTextElement.classList.add('opacity-0');
+
+        setTimeout(() => {
+            mainTextElement.textContent = phrases[currentIndex].main;
+            subTextElement.textContent = phrases[currentIndex].sub;
+            mainTextElement.classList.remove('opacity-0');
+            subTextElement.classList.remove('opacity-0');
+        }, 500); // Doit correspondre à la durée de la transition (duration-500)
+
+    }, 5000); // Changer de phrase toutes les 5 secondes
 }
 
 /**
