@@ -1071,6 +1071,9 @@ function updateDeliveryMethodsCheckout() {
     const methodSelect = document.getElementById('delivery-method'); // Sélecteur de méthode (Standard, Express)
     const selectedLocation = locationSelect.value; // ex: "Dakar"
 
+    // NOUVEAU: Récupérer le sous-total pour la logique de livraison gratuite
+    const subtotal = getCart().reduce((sum, item) => sum + (item.price * item.quantity), 0);
+
     // Si aucune localité n'est choisie, vider et désactiver le sélecteur de méthode.
     if (!selectedLocation) {
         methodSelect.innerHTML = '<option value="">-- Choisir une méthode --</option>';
@@ -1089,9 +1092,18 @@ function updateDeliveryMethodsCheckout() {
     }
 
     if (methodsForLocation) {
-        methodSelect.innerHTML = Object.keys(methodsForLocation).map(methodName =>
-            `<option value="${methodName}">${methodName} - ${methodsForLocation[methodName].toLocaleString('fr-FR')} F CFA</option>`
-        ).join('');
+        // NOUVEAU: Vérifier si la livraison gratuite s'applique
+        const isFreeShippingEligible = subtotal > 10000 && selectedLocation.toLowerCase().includes('dakar');
+
+        if (isFreeShippingEligible) {
+            // Si éligible, afficher uniquement l'option gratuite
+            methodSelect.innerHTML = `<option value="Gratuit">Standard - Gratuit (Offert)</option>`;
+        } else {
+            // Sinon, afficher les options payantes normalement
+            methodSelect.innerHTML = Object.keys(methodsForLocation).map(methodName =>
+                `<option value="${methodName}">${methodName} - ${methodsForLocation[methodName].toLocaleString('fr-FR')} F CFA</option>`
+            ).join('');
+        }
         methodSelect.disabled = false;
     } else {
         methodSelect.innerHTML = '<option value="">Pas de méthode pour cette zone</option>';
@@ -1107,18 +1119,28 @@ function updateDeliveryMethodsCheckout() {
 function updateCheckoutTotal() {
     const cart = getCart();
     const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const selectedLocation = document.getElementById('delivery-location').value;
 
-    // CORRECTION: Extraire le coût de livraison de manière plus fiable et s'assurer que c'est un nombre.
+    // CORRECTION & AMÉLIORATION: Logique de calcul des frais de livraison
+    let shippingCost = 0;
     const selectedOptionText = document.getElementById('delivery-method').selectedOptions[0]?.text || '';
-    // Utilise une expression régulière pour trouver le premier nombre dans la chaîne de caractères.
-    const shippingCostMatch = selectedOptionText.match(/(\d+)/); 
-    // Si un nombre est trouvé, on le convertit en nombre, sinon le coût est 0.
-    const shippingCost = shippingCostMatch ? parseFloat(shippingCostMatch[0]) : 0;
+
+    // Condition pour la livraison gratuite
+    const isFreeShippingEligible = subtotal > 10000 && selectedLocation && selectedLocation.toLowerCase().includes('dakar');
+
+    if (isFreeShippingEligible) {
+        shippingCost = 0;
+    } else if (selectedOptionText) {
+        // Utilise une expression régulière pour trouver un nombre dans le texte de l'option.
+        const shippingCostMatch = selectedOptionText.match(/(\d+)/);
+        // Si un nombre est trouvé, on le convertit en nombre, sinon le coût reste 0.
+        shippingCost = shippingCostMatch ? parseFloat(shippingCostMatch[0]) : 0;
+    }
 
     const total = subtotal + shippingCost;
 
     document.getElementById('checkout-subtotal').textContent = `${subtotal.toLocaleString('fr-FR')} F CFA`;
-    document.getElementById('checkout-shipping').textContent = shippingCost > 0 ? `${shippingCost.toLocaleString('fr-FR')} F CFA` : 'Gratuite';
+    document.getElementById('checkout-shipping').textContent = shippingCost > 0 ? `${shippingCost.toLocaleString('fr-FR')} F CFA` : 'Gratuit (Offert)';
     document.getElementById('checkout-total').textContent = `${total.toLocaleString('fr-FR')} F CFA`;
 }
 
