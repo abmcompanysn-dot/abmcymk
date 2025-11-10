@@ -1108,7 +1108,13 @@ function updateCheckoutTotal() {
     const cart = getCart();
     const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
-    const shippingCost = parseFloat(document.getElementById('delivery-method').selectedOptions[0]?.text.split(' - ')[1] || 0);
+    // CORRECTION: Extraire le coût de livraison de manière plus fiable et s'assurer que c'est un nombre.
+    const selectedOptionText = document.getElementById('delivery-method').selectedOptions[0]?.text || '';
+    // Utilise une expression régulière pour trouver le premier nombre dans la chaîne de caractères.
+    const shippingCostMatch = selectedOptionText.match(/(\d+)/); 
+    // Si un nombre est trouvé, on le convertit en nombre, sinon le coût est 0.
+    const shippingCost = shippingCostMatch ? parseFloat(shippingCostMatch[0]) : 0;
+
     const total = subtotal + shippingCost;
 
     document.getElementById('checkout-subtotal').textContent = `${subtotal.toLocaleString('fr-FR')} F CFA`;
