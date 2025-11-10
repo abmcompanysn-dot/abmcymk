@@ -507,16 +507,67 @@ function renderPromoProductsInCart(catalog) {
 /**
  * Charge les produits depuis le backend et initialise la recherche.
  */
-function initializeSearch() {
+async function initializeSearch() {
     const searchForms = document.querySelectorAll('form[id^="search-form"]');
+    const suggestionsContainer = document.getElementById('search-suggestions-container');
+
     searchForms.forEach(form => {
+        const searchInput = form.querySelector('input[type="search"]');
+        if (!searchInput) return;
+
+        // Gérer la soumission classique (touche Entrée)
         form.addEventListener('submit', (e) => {
             e.preventDefault();
-            const searchInput = form.querySelector('input[type="search"]');
             const query = searchInput.value.trim();
             if (query) {
-                // On passe la recherche en paramètre à la page de recherche
                 window.location.href = `recherche.html?q=${encodeURIComponent(query)}`;
+            }
+        });
+
+        // NOUVEAU: Gérer les suggestions pendant la frappe
+        searchInput.addEventListener('input', async (e) => {
+            const query = e.target.value.trim().toLowerCase();
+
+            if (query.length < 2) {
+                if (suggestionsContainer) suggestionsContainer.classList.add('hidden');
+                return;
+            }
+
+            // Utiliser le catalogue déjà chargé en mémoire
+            const catalog = await getCatalogAndRefreshInBackground();
+            const allProducts = catalog.data.products || [];
+
+            const filteredProducts = allProducts.filter(product =>
+                product.Nom.toLowerCase().includes(query) ||
+                (product.Marque && product.Marque.toLowerCase().includes(query)) ||
+                product.Catégorie.toLowerCase().includes(query)
+            ).slice(0, 7); // Limiter à 7 suggestions
+
+            if (filteredProducts.length > 0 && suggestionsContainer) {
+                suggestionsContainer.innerHTML = filteredProducts.map(product => `
+                    <a href="produit.html?id=${product.IDProduit}" class="flex items-center p-3 hover:bg-gray-100 transition">
+                        <img src="${product.ImageURL || CONFIG.DEFAULT_PRODUCT_IMAGE}" alt="${product.Nom}" class="w-12 h-12 object-cover rounded-md mr-4">
+                        <div class="flex-grow">
+                            <p class="font-semibold text-sm text-gray-800 truncate">${product.Nom}</p>
+                            <p class="text-xs text-gray-500">${product.Catégorie}</p>
+                        </div>
+                        <p class="text-sm font-bold text-gold">${product.PrixActuel.toLocaleString('fr-FR')} F</p>
+                    </a>
+                `).join('') + `
+                    <a href="recherche.html?q=${encodeURIComponent(query)}" class="block text-center p-3 bg-gray-50 font-semibold text-blue-600 hover:bg-gray-200 text-sm">
+                        Voir tous les résultats
+                    </a>
+                `;
+                suggestionsContainer.classList.remove('hidden');
+            } else if (suggestionsContainer) {
+                suggestionsContainer.classList.add('hidden');
+            }
+        });
+
+        // NOUVEAU: Cacher les suggestions si on clique en dehors
+        document.addEventListener('click', (e) => {
+            if (!form.contains(e.target) && suggestionsContainer) {
+                suggestionsContainer.classList.add('hidden');
             }
         });
     });
