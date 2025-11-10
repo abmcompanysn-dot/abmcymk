@@ -1,11 +1,11 @@
 const CONFIG = {
     // NOUVEAU: URL de l'API CENTRALE qui gère maintenant tout (comptes, commandes, etc.)
-    ACCOUNT_API_URL:"https://script.google.com/macros/s/AKfycbxe6IW8L8jOMF8hLcGcBH8sY3GmtAHv7vavbqWcKvl-Xj0bLzLxqOFu4DroCDCeS-jamg/exec",
+    ACCOUNT_API_URL:"https://script.google.com/macros/s/AKfycbwV9VNmD6x0ySgsO_9JqqONIt7jU_58BD3_JFTj5ToRdyiuh7qxSLc2mXHnPQI61nNrXQ/exec",
     // Les URL spécifiques pour commandes, livraisons et notifications sont maintenant obsolètes
     // car tout est géré par l'API centrale (ACCOUNT_API_URL).
     
     // URL du script central pour le catalogue de produits.
-    CENTRAL_API_URL: "https://script.google.com/macros/s/AKfycbxNth6RZqKpR80KZefmD2l9FWT5SRDo-NAeUvQ-fD8KXxt7UAxWiJolMwr1mIfInsDf/exec",
+    CENTRAL_API_URL: "https://script.google.com/macros/s/AKfycbwZdvCuaxmTlwI2xow2A4a3Ce2F8JWnSUudO26N2TN1THhSKWuYuJfYZ7LqLasf6D0N/exec",
     
     // Autres configurations
     DEFAULT_PRODUCT_IMAGE: "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png",
@@ -770,20 +770,19 @@ function loadProductPage(catalog) {
 
         // NOUVEAU: Afficher le délai de livraison
         const deliveryInfoContainer = document.getElementById('product-delivery-info');
-        if (deliveryInfoContainer) {
-            const deliveryDays = parseInt(product['Délai de livraison (jours)'], 10) || 10; // 10 jours par défaut si non spécifié
+        if (deliveryInfoContainer && product.DelaiLivraisonJours) {
+            const deliveryDays = parseInt(product.DelaiLivraisonJours, 10);
             const deliveryDate = new Date();
             deliveryDate.setDate(deliveryDate.getDate() + deliveryDays);
             
             const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
             const formattedDate = deliveryDate.toLocaleDateString('fr-FR', options);
 
-            deliveryInfoContainer.innerHTML = `
-                <div class="flex items-center gap-3 text-sm">
-                    <svg class="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+            deliveryInfoContainer.innerHTML = ` <div class="flex items-center gap-3 text-sm">
+                    <svg class="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
                     <div>
                         <span class="font-semibold">Livraison à partir du</span>
-                        <span class="text-green-600 font-bold">${formattedDate}</span>
+                        <span class="text-blue-700 font-bold">${formattedDate}</span>
                     </div>
                 </div>
             `;

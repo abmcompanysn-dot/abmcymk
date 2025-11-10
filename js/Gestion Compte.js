@@ -19,7 +19,8 @@ const SHEET_NAMES = {
     CONFIG: "Config",
     // NOUVEAU: Ajout des feuilles des autres modules
     LIVRAISONS: "Livraisons",
-    NOTIFICATIONS: "Notifications"
+    NOTIFICATIONS: "Notifications",
+    DELAIS_LIVRAISON: "DélaisLivraison" // NOUVEAU: Onglet pour les délais de livraison
 };
 
 // Origines autorisées à accéder à cette API.
@@ -782,7 +783,8 @@ function setupProject() {
     [SHEET_NAMES.LOGS]: ["Timestamp", "Source", "Action", "Détails"],
     [SHEET_NAMES.CONFIG]: ["Clé", "Valeur"],
     [SHEET_NAMES.LIVRAISONS]: ["IDLivraison", "IDCommande", "IDClient", "Adresse", "Statut", "DateMiseAJour", "Transporteur"],
-    [SHEET_NAMES.NOTIFICATIONS]: ["IDNotification", "IDCommande", "Type", "Message", "Statut", "Date"]
+    [SHEET_NAMES.NOTIFICATIONS]: ["IDNotification", "IDCommande", "Type", "Message", "Statut", "Date"],
+    [SHEET_NAMES.DELAIS_LIVRAISON]: ["IDProduit", "DélaiEnJours"] // NOUVEAU: En-têtes pour le nouvel onglet
   };
 
   Object.entries(sheetsToCreate).forEach(([sheetName, headers]) => {

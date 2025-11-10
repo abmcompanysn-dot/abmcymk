@@ -1,5 +1,5 @@
 // --- Template - Gestion Produits par Catégorie ---
-const CENTRAL_ADMIN_API_URL = "https://script.google.com/macros/s/AKfycbwXJ7nGrftKjKHaG6r_I1i9HCmcFJHmDk8BEvmW1jbNpBnI7-DjnDw7eLEet9HeHRwF/exec"; // URL du script central
+const CENTRAL_ADMIN_API_URL = "https://script.google.com/macros/s/AKfycbw6Y2VBKFXli2aMvbfCaWeMx0Ws29axaG3BIm2oMiFh1-qpc-hkSRIcrQbQ0JmXRQFB/exec"; // URL du script central
 
 // NOUVEAU: Configuration centrale des attributs par catégorie
 const CATEGORY_CONFIG = {
@@ -76,14 +76,14 @@ const allUniqueAttributes = [...new Set(Object.values(CATEGORY_CONFIG).flat())];
 CATEGORY_CONFIG["Universel (Tous les attributs)"] = allUniqueAttributes;
 
 
-const BASE_HEADERS = ["IDProduit", "Nom", "Marque", "PrixActuel", "PrixAncien", "Réduction%", "Stock", "ImageURL", "Description", "Tags", "Actif", "Catégorie", "NoteMoyenne", "NombreAvis", "Galerie", "LivraisonGratuite", "Délai de livraison (jours)"];
+const BASE_HEADERS = ["IDProduit", "Nom", "Marque", "PrixActuel", "PrixAncien", "Réduction%", "Stock", "ImageURL", "Description", "Tags", "Actif", "Catégorie", "NoteMoyenne", "NombreAvis", "Galerie"];
 
 /**
  * NOUVEAU: Récupère les en-têtes pour une catégorie spécifique.
  */
 function getCategorySpecificHeaders(categoryName) {
   const specificAttributes = CATEGORY_CONFIG[categoryName] || [];
-  return [...BASE_HEADERS, ...specificAttributes]; // La nouvelle colonne est déjà dans BASE_HEADERS
+  return [...BASE_HEADERS, ...specificAttributes];
 }
 
 const PERSONAL_DATA = {
@@ -107,9 +107,7 @@ const PERSONAL_DATA = {
             noteMoyenne: (Math.random() * 1.0 + 4.0).toFixed(1), nombreAvis: Math.floor(Math.random() * 100),
             imageURL: this.logoUrl, galerie: this.gallery,
             description: `Description détaillée pour le produit ${i} de la catégorie ${categoryName}.`,
-            livraisonGratuite: i % 4 === 0, // Un produit sur 4 aura la livraison gratuite pour le test
-            tags: `${categoryName.toLowerCase()},nouveau,populaire`,
-            "Délai de livraison (jours)": 10 // NOUVEAU: Valeur par défaut
+            tags: `${categoryName.toLowerCase()},nouveau,populaire`
         };
 
         // NOUVEAU: Ajoute des valeurs de test pour les attributs spécifiques à la catégorie
@@ -149,7 +147,7 @@ function onOpen() {
   
   menu.addSubMenu(initMenu)
       .addSeparator()
-      .addItem('Forcer la mise à jour du cache global', 'invalidateGlobalCache')
+      .addItem('Vider le cache de cette catégorie', 'invalidateCategoryCache')
       .addSeparator()
       .addItem('Ajouter un produit', 'showProductAddUI')
       .addToUi();
@@ -178,7 +176,11 @@ function onEdit(e) {
   }
   
   Logger.log("Modification détectée. Invalidation du cache global demandée.");
-  invalidateGlobalCache();
+  // Appelle le script central pour lui dire de mettre à jour la version du cache.
+  // On utilise un appel "fire-and-forget", on n'attend pas la réponse.
+  UrlFetchApp.fetch(CENTRAL_ADMIN_API_URL + "?action=invalidateCache", {
+    method: 'get', muteHttpExceptions: true
+  });
 }
 
 /**
@@ -195,31 +197,26 @@ function doOptions(e) {
  * Point d'entrée pour les requêtes GET (ex: obtenir le nombre/liste de produits).
  */
 function doGet(e) {
-  let responseData;
-
+  const origin = e.headers ? e.headers.Origin : null;
   try {
     const action = e.parameter.action;
     if (action === 'getProductCount') {
       const ss = SpreadsheetApp.getActiveSpreadsheet();
       const sheet = ss.getSheets()[0];
       const productCount = sheet.getLastRow() > 1 ? sheet.getLastRow() - 1 : 0; // Soustraire la ligne d'en-tête
-      responseData = { success: true, count: productCount };
+      return createJsonResponse({ success: true, count: productCount }, origin);
     }
-    else if (action === 'getProducts') {
+    if (action === 'getProducts') {
       const products = sheetToJSON(SpreadsheetApp.getActiveSpreadsheet().getSheets()[0]);
       Logger.log("Données des produits à envoyer : " + JSON.stringify(products, null, 2)); // Log pour vérifier les données
-      responseData = { success: true, data: products };
-    } else {
-      throw new Error("Action GET non reconnue.");
+      const responseData = { success: true, data: products };
+      return createJsonResponse(responseData, origin);
     }
+    return createJsonResponse({ success: false, error: "Action GET non reconnue." }, origin);
   } catch (error) {
     Logger.log("ERREUR dans la fonction doGet : " + error.toString()); // Log en cas d'erreur
-    responseData = { success: false, error: error.message };
+    return createJsonResponse({ success: false, error: error.message }, origin);
   }
-
-  // CORRECTION DÉFINITIVE: On utilise createJsonResponse uniquement pour formater la réponse web finale.
-  // Le paramètre 'origin' n'est plus nécessaire ici car on autorise tout ('*').
-  return createJsonResponse(responseData);
 }
 
 /**
@@ -256,7 +253,7 @@ function doPost(e) {
 /**
  * Logique partagée pour ajouter un produit à la feuille de calcul.
  */
-function addProduct(productData, origin, returnSimpleObject = false) {
+function addProduct(productData, origin) { // La fonction addProduct existe déjà, on s'assure qu'elle a le paramètre 'origin'
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getActiveSheet();
   const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
@@ -264,9 +261,7 @@ function addProduct(productData, origin, returnSimpleObject = false) {
 
   if (sheet.getLastRow() === 0) {
     // Ne devrait pas arriver si setupSheet est utilisé
-    const errorResponse = { success: false, error: "Feuille non initialisée." }; // Objet d'erreur simple
-    // Si on doit retourner un objet simple, on le retourne directement. Sinon, on le passe à createJsonResponse.
-    return returnSimpleObject ? errorResponse : createJsonResponse(errorResponse, origin);
+    return createJsonResponse({ success: false, error: "Feuille non initialisée." }, origin);
   }
 
   const newRow = headers.map(header => {
@@ -289,19 +284,27 @@ function addProduct(productData, origin, returnSimpleObject = false) {
         case "NoteMoyenne": return productData.noteMoyenne || 0;
         case "NombreAvis": return productData.nombreAvis || 0;
         case "Galerie": return productData.galerie || '';
-        case "LivraisonGratuite": return productData.livraisonGratuite || false;
-        case "Délai de livraison (jours)": return productData["Délai de livraison (jours)"] || 10; // NOUVEAU
         default: return productData[header] || ''; // Pour les attributs spécifiques
       }
   });
   
   sheet.appendRow(newRow);
   
+  // NOUVEAU: Ajouter le délai de livraison par défaut dans la feuille centrale
+  try {
+    const centralSheetId = "1kTQsUgcvcWxJNgHuITi4nlMhAqwyVAMhQbzIMIODcBg"; // ID de la feuille centrale
+    const delaisSheet = SpreadsheetApp.openById(centralSheetId).getSheetByName("DélaisLivraison");
+    delaisSheet.appendRow([newProductId, 20]); // 20 jours par défaut
+  } catch (e) {
+    Logger.log("Erreur lors de l'ajout du délai de livraison pour le produit " + newProductId + ": " + e.message);
+  }
+
   // NOUVEAU: Invalider le cache global après l'ajout d'un produit
-  invalidateGlobalCache();
-  const successResponse = { success: true, id: newProductId };
-  // Retourne soit un objet TextOutput pour le web, soit un objet simple pour google.script.run
-  return returnSimpleObject ? successResponse : createJsonResponse(successResponse, origin);
+  UrlFetchApp.fetch(CENTRAL_ADMIN_API_URL + "?action=invalidateCache", {
+    method: 'get', muteHttpExceptions: true
+  });
+
+  return createJsonResponse({ success: true, id: newProductId }, origin);
 }
 
 /**
@@ -367,9 +370,9 @@ function deleteProduct(productData, origin) {
  */
 function addProductFromUI(productData) {
   try {
-    // NOUVEAU: Utiliser une fonction qui retourne un objet simple pour google.script.run
-    const response = addProduct(productData, null, true); // Le troisième paramètre indique de retourner un objet simple
-    return response;
+    const response = addProduct(productData);
+    // google.script.run attend un objet simple, pas une réponse ContentService
+    return JSON.parse(response.getContent());
   } catch (e) {
     return { success: false, message: e.message };
   }
@@ -412,6 +415,18 @@ function getCategoryName() {
 }
 
 /**
+ * Vide le cache pour cette catégorie spécifique.
+ */
+function invalidateCategoryCache() {
+  try {
+    const cache = CacheService.getScriptCache();
+    const cacheKey = `products_${SpreadsheetApp.getActiveSpreadsheet().getId()}`;
+    cache.remove(cacheKey);
+    Logger.log(`Cache vidé pour la clé : ${cacheKey}`);
+  } catch (e) { Logger.log(`Erreur lors du vidage du cache : ${e.message}`); }
+}
+
+/**
  * NOUVEAU: Utilitaire pour invalider le cache global
  */
 function invalidateGlobalCache() {
@@ -419,7 +434,6 @@ function invalidateGlobalCache() {
   UrlFetchApp.fetch(CENTRAL_ADMIN_API_URL + "?action=invalidateCache", {
     method: 'get', muteHttpExceptions: true
   });
-  Logger.log("Demande d'invalidation du cache global envoyée.");
 }
 
 /**
@@ -434,26 +448,12 @@ function seedDefaultProducts(categoryName) {
 }
 
 /**
- * NOUVEAU: Crée un objet de réponse JSON simple pour les appels internes (google.script.run).
- * @param {object} data - L'objet à retourner.
- * @returns {object} L'objet de données lui-même.
- */
-function createSimpleJsonResponse(data) {
-  return data;
-}
-/**
  * Crée une réponse JSON standard.
  */
-function createJsonResponse(data, origin, returnSimpleObject = false) { // 'origin' est gardé pour la compatibilité avec doPost
-  if (returnSimpleObject) {
-    return data;
-  }
-
-  // Pour TOUTES les requêtes web (GET et POST), on crée et retourne un objet TextOutput.
+function createJsonResponse(data, origin) { // Ajout de 'origin' pour la cohérence
+  // CORRECTION DÉFINITIVE : On crée l'objet, on définit son type, et on retourne.
   const output = ContentService.createTextOutput(JSON.stringify(data));
   output.setMimeType(ContentService.MimeType.JSON);
-  // L'en-tête est nécessaire pour que le navigateur du client accepte la réponse de l'API.
-  output.addHeader('Access-Control-Allow-Origin', '*');
   return output;
 }
 

@@ -239,6 +239,21 @@ function getCategoriesWithProductCounts() {
  * C'est cette fonction qui est appelée par main.js.
  */
 function getPublicCatalog() {
+  // NOUVEAU: Récupérer les délais de livraison
+  let deliveryTimes = {};
+  try {
+    const delaisSheet = SpreadsheetApp.openById(CENTRAL_SHEET_ID).getSheetByName("DélaisLivraison");
+    if (delaisSheet) {
+      const delaisData = delaisSheet.getDataRange().getValues();
+      delaisData.shift(); // Ignorer l'en-tête
+      delaisData.forEach(row => {
+        deliveryTimes[row[0]] = row[1]; // { "PROD-123": 20, "PROD-456": 15 }
+      });
+    }
+  } catch(e) {
+    Logger.log("Impossible de charger les délais de livraison : " + e.message);
+  }
+
   const categories = getCategories();
   const activeCategories = categories.filter(c => c.ScriptURL && !c.ScriptURL.startsWith('REMPLIR_'));
   
@@ -260,7 +275,12 @@ function getPublicCatalog() {
     if (response.getResponseCode() === 200) {
       const result = JSON.parse(response.getContentText());
       if (result.success && Array.isArray(result.data)) {
-        allProducts = allProducts.concat(result.data);
+        // NOUVEAU: Fusionner les délais de livraison avec les produits
+        const productsWithDelivery = result.data.map(product => {
+          product.DelaiLivraisonJours = deliveryTimes[product.IDProduit] || 10; // 10 jours par défaut si non trouvé
+          return product;
+        });
+        allProducts = allProducts.concat(productsWithDelivery);
       }
     }
   });
