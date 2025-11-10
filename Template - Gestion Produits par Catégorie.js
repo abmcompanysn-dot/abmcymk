@@ -212,6 +212,12 @@ function doGet(e) {
       const responseData = { success: true, data: products };
       return createJsonResponse(responseData, origin);
     }
+    // NOUVEAU: Action pour récupérer les délais de livraison de cette catégorie
+    if (action === 'getDeliveryTimes') {
+      const delaisSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("DélaisLivraison");
+      const deliveryTimes = sheetToJSON(delaisSheet);
+      return createJsonResponse({ success: true, data: deliveryTimes }, origin);
+    }
     return createJsonResponse({ success: false, error: "Action GET non reconnue." }, origin);
   } catch (error) {
     Logger.log("ERREUR dans la fonction doGet : " + error.toString()); // Log en cas d'erreur
@@ -290,13 +296,13 @@ function addProduct(productData, origin) { // La fonction addProduct existe déj
   
   sheet.appendRow(newRow);
   
-  // NOUVEAU: Ajouter le délai de livraison par défaut dans la feuille centrale
+  // MODIFIÉ: Ajouter le délai de livraison par défaut dans la feuille LOCALE
   try {
-    const centralSheetId = "1kTQsUgcvcWxJNgHuITi4nlMhAqwyVAMhQbzIMIODcBg"; // ID de la feuille centrale
-    const delaisSheet = SpreadsheetApp.openById(centralSheetId).getSheetByName("DélaisLivraison");
+    const delaisSheet = ss.getSheetByName("DélaisLivraison");
     delaisSheet.appendRow([newProductId, 20]); // 20 jours par défaut
   } catch (e) {
-    Logger.log("Erreur lors de l'ajout du délai de livraison pour le produit " + newProductId + ": " + e.message);
+    // Cette erreur peut se produire si l'onglet n'existe pas, mais setupSheet devrait le créer.
+    Logger.log("Erreur lors de l'ajout du délai de livraison local pour le produit " + newProductId + ": " + e.message);
   }
 
   // NOUVEAU: Invalider le cache global après l'ajout d'un produit
@@ -404,7 +410,18 @@ function setupSheet(categoryName) {
   sheet.getRange(1, 1, 1, headers.length).setFontWeight("bold");
   
   seedDefaultProducts(categoryName); // NOUVEAU: Ajoute les produits de test automatiquement
-  SpreadsheetApp.getUi().alert(`Feuille initialisée comme "${categoryName}" et remplie avec 10 produits de test.`);
+
+  // NOUVEAU: Créer l'onglet pour les délais de livraison
+  let delaisSheet = ss.getSheetByName("DélaisLivraison");
+  if (!delaisSheet) {
+    delaisSheet = ss.insertSheet("DélaisLivraison");
+  }
+  delaisSheet.clear();
+  const delaisHeaders = ["IDProduit", "DélaiEnJours"];
+  delaisSheet.appendRow(delaisHeaders);
+  delaisSheet.getRange(1, 1, 1, delaisHeaders.length).setFontWeight("bold");
+
+  SpreadsheetApp.getUi().alert(`Feuille initialisée pour "${categoryName}" avec les onglets produits et délais de livraison. 10 produits de test ont été ajoutés.`);
 }
 
 /**

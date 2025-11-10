@@ -239,29 +239,42 @@ function getCategoriesWithProductCounts() {
  * C'est cette fonction qui est appelée par main.js.
  */
 function getPublicCatalog() {
-  // NOUVEAU: Récupérer les délais de livraison
-  let deliveryTimes = {};
-  try {
-    const delaisSheet = SpreadsheetApp.openById(CENTRAL_SHEET_ID).getSheetByName("DélaisLivraison");
-    if (delaisSheet) {
-      const delaisData = delaisSheet.getDataRange().getValues();
-      delaisData.shift(); // Ignorer l'en-tête
-      delaisData.forEach(row => {
-        deliveryTimes[row[0]] = row[1]; // { "PROD-123": 20, "PROD-456": 15 }
-      });
-    }
-  } catch(e) {
-    Logger.log("Impossible de charger les délais de livraison : " + e.message);
-  }
-
   const categories = getCategories();
   const activeCategories = categories.filter(c => c.ScriptURL && !c.ScriptURL.startsWith('REMPLIR_'));
   
   if (activeCategories.length === 0) {
     return { categories: categories, products: [] };
   }
+  
+  // NOUVEAU: Étape 1 - Récupérer tous les délais de livraison de toutes les catégories actives en parallèle
+  const deliveryTimeRequests = activeCategories.map(category => ({
+    url: `${category.ScriptURL}?action=getDeliveryTimes`,
+    method: 'get',
+    muteHttpExceptions: true
+  }));
 
-  // Utilise UrlFetchApp.fetchAll pour appeler tous les scripts de catégorie en parallèle
+  const deliveryTimeResponses = UrlFetchApp.fetchAll(deliveryTimeRequests);
+  let allDeliveryTimes = {};
+
+  deliveryTimeResponses.forEach(response => {
+    if (response.getResponseCode() === 200) {
+      const result = JSON.parse(response.getContentText());
+      if (result.success && Array.isArray(result.data)) {
+        result.data.forEach(item => {
+          // item est un objet comme { IDProduit: "PROD-...", DélaiEnJours: 20 }
+          if (item.IDProduit && item.DélaiEnJours) {
+            allDeliveryTimes[item.IDProduit] = item.DélaiEnJours;
+          }
+        });
+      }
+    }
+  });
+
+  // Log pour vérifier
+  Logger.log("Délais de livraison aggrégés: " + JSON.stringify(allDeliveryTimes));
+
+
+  // NOUVEAU: Étape 2 - Récupérer tous les produits de toutes les catégories actives en parallèle
   const requests = activeCategories.map(category => ({
     url: `${category.ScriptURL}?action=getProducts`,
     method: 'get',
@@ -277,7 +290,7 @@ function getPublicCatalog() {
       if (result.success && Array.isArray(result.data)) {
         // NOUVEAU: Fusionner les délais de livraison avec les produits
         const productsWithDelivery = result.data.map(product => {
-          product.DelaiLivraisonJours = deliveryTimes[product.IDProduit] || 10; // 10 jours par défaut si non trouvé
+          product.DelaiLivraisonJours = allDeliveryTimes[product.IDProduit] || 10; // 10 jours par défaut si non trouvé
           return product;
         });
         allProducts = allProducts.concat(productsWithDelivery);
