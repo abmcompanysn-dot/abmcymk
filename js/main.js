@@ -2354,7 +2354,7 @@ async function loadFavoriteProducts() {
  */
 function initializeOrderTrackingPage() {
     const form = document.getElementById('tracking-form');
-    form.addEventListener('submit', handleTrackOrder);
+    if (form) form.addEventListener('submit', handleTrackOrder);
 
     // Pré-remplir et lancer la recherche si un orderId est dans l'URL
     const params = new URLSearchParams(window.location.search);
@@ -2388,13 +2388,13 @@ async function trackOrder(orderId) {
     resultsContainer.innerHTML = '<div class="loader mx-auto"></div><p class="text-center text-gray-500 mt-2">Recherche de votre commande...</p>';
     // Réinitialiser les classes d'animation pour une nouvelle recherche
     resultsContainer.classList.remove('results-enter', 'results-enter-active');
-
+    
     // NOUVEAU: Fonction pour afficher le contenu avec une animation
     const renderResults = (html) => {
-        resultsDiv.innerHTML = html;
-        resultsDiv.classList.add('results-enter');
+        resultsContainer.innerHTML = html;
+        resultsContainer.classList.add('results-enter');
         requestAnimationFrame(() => {
-            resultsDiv.classList.add('results-enter-active');
+            resultsContainer.classList.add('results-enter-active');
         });
     };
 
