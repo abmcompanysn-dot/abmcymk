@@ -1698,26 +1698,61 @@ function renderProductCard(product) { // This function remains synchronous as it
 async function shareProduct(event, productId) {
     event.preventDefault();
     event.stopPropagation();
+
     const productUrl = `${window.location.origin}/produit.html?id=${productId}`;
     const product = (await getCatalogAndRefreshInBackground()).data.products.find(p => p.IDProduit === productId);
+    
+    if (!product) {
+        showToast("Impossible de trouver les informations du produit.", true);
+        return;
+    }
+
+    const imageUrl = product.ImageURL || CONFIG.DEFAULT_PRODUCT_IMAGE;
+
     const shareData = {
-        title: product ? `Découvrez ${product.Nom} sur ABMCY MARKET` : "Une offre à ne pas manquer sur ABMCY MARKET",
-        text: product ? `Wow, regarde cette offre incroyable pour "${product.Nom}" sur ABMCY MARKET ! Je pense que ça va te plaire.` : "J'ai trouvé une super boutique en ligne, ABMCY MARKET, jette un oeil !",
+        title: `Découvrez ${product.Nom} sur ABMCY MARKET`,
+        text: `Wow, regarde cette offre incroyable pour "${product.Nom}" sur ABMCY MARKET ! Je pense que ça va te plaire.\n\n${productUrl}`,
         url: productUrl,
     };
 
-    // Utiliser l'API de partage native si elle est disponible
-    if (navigator.share) {
+    // NOUVEAU: Logique pour partager l'image avec le texte et le lien
+    try {
+        // 1. Récupérer l'image sous forme de blob
+        const response = await fetch(imageUrl);
+        if (!response.ok) throw new Error("L'image n'a pas pu être chargée.");
+        const blob = await response.blob();
+        
+        // 2. Créer un objet File à partir du blob
+        const file = new File([blob], 'product.jpg', { type: blob.type });
+
+        // 3. Vérifier si le navigateur peut partager des fichiers
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            // Partager l'image, le titre et le texte (qui contient l'URL)
+            await navigator.share({
+                files: [file],
+                title: shareData.title,
+                text: shareData.text,
+            });
+            console.log('Produit partagé avec succès (avec image).');
+        } else if (navigator.share) {
+            // Si le partage de fichiers n'est pas supporté, partager le lien seul
+            await navigator.share(shareData);
+            console.log('Produit partagé avec succès (lien seul).');
+        } else {
+            // Fallback pour les navigateurs sans API de partage
+            navigator.clipboard.writeText(productUrl);
+            showToast('Lien du produit copié !');
+        }
+    } catch (err) {
+        console.error('Erreur de partage: ', err);
+        // Si le téléchargement de l'image échoue ou si l'API de partage échoue,
+        // on se rabat sur le partage de lien simple ou la copie.
         try {
             await navigator.share(shareData);
-            console.log('Produit partagé avec succès');
-        } catch (err) {
-            console.error('Erreur de partage: ', err);
+        } catch (shareErr) {
+            navigator.clipboard.writeText(productUrl);
+            showToast('Lien du produit copié !');
         }
-    } else {
-        // Sinon, revenir à la copie dans le presse-papiers
-        navigator.clipboard.writeText(productUrl);
-        showToast('Lien du produit copié !');
     }
 }
 
