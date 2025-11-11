@@ -1347,10 +1347,12 @@ async function processCheckout(event) {
             if (customerData.paymentMethod === 'paydunya') {
                 statusDiv.textContent = `Facture créée. Redirection vers la page de paiement...`;
                 // Rediriger l'utilisateur vers l'URL de paiement de Paydunya
+                localStorage.removeItem('abmcyUserOrders'); // Invalider le cache des commandes
                 window.location.href = result.payment_url;
             } else {
                 statusDiv.textContent = `Commande #${result.id} enregistrée avec succès ! Vous allez être redirigé.`;
                 // Rediriger vers la page de confirmation pour le paiement à la livraison
+                localStorage.removeItem('abmcyUserOrders'); // Invalider le cache des commandes
                 setTimeout(() => {
                     window.location.href = `confirmation.html?orderId=${result.id}`;
                 }, 3000);
@@ -2103,73 +2105,58 @@ function switchTab(tabName) {
  * Affiche les informations de l'utilisateur.
  */
 async function initializeAccountPage() {
-    let user = JSON.parse(localStorage.getItem('abmcyUser'));
-
-    // Si l'utilisateur n'est pas connecté, on le renvoie à la page d'authentification
-    if (!user) {
+    const user = JSON.parse(localStorage.getItem('abmcyUser'));
+    if (!user) { // Si pas d'utilisateur, redirection immédiate
         window.location.href = 'authentification.html';
         return;
     }
-    
-    // NOUVEAU: Recharger les informations de l'utilisateur depuis le serveur pour avoir les données à jour.
-    try {
-        const response = await fetch(CONFIG.ACCOUNT_API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'text/plain' },
-            body: JSON.stringify({
-                action: 'connecterClient', // On réutilise l'action de connexion qui retourne les infos utilisateur
-                data: { email: user.Email, motDePasse: user.PasswordHash, isHash: true } // On envoie un flag pour indiquer que le mdp est déjà un hash
-            })
-        });
-        const result = await response.json();
-        if (result.success && result.user) {
-            user = result.user; // Mettre à jour l'objet utilisateur avec les dernières données
-            localStorage.setItem('abmcyUser', JSON.stringify(user)); // Mettre à jour le localStorage
-        } else {
-            // Si la récupération échoue (ex: compte supprimé), on déconnecte l'utilisateur
-            localStorage.removeItem('abmcyUser');
-            window.location.href = 'authentification.html';
-            return;
-        }
-    } catch (error) {
-        console.error("Impossible de rafraîchir les données utilisateur. Utilisation des données locales.", error);
-        // En cas d'erreur réseau, on continue avec les données du localStorage.
-    }
 
     // Afficher les informations de l'utilisateur
-    document.getElementById('user-name-display').textContent = user.Nom;
-    document.getElementById('user-email-display').textContent = user.Email;
-    // NOUVEAU: Afficher aussi le téléphone et l'adresse s'ils existent
-    const phoneDisplay = document.getElementById('user-phone-display');
-    const addressDisplay = document.getElementById('user-address-display');
-    if (phoneDisplay) phoneDisplay.textContent = user.Telephone || 'Non renseigné';
-    if (addressDisplay) addressDisplay.textContent = user.Adresse || 'Non renseignée';
-
-    document.getElementById('dashboard-user-name').textContent = user.Nom;
-    document.getElementById('dashboard-user-name-link').textContent = user.Nom;
-
-    // Initiales pour l'avatar
-    const initials = user.Nom.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
-    document.getElementById('user-initials').textContent = initials;
+    displayUserData(user);
 
     // Logique de déconnexion
-    const logoutLink = document.getElementById('logout-link');
-    const logoutNav = document.getElementById('logout-nav-link');
-    
     const logoutAction = (e) => {
         e.preventDefault();
         if (confirm("Êtes-vous sûr de vouloir vous déconnecter ?")) {
             localStorage.removeItem('abmcyUser');
+            localStorage.removeItem('abmcyUserOrders'); // Vider le cache des commandes
             window.location.href = 'authentification.html';
         }
     };
 
-    logoutLink.addEventListener('click', logoutAction);
-    logoutNav.addEventListener('click', logoutAction);
+    document.getElementById('logout-link').addEventListener('click', logoutAction);
+    document.getElementById('logout-nav-link').addEventListener('click', logoutAction);
 
-    // Charger et afficher les commandes récentes
+    // Charger et afficher les commandes récentes (avec le nouveau système de cache)
     loadRecentOrdersForAccount(user.IDClient);
-    loadFavoriteProducts(); // NOUVEAU: Charger les produits favoris
+    loadFavoriteProducts();
+}
+
+/**
+ * NOUVEAU: Affiche les données de l'utilisateur sur la page.
+ * @param {object} user - L'objet utilisateur.
+ */
+function displayUserData(user) {
+    const nameDisplay = document.getElementById('user-name-display');
+    const emailDisplay = document.getElementById('user-email-display');
+    const phoneDisplay = document.getElementById('user-phone-display');
+    const addressDisplay = document.getElementById('user-address-display');
+    const dashboardName = document.getElementById('dashboard-user-name');
+    const dashboardNameLink = document.getElementById('dashboard-user-name-link');
+    const userInitials = document.getElementById('user-initials');
+
+    if (nameDisplay) nameDisplay.textContent = user.Nom;
+    if (emailDisplay) emailDisplay.textContent = user.Email;
+    if (phoneDisplay) phoneDisplay.textContent = user.Telephone || 'Non renseigné';
+    if (addressDisplay) addressDisplay.textContent = user.Adresse || 'Non renseignée';
+    if (dashboardName) dashboardName.textContent = user.Nom;
+    if (dashboardNameLink) dashboardNameLink.textContent = user.Nom;
+
+    // Initiales pour l'avatar
+    if (userInitials) {
+        const initials = user.Nom.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+        userInitials.textContent = initials;
+    }
 }
 
 /**
@@ -2177,7 +2164,20 @@ async function initializeAccountPage() {
  */
 async function loadRecentOrdersForAccount(clientId) {
     const ordersSection = document.getElementById('recent-orders-section');
+    const CACHE_KEY = 'abmcyUserOrders';
     if (!ordersSection) return;
+
+    // 1. Essayer de charger depuis le cache
+    const cachedOrders = localStorage.getItem(CACHE_KEY);
+    if (cachedOrders) {
+        console.log("Chargement des commandes depuis le cache.");
+        const orders = JSON.parse(cachedOrders);
+        renderOrders(orders, ordersSection);
+        return; // Arrêter ici si les données sont en cache
+    }
+
+    // 2. Si pas de cache, afficher le chargement et fetch depuis le réseau
+    console.log("Cache des commandes vide. Chargement depuis le réseau.");
     ordersSection.innerHTML = '<div class="loader mx-auto"></div><p class="text-center text-gray-500 mt-2">Chargement de vos commandes...</p>';
 
     try {
@@ -2195,59 +2195,59 @@ async function loadRecentOrdersForAccount(clientId) {
             throw new Error(result.error || "Impossible de récupérer les commandes.");
         }
 
-        if (result.data.length === 0) {
-            ordersSection.innerHTML = '<h4 class="text-lg font-semibold mb-4">Mes commandes récentes</h4><p class="text-gray-500">Vous n\'avez passé aucune commande pour le moment.</p>';
-            return;
-        }
-
-        // NOUVEAU: Logique pour l'affichage des statuts avec des couleurs
-        const getStatusBadge = (status) => {
-            switch (status) {
-                case 'Livrée':
-                    return `<span class="px-2 py-1 text-xs font-semibold rounded-full bg-green-200 text-green-800">${status}</span>`;
-                case 'Expédiée':
-                case 'En cours de livraison':
-                    return `<span class="px-2 py-1 text-xs font-semibold rounded-full bg-blue-200 text-blue-800">${status}</span>`;
-                case 'Annulée':
-                    return `<span class="px-2 py-1 text-xs font-semibold rounded-full bg-red-200 text-red-800">${status}</span>`;
-                default: // En préparation, Confirmée, En attente...
-                    return `<span class="px-2 py-1 text-xs font-semibold rounded-full bg-yellow-200 text-yellow-800">${status}</span>`;
-            }
-        };
-
-        const ordersHTML = `
-            <h4 class="text-lg font-semibold mb-4">Mes commandes récentes</h4>
-            <div class="overflow-x-auto">
-                <table class="min-w-full text-sm text-left">
-                    <thead class="bg-gray-100">
-                        <tr>
-                            <th class="p-3 font-semibold">Commande</th>
-                            <th class="p-3 font-semibold">Date</th>
-                            <th class="p-3 font-semibold">Statut</th>
-                            <th class="p-3 font-semibold text-right">Total</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${result.data.map(order => `
-                            <tr class="border-b">
-                                <td class="p-3 font-medium">
-                                    <a href="suivi-commande.html?orderId=${order.IDCommande}" class="text-blue-600 hover:underline">#${order.IDCommande}</a>
-                                </td>
-                                <td class="p-3">${new Date(order.Date).toLocaleDateString('fr-FR')}</td>
-                                <td class="p-3">${getStatusBadge(order.Statut)}</td>
-                                <td class="p-3 text-right font-semibold">${Number(order.Total).toLocaleString('fr-FR')} F CFA</td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
-            </div>
-        `;
-        ordersSection.innerHTML = ordersHTML;
+        // 3. Afficher les données et les mettre en cache
+        localStorage.setItem(CACHE_KEY, JSON.stringify(result.data));
+        renderOrders(result.data, ordersSection);
 
     } catch (error) {
         console.error("Erreur lors du chargement des commandes:", error);
         ordersSection.innerHTML = '<h4 class="text-lg font-semibold mb-4">Mes commandes récentes</h4><p class="text-red-500">Une erreur est survenue lors du chargement de vos commandes.</p>';
     }
+}
+
+/**
+ * NOUVEAU: Fonction dédiée au rendu de la liste des commandes.
+ * @param {Array} orders - La liste des commandes.
+ * @param {HTMLElement} container - L'élément où injecter le HTML.
+ */
+function renderOrders(orders, container) {
+    if (orders.length === 0) {
+        container.innerHTML = '<h4 class="text-lg font-semibold mb-4">Mes commandes récentes</h4><p class="text-gray-500">Vous n\'avez passé aucune commande pour le moment.</p>';
+        return;
+    }
+
+    const getStatusBadge = (status) => {
+        switch (status) {
+            case 'Livrée': return `<span class="px-2 py-1 text-xs font-semibold rounded-full bg-green-200 text-green-800">${status}</span>`;
+            case 'Expédiée': case 'En cours de livraison': return `<span class="px-2 py-1 text-xs font-semibold rounded-full bg-blue-200 text-blue-800">${status}</span>`;
+            case 'Annulée': return `<span class="px-2 py-1 text-xs font-semibold rounded-full bg-red-200 text-red-800">${status}</span>`;
+            default: return `<span class="px-2 py-1 text-xs font-semibold rounded-full bg-yellow-200 text-yellow-800">${status}</span>`;
+        }
+    };
+
+    const ordersHTML = `
+        <h4 class="text-lg font-semibold mb-4">Mes commandes récentes</h4>
+        <div class="overflow-x-auto">
+            <table class="min-w-full text-sm text-left">
+                <thead class="bg-gray-100">
+                    <tr>
+                        <th class="p-3 font-semibold">Commande</th><th class="p-3 font-semibold">Date</th><th class="p-3 font-semibold">Statut</th><th class="p-3 font-semibold text-right">Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${orders.map(order => `
+                        <tr class="border-b">
+                            <td class="p-3 font-medium"><a href="suivi-commande.html?orderId=${order.IDCommande}" class="text-blue-600 hover:underline">#${order.IDCommande}</a></td>
+                            <td class="p-3">${new Date(order.Date).toLocaleDateString('fr-FR')}</td>
+                            <td class="p-3">${getStatusBadge(order.Statut)}</td>
+                            <td class="p-3 text-right font-semibold">${Number(order.MontantTotal).toLocaleString('fr-FR')} F CFA</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        </div>
+    `;
+    container.innerHTML = ordersHTML;
 }
 
 // --- NOUVEAU: LOGIQUE DES FAVORIS ---
