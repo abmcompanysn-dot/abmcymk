@@ -17,7 +17,11 @@ let allLoadedProducts = []; // Stocke tous les produits déjà chargés
 let renderedCategoriesCount = 0;
 const CATEGORIES_PER_LOAD = 3;
 
-let DELIVERY_OPTIONS = {}; // NOUVEAU: Sera chargé depuis l'API
+const DELIVERY_OPTIONS = {
+    "Point de retrait": { "Retrait en magasin": { "Gratuit": 0 } },
+    "Dakar": { "Dakar - Plateau": { "Standard": 1500, "ABMCY Express": 2500 }, "Rufisque": { "Standard": 3000 } },
+    "Thiès": { "Thiès Ville": { "Standard": 3500 } }
+};
 
 // Attendre que le contenu de la page soit entièrement chargé
 document.addEventListener('DOMContentLoaded', () => {
@@ -72,10 +76,6 @@ async function initializeApp() {
     if (window.location.pathname.endsWith('suivi-commande.html')) {
         initializeOrderTrackingPage();
     }
-
-    // NOUVEAU: Charger les options de livraison depuis l'API centrale.
-    // Cela rend les frais de port dynamiques et gérables depuis le backend.
-    await loadDeliveryOptions();
 
     if (document.getElementById('countdown')) {
         startCountdown(); // Le compte à rebours est indépendant.
@@ -166,28 +166,6 @@ function initializeBannerTextAnimation() {
         }, 500); // Doit correspondre à la durée de la transition (duration-500)
 
     }, 5000); // Changer de phrase toutes les 5 secondes
-}
-
-/**
- * NOUVEAU: Charge les options de livraison depuis l'API de gestion de compte.
- */
-async function loadDeliveryOptions() {
-    try {
-        // On interroge l'API centrale avec l'action 'getDeliveryOptions'
-        const response = await fetch(`${CONFIG.ACCOUNT_API_URL}?action=getDeliveryOptions`);
-        if (!response.ok) {
-            throw new Error('La réponse du réseau pour les options de livraison n\'était pas bonne.');
-        }
-        const result = await response.json();
-        if (result.success && typeof result.data === 'object') {
-            DELIVERY_OPTIONS = result.data;
-            console.log("Options de livraison chargées avec succès:", DELIVERY_OPTIONS);
-        } else {
-            throw new Error(result.error || 'Les données de livraison reçues ne sont pas valides.');
-        }
-    } catch (error) {
-        console.error("Impossible de charger les options de livraison:", error);
-    }
 }
 
 /**
@@ -1186,16 +1164,16 @@ function renderCheckoutSummaryItems() {
  * NOUVEAU: Met à jour les méthodes de livraison en fonction de la localité choisie.
  */
 function updateDeliveryMethodsCheckout() {
-    const locationSelect = document.getElementById('delivery-location'); // Sélecteur de ville/localité
-    const methodSelect = document.getElementById('delivery-method'); // Sélecteur de méthode (Standard, Express)
-    const selectedLocation = locationSelect.value; // ex: "Dakar"
+    const locationSelect = document.getElementById('delivery-location');
+    const methodSelect = document.getElementById('delivery-method');
+    const selectedLocation = locationSelect.value;
 
     // NOUVEAU: Récupérer le sous-total pour la logique de livraison gratuite
     const subtotal = getCart().reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
     // Si aucune localité n'est choisie, vider et désactiver le sélecteur de méthode.
     if (!selectedLocation) {
-        methodSelect.innerHTML = '<option value="">-- Choisir une méthode --</option>';
+        methodSelect.innerHTML = '<option value="">-- D\'abord choisir une localité --</option>';
         methodSelect.disabled = true;
         updateCheckoutTotal(); // Mettre à jour le total (sans frais de port)
         return;
@@ -1203,11 +1181,11 @@ function updateDeliveryMethodsCheckout() {
 
     let methodsForLocation = null;
     // Parcourir les régions pour trouver la ville sélectionnée
-    for (const region in DELIVERY_OPTIONS) {
-        if (DELIVERY_OPTIONS[region][selectedLocation]) {
-            methodsForLocation = DELIVERY_OPTIONS[region][selectedLocation];
-            break;
-        }
+    // CORRECTION: La logique de recherche était incorrecte.
+    // On doit trouver la bonne région qui contient la ville sélectionnée.
+    const regionKey = Object.keys(DELIVERY_OPTIONS).find(region => DELIVERY_OPTIONS[region][selectedLocation]);
+    if (regionKey) {
+        methodsForLocation = DELIVERY_OPTIONS[regionKey][selectedLocation];
     }
 
     if (methodsForLocation) {
