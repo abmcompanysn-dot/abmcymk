@@ -33,12 +33,18 @@ document.addEventListener('DOMContentLoaded', () => {
  * Fonction principale ASYNCHRONE qui initialise l'application.
  */
 async function initializeApp() {
-    const user = JSON.parse(localStorage.getItem('abmcyUser'));
     const currentPage = window.location.pathname.split('/').pop();
 
-    // NOUVEAU: Mettre à jour dynamiquement les liens "Compte" sur toute la page.
-    // Si l'utilisateur est connecté, le lien pointe vers compte.html, sinon vers authentification.html.
-    const accountLinks = document.querySelectorAll('a[href="compte.html"]');
+    // Vérifier si l'utilisateur est sur la page de déconnexion
+    if (params.get('action') === 'logout') {
+        handleLogout();
+        return; // Arrêter l'exécution pour laisser la redirection se faire
+    }
+
+    const user = JSON.parse(localStorage.getItem('abmcyUser'));
+
+    // Mettre à jour dynamiquement les liens "Compte" sur toute la page.
+    const accountLinks = document.querySelectorAll('a[href*="compte.html"], a[href*="authentification.html"]');
     accountLinks.forEach(link => {
         link.href = user ? 'compte.html' : 'authentification.html';
     });
@@ -2115,29 +2121,27 @@ function switchTab(tabName) {
  * Affiche les informations de l'utilisateur.
  */
 async function initializeAccountPage() {
-    const userFromCache = JSON.parse(localStorage.getItem('abmcyUser'));
-    if (!userFromCache) {
+    const user = JSON.parse(localStorage.getItem('abmcyUser'));
+    if (!user) {
         window.location.href = 'authentification.html';
         return;
     }
 
     // --- AMÉLIORATION: Affichage instantané des données en cache ---
     // Affiche immédiatement les informations de l'utilisateur pour une meilleure réactivité.
-    displayUserData(userFromCache);
+    displayUserData(user);
 
     // --- Chargement des données du compte ---
     // Les informations personnelles sont déjà affichées depuis le cache.
     // On charge maintenant les commandes et les favoris.
-    loadRecentOrdersForAccount(userFromCache.IDClient);
+    loadRecentOrdersForAccount(user.IDClient);
     loadFavoriteProducts();
 
     // Logique de déconnexion
     const logoutAction = (e) => {
         e.preventDefault();
         if (confirm("Êtes-vous sûr de vouloir vous déconnecter ?")) {
-            localStorage.removeItem('abmcyUser');
-            localStorage.removeItem('abmcyUserOrders'); // Vider le cache des commandes
-            window.location.href = 'authentification.html';
+            handleLogout();
         }
     };
 
@@ -2145,21 +2149,31 @@ async function initializeAccountPage() {
     // document.getElementById('logout-link').addEventListener('click', logoutAction);
     if(document.getElementById('logout-nav-link')) document.getElementById('logout-nav-link').addEventListener('click', logoutAction);
 }
+/**
+ * NOUVEAU: Gère la déconnexion de l'utilisateur.
+ */
+function handleLogout() {
+    localStorage.removeItem('abmcyUser');
+    localStorage.removeItem('abmcyUserOrders');
+    localStorage.removeItem('abmcyCart');
+    localStorage.removeItem('abmcyFavorites');
+    window.location.href = 'authentification.html';
+}
 
 /**
  * NOUVEAU: Affiche les données de l'utilisateur sur la page.
  * @param {object} user - L'objet utilisateur.
  */
 function displayUserData(user) {
-    const nameDisplay = document.getElementById('user-name-display');
-    const emailDisplay = document.getElementById('user-email-display');
-    const phoneDisplay = document.getElementById('user-phone-display');
-    const addressDisplay = document.getElementById('user-address-display');
-    const dashboardName = document.getElementById('dashboard-user-name');
-    const dashboardNameLink = document.getElementById('dashboard-user-name-link');
-    const userInitials = document.getElementById('user-initials');
+    const nameDisplay = document.getElementById('user-name-display'); // Bonjour, [Nom]
+    const emailDisplay = document.getElementById('user-email-display'); // Email dans les infos
+    const phoneDisplay = document.getElementById('user-phone-display'); // Téléphone dans les infos
+    const addressDisplay = document.getElementById('user-address-display'); // Adresse dans les infos
+    const dashboardName = document.getElementById('dashboard-user-name'); // Nom dans la section "Mes informations"
+    const dashboardNameLink = document.getElementById('dashboard-user-name-link'); // Nom dans l'en-tête
+    const userInitials = document.getElementById('user-initials'); // Avatar avec initiales
 
-    if (nameDisplay) nameDisplay.textContent = user.Nom;
+    if (nameDisplay) nameDisplay.textContent = user.Nom.split(' ')[0]; // Affiche seulement le prénom
     if (emailDisplay) emailDisplay.textContent = user.Email;
     if (phoneDisplay) phoneDisplay.textContent = user.Telephone || 'Non renseigné';
     if (addressDisplay) addressDisplay.textContent = user.Adresse || 'Non renseignée';
