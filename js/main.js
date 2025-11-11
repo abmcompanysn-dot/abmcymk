@@ -1337,7 +1337,18 @@ async function processCheckout(event) {
         action: action,
         data: {
             idClient: clientId,
-            produits: cart.map(item => ({ name: item.name, quantity: item.quantity, price: item.price, productId: item.productId })),
+            // NOUVEAU: Enrichir le nom du produit avec les variantes sélectionnées
+            produits: cart.map(item => {
+                let finalName = item.name;
+                // Vérifier s'il y a des variantes et qu'elles ne sont pas vides
+                if (item.variants && Object.keys(item.variants).length > 0) {
+                    const variantString = Object.entries(item.variants)
+                        .map(([key, value]) => `${key}: ${value}`)
+                        .join(', ');
+                    finalName += ` (${variantString})`; // Ex: "T-shirt (Taille: M, Couleur: Bleu)"
+                }
+                return { name: finalName, quantity: item.quantity, price: item.price, productId: item.productId };
+            }),
             adresseLivraison: `${customerData.address}, ${customerData.location}`,
             total: total,
             moyenPaiement: paymentNote, // NOUVEAU: Ajout des infos client pour Paydunya
@@ -2125,45 +2136,50 @@ function switchTab(tabName) {
  * Affiche les informations de l'utilisateur.
  */
 async function initializeAccountPage() {
-    let user = JSON.parse(localStorage.getItem('abmcyUser'));
-    if (!user) {
+    const userFromCache = JSON.parse(localStorage.getItem('abmcyUser'));
+    if (!userFromCache) {
         window.location.href = 'authentification.html';
         return;
     }
 
-    // NOUVEAU: Tenter de rafraîchir les données utilisateur depuis le serveur.
-    try {
-        const response = await fetch(CONFIG.ACCOUNT_API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'text/plain' },
-            body: JSON.stringify({
-                action: 'connecterClient',
-                data: { email: user.Email, motDePasse: user.PasswordHash, isHash: true } // Utilise le hash stocké
-            })
-        });
-        const result = await response.json();
-        if (result.success && result.user) {
-            user = result.user; // Mettre à jour l'objet utilisateur avec les données fraîches
-            localStorage.setItem('abmcyUser', JSON.stringify(user)); // Mettre à jour le cache local
-        } else {
-            // Si la récupération échoue (ex: compte supprimé), on déconnecte
-            throw new Error(result.error || "Session invalide, veuillez vous reconnecter.");
-        }
-    } catch (error) {
-        console.warn("Impossible de rafraîchir les données utilisateur. Utilisation des données en cache.", error.message);
-        // En cas d'erreur réseau ou de session invalide, on peut soit continuer avec le cache, soit déconnecter.
-        // Pour une meilleure expérience hors ligne, on continue avec le cache.
-        // Si l'erreur est "Session invalide", on pourrait vouloir déconnecter :
-        if (error.message.includes("Session invalide")) {
-            localStorage.removeItem('abmcyUser');
-            localStorage.removeItem('abmcyUserOrders');
-            window.location.href = 'authentification.html';
-            return;
-        }
-    }
+    // --- AMÉLIORATION: Affichage instantané des données en cache ---
+    // Affiche immédiatement les informations de l'utilisateur pour une meilleure réactivité.
+    displayUserData(userFromCache);
 
-    // Afficher les informations de l'utilisateur
-    displayUserData(user);
+    // --- Chargement en arrière-plan ---
+    // Rafraîchit les données utilisateur et charge les commandes sans bloquer l'affichage.
+    const refreshDataInBackground = async () => {
+        try {
+            const response = await fetch(CONFIG.ACCOUNT_API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain' },
+                body: JSON.stringify({
+                    action: 'connecterClient',
+                    data: { email: userFromCache.Email, motDePasse: userFromCache.PasswordHash, isHash: true }
+                })
+            });
+            const result = await response.json();
+            if (result.success && result.user) {
+                const freshUser = result.user;
+                localStorage.setItem('abmcyUser', JSON.stringify(freshUser));
+                displayUserData(freshUser); // Ré-affiche avec les données fraîches si elles ont changé
+            } else {
+                throw new Error(result.error || "Session invalide.");
+            }
+        } catch (error) {
+            console.warn("Impossible de rafraîchir les données utilisateur:", error.message);
+            if (error.message.includes("Session invalide")) {
+                localStorage.removeItem('abmcyUser');
+                localStorage.removeItem('abmcyUserOrders');
+                window.location.href = 'authentification.html';
+            }
+        }
+    };
+
+    // Lance le rafraîchissement des données et le chargement des commandes en parallèle.
+    refreshDataInBackground();
+    loadRecentOrdersForAccount(userFromCache.IDClient);
+    loadFavoriteProducts();
 
     // Logique de déconnexion
     const logoutAction = (e) => {
@@ -2175,12 +2191,9 @@ async function initializeAccountPage() {
         }
     };
 
-    document.getElementById('logout-link').addEventListener('click', logoutAction);
+    // CORRECTION: logout-link n'existe plus dans le nouveau design de compte.html
+    // document.getElementById('logout-link').addEventListener('click', logoutAction);
     if(document.getElementById('logout-nav-link')) document.getElementById('logout-nav-link').addEventListener('click', logoutAction);
-
-    // Charger et afficher les commandes récentes (avec le nouveau système de cache)
-    loadRecentOrdersForAccount(user.IDClient);
-    loadFavoriteProducts(); // NOUVEAU: Charger les produits favoris
 }
 
 /**
