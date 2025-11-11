@@ -211,7 +211,7 @@ function populateCategoryMenu(catalog) {
             menuHTML += categories.map(cat => `<a href="categorie.html?id=${cat.IDCategorie}&name=${encodeURIComponent(cat.NomCategorie)}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">${cat.NomCategorie}</a>`).join('');
         }
         // Ajout du lien vers les promotions (toujours visible)
-        menuHTML += '<a href="promotion.html" class="block px-4 py-2 text-sm text-red-600 font-semibold hover:bg-gray-100">Promotions</a>';
+        menuHTML += '<a href="promotions.html" class="block px-4 py-2 text-sm text-red-600 font-semibold hover:bg-gray-100">Promotions</a>';
         
         menu.innerHTML = menuHTML;
         if (boutiquesMenu) boutiquesMenu.innerHTML = menuHTML;
