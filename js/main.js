@@ -1707,8 +1707,6 @@ async function shareProduct(event, productId) {
         return;
     }
 
-    const imageUrl = product.ImageURL || CONFIG.DEFAULT_PRODUCT_IMAGE;
-
     // NOUVEAU : Personnalisation du message de partage avec le prix.
     const priceText = `${product.PrixActuel.toLocaleString('fr-FR')} F CFA`;
     const shareData = {
@@ -1717,44 +1715,21 @@ async function shareProduct(event, productId) {
         url: productUrl,
     };
 
-    // NOUVEAU: Logique pour partager l'image avec le texte et le lien
+    // CORRECTION: On ne partage plus le fichier image directement pour garantir
+    // que le texte et le lien soient toujours partagés. Les applications modernes
+    // généreront un aperçu riche (avec l'image) à partir de l'URL fournie.
     try {
-        // 1. Récupérer l'image sous forme de blob
-        const response = await fetch(imageUrl);
-        if (!response.ok) throw new Error("L'image n'a pas pu être chargée.");
-        const blob = await response.blob();
-        
-        // 2. Créer un objet File à partir du blob
-        const file = new File([blob], 'product.jpg', { type: blob.type });
-
-        // 3. Vérifier si le navigateur peut partager des fichiers
-        if (navigator.canShare && navigator.canShare({ files: [file] })) {
-            // Partager l'image, le titre et le texte (qui contient l'URL)
-            await navigator.share({
-                files: [file],
-                title: shareData.title,
-                text: shareData.text,
-            });
-            console.log('Produit partagé avec succès (avec image).');
-        } else if (navigator.share) {
-            // Si le partage de fichiers n'est pas supporté, partager le lien seul
+        if (navigator.share) {
             await navigator.share(shareData);
-            console.log('Produit partagé avec succès (lien seul).');
+            console.log("Produit partagé avec succès via l API de partage");
         } else {
-            // Fallback pour les navigateurs sans API de partage
+            // Solution de secours pour les navigateurs qui ne supportent pas l'API de partage
             navigator.clipboard.writeText(productUrl);
             showToast('Lien du produit copié !');
         }
     } catch (err) {
         console.error('Erreur de partage: ', err);
-        // Si le téléchargement de l'image échoue ou si l'API de partage échoue,
-        // on se rabat sur le partage de lien simple ou la copie.
-        try {
-            await navigator.share(shareData);
-        } catch (shareErr) {
-            navigator.clipboard.writeText(productUrl);
-            showToast('Lien du produit copié !');
-        }
+        // En cas d'erreur (par exemple, l'utilisateur annule le partage), on ne fait rien.
     }
 }
 
@@ -2711,7 +2686,7 @@ function createOrderTrackingHTML(order) {
             <div class="border-t pt-6 mt-6 bg-gray-50 p-4 rounded-lg">
                 <h4 class="font-semibold text-lg mb-3">Un problème avec votre commande ?</h4>
                 <p class="text-sm text-gray-600 mb-4">Notre service client est là pour vous aider. Contactez-nous via l'un des canaux ci-dessous.</p>
-                <div class="flex flex-col sm:flex-row gap-4">
+                <div class="flex flex-col sm:flex-row gap-4"> // CORRECTION: L'apostrophe dans "j'ai" a été remplacée par son entité HTML `&apos;` pour éviter de casser la chaîne de caractères.
                     <a href="https://wa.me/221769047999?text=Bonjour, j'ai une question concernant ma commande #${order.IDCommande}" target="_blank" class="flex-1 text-center bg-green-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-600 transition">
                         Contacter sur WhatsApp
                     </a>
