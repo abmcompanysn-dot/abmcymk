@@ -29,9 +29,15 @@ document.addEventListener('DOMContentLoaded', () => {
  * Fonction principale ASYNCHRONE qui initialise l'application.
  */
 async function initializeApp() {
-    // NOUVEAU: Logique de redirection automatique
     const user = JSON.parse(localStorage.getItem('abmcyUser'));
     const currentPage = window.location.pathname.split('/').pop();
+
+    // NOUVEAU: Mettre à jour dynamiquement les liens "Compte" sur toute la page.
+    // Si l'utilisateur est connecté, le lien pointe vers compte.html, sinon vers authentification.html.
+    const accountLinks = document.querySelectorAll('a[href="compte.html"]');
+    accountLinks.forEach(link => {
+        link.href = user ? 'compte.html' : 'authentification.html';
+    });
 
     if (user) {
         // Si l'utilisateur est connecté et sur la page d'authentification, on le redirige vers son compte.
@@ -39,13 +45,8 @@ async function initializeApp() {
             window.location.href = 'compte.html';
             return; // Arrêter l'exécution pour laisser la redirection se faire
         }
-    } else {
-        // Si l'utilisateur n'est pas connecté et essaie d'accéder à la page compte, on le redirige vers l'authentification.
-        if (currentPage === 'compte.html') {
-            window.location.href = 'authentification.html';
-            return; // Arrêter l'exécution
-        }
     }
+
     // --- ÉTAPE 1: Rendu immédiat de ce qui ne dépend pas des données distantes ---
     updateCartBadges();
     initializeSearch(); // Les formulaires de recherche peuvent être initialisés immédiatement.
