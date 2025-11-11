@@ -66,8 +66,9 @@ async function initializeApp() {
         document.getElementById('login-form').addEventListener('submit', (e) => handleAuthForm(e, 'login'));
         document.getElementById('register-form').addEventListener('submit', (e) => handleAuthForm(e, 'register'));
     }
-    if (document.querySelector('main h1.text-3xl')?.textContent.includes("Mon Compte")) {
-        initializeAccountPage(); // La page compte gère sa propre logique d'authentification.
+    // NOUVEAU: Utiliser un ID sur le body pour une détection plus robuste de la page compte.
+    if (document.getElementById('account-page')) {
+        initializeAccountPage();
     }
     if (document.getElementById('panier-page')) {
         renderCartPage(); // Le panier lit depuis le localStorage, pas besoin d'attendre l'API.
