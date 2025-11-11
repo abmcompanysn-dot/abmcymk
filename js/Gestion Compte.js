@@ -223,13 +223,16 @@ function connecterClient(data, origin) {
         }
 
         // Connexion réussie, on retourne les informations de l'utilisateur
-        const userObject = headers.reduce((obj, header, index) => {
-            // Exclure les informations sensibles
-            if (header !== 'PasswordHash' && header !== 'Salt') {
-                obj[header] = userRow[index];
-            }
-            return obj;
-        }, {});
+        // AMÉLIORATION SÉCURITÉ: Ne retourner que les champs nécessaires et non sensibles.
+        // On construit manuellement l'objet au lieu de boucler pour éviter de fuiter des données.
+        const userObject = {
+            IDClient: userRow[headers.indexOf("IDClient")],
+            Nom: userRow[headers.indexOf("Nom")],
+            Email: userRow[headers.indexOf("Email")],
+            Telephone: userRow[headers.indexOf("Telephone")],
+            Adresse: userRow[headers.indexOf("Adresse")]
+            // On ne retourne JAMAIS le PasswordHash ou le Salt.
+        };
 
         return createJsonResponse({ success: true, user: userObject }, origin);
 
@@ -299,9 +302,12 @@ function createPaydunyaInvoice(data, origin) {
 
         // 1. Enregistrer la commande avec un statut "En attente de paiement"
         const produitsDetails = data.produits.map(p => `${p.name} (x${p.quantity})`).join(', ');
+        // AMÉLIORATION: Enregistrer la commande avec la même structure que les autres, y compris les étapes de suivi.
+        // Toutes les étapes sont à 'false' car le paiement n'est pas encore confirmé.
         orderSheet.appendRow([
             idCommande, data.idClient, produitsDetails,
-            data.total, "En attente de paiement", new Date(),
+            data.total, "En attente de paiement", new Date(), 
+            false, false, false, false, // EtapeConfirmee, EtapePreparation, EtapeExpediee, EtapeLivree
             data.adresseLivraison, "Paydunya", data.notes || ''
         ]);
 

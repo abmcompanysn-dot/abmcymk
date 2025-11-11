@@ -1,6 +1,6 @@
 const CONFIG = {
     // NOUVEAU: URL de l'API CENTRALE qui gère maintenant tout (comptes, commandes, etc.)
-    ACCOUNT_API_URL:"https://script.google.com/macros/s/AKfycbzWPeWar4K34gsIJnuqxR0zX7qIz75_mkynqyHqcSu--10UbDby-AJk9-oug_lRW1daWQ/exec",
+    ACCOUNT_API_URL:"https://script.google.com/macros/s/AKfycbyeJUmc7yeQAL3QeUPh7MbVDVXx7TvKfHtxjFfKvga4r7GAqpofVtCYBcrvp0c61uo5Qg/exec",
     // Les URL spécifiques pour commandes, livraisons et notifications sont maintenant obsolètes
     // car tout est géré par l'API centrale (ACCOUNT_API_URL).
     
@@ -2125,38 +2125,9 @@ async function initializeAccountPage() {
     // Affiche immédiatement les informations de l'utilisateur pour une meilleure réactivité.
     displayUserData(userFromCache);
 
-    // --- Chargement en arrière-plan ---
-    // Rafraîchit les données utilisateur et charge les commandes sans bloquer l'affichage.
-    const refreshDataInBackground = async () => {
-        try {
-            const response = await fetch(CONFIG.ACCOUNT_API_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'text/plain' },
-                body: JSON.stringify({
-                    action: 'connecterClient',
-                    data: { email: userFromCache.Email, motDePasse: userFromCache.PasswordHash, isHash: true }
-                })
-            });
-            const result = await response.json();
-            if (result.success && result.user) {
-                const freshUser = result.user;
-                localStorage.setItem('abmcyUser', JSON.stringify(freshUser));
-                displayUserData(freshUser); // Ré-affiche avec les données fraîches si elles ont changé
-            } else {
-                throw new Error(result.error || "Session invalide.");
-            }
-        } catch (error) {
-            console.warn("Impossible de rafraîchir les données utilisateur:", error.message);
-            if (error.message.includes("Session invalide")) {
-                localStorage.removeItem('abmcyUser');
-                localStorage.removeItem('abmcyUserOrders');
-                window.location.href = 'authentification.html';
-            }
-        }
-    };
-
-    // Lance le rafraîchissement des données et le chargement des commandes en parallèle.
-    refreshDataInBackground();
+    // --- Chargement des données du compte ---
+    // Les informations personnelles sont déjà affichées depuis le cache.
+    // On charge maintenant les commandes et les favoris.
     loadRecentOrdersForAccount(userFromCache.IDClient);
     loadFavoriteProducts();
 
