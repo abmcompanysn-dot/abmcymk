@@ -31,26 +31,62 @@
 </head>
 <body id="account-page" class="bg-gray-100 font-montserrat">
 
-    <!-- En-tête -->
-    <header class="bg-white shadow-md sticky top-0 z-50">
-        <div class="container mx-auto px-4 py-3">
-            <div class="flex justify-between items-center">
-                <a href="index.html" class="flex items-center">
-                    <img src="https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png" alt="ABMCY MARKET Logo" class="h-10">
-                </a>
-                <div class="flex items-center space-x-4">
-                    <a href="panier.html" aria-label="Panier" class="relative text-gray-600 hover:text-gold">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.658-.463 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007zM8.625 10.5a.375.375 0 11-.75 0 .375.375 0 01.75 0zm7.5 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" /></svg>
-                        <span class="cart-badge absolute -top-2 -right-2 bg-red-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center hidden">0</span>
+    <!-- En-tête et Navigation -->
+    <div class="sticky top-0 z-40 bg-white shadow-md">
+        <!-- En-tête -->
+        <header>
+            <div class="container mx-auto px-4 py-2">
+                <div class="flex items-center justify-between">
+                    <!-- Logo -->
+                    <a href="index.html" class="flex items-center">
+                        <img src="https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png" alt="ABMCY MARKET Logo" class="h-10">
                     </a>
-                    <a href="compte.html" class="text-gold font-semibold flex items-center gap-2">
-                        <span id="dashboard-user-name-link" class="hidden md:inline">Mon Compte</span>
-                        <div id="user-initials" class="w-8 h-8 rounded-full bg-gold text-white flex items-center justify-center text-sm font-bold"></div>
-                    </a>
+
+                    <!-- Barre de recherche -->
+                    <div class="flex-1 mx-4 relative">
+                        <form id="search-form-header" onsubmit="initializeSearch()">
+                            <div class="relative flex items-center bg-gray-100 rounded-full border-2 border-transparent focus-within:bg-white focus-within:border-gold transition">
+                                <svg class="w-5 h-5 text-gray-400 mx-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                                <input type="search" id="search-input-header" placeholder="Rechercher des produits, des marques et plus..." class="w-full py-2.5 pr-4 text-sm bg-transparent focus:outline-none" autocomplete="off">
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Icônes utilisateur -->
+                    <div class="flex items-center space-x-4">
+                        <a href="notification.html" aria-label="Notifications" class="text-gray-600 hover:text-gold"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 00-5-5.917V5a1 1 0 00-2 0v.083A6 6 0 006 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg></a>
+                        <a href="panier.html" aria-label="Panier" class="text-gray-600 hover:text-gold relative group">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.658-.463 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007zM8.625 10.5a.375.375 0 11-.75 0 .375.375 0 01.75 0zm7.5 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" /></svg>
+                            <span class="cart-badge absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center hidden">0</span>
+                        </a>
+                        <a href="compte.html" class="text-gold font-semibold flex items-center gap-2">
+                            <span id="dashboard-user-name-link" class="hidden md:inline">Mon Compte</span>
+                            <div id="user-initials" class="w-8 h-8 rounded-full bg-gold text-white flex items-center justify-center text-sm font-bold"></div>
+                        </a>
+                    </div>
                 </div>
             </div>
-        </div>
-    </header>
+        </header>
+
+        <!-- Navigation principale -->
+        <nav class="border-b border-t">
+            <div class="container mx-auto px-4">
+                <div class="flex items-center text-sm font-semibold">
+                    <div class="relative dropdown">
+                        <button class="flex items-center py-3">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+                            Toutes les catégories
+                        </button>
+                        <div id="mobileMenu" class="dropdown-menu absolute bg-white shadow-lg rounded-md mt-1 w-64 z-30 border">
+                            <!-- Le contenu du menu sera injecté ici par JS -->
+                        </div>
+                    </div>
+                    <!-- Les liens de navigation principaux seront injectés ici -->
+                    <div id="main-nav-links" class="flex items-center space-x-8 overflow-x-auto whitespace-nowrap ml-4"></div>
+                </div>
+            </div>
+        </nav>
+    </div>
 
     <main class="container mx-auto px-4 py-8 space-y-12">
         <!-- Section de bienvenue -->
