@@ -1709,9 +1709,11 @@ async function shareProduct(event, productId) {
 
     const imageUrl = product.ImageURL || CONFIG.DEFAULT_PRODUCT_IMAGE;
 
+    // NOUVEAU : Personnalisation du message de partage avec le prix.
+    const priceText = `${product.PrixActuel.toLocaleString('fr-FR')} F CFA`;
     const shareData = {
-        title: `Découvrez ${product.Nom} sur ABMCY MARKET`,
-        text: `Wow, regarde cette offre incroyable pour "${product.Nom}" sur ABMCY MARKET ! Je pense que ça va te plaire.\n\n${productUrl}`,
+        title: `À découvrir sur ABMCY MARKET : ${product.Nom}`,
+        text: `Wow, regarde cette offre pour "${product.Nom}" à seulement ${priceText} sur ABMCY MARKET ! Ça pourrait t'intéresser.\n\n${productUrl}`,
         url: productUrl,
     };
 
