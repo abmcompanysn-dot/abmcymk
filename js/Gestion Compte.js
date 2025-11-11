@@ -213,6 +213,7 @@ function connecterClient(data, origin) {
         if (data.isHash) {
             providedPasswordHash = data.motDePasse;
         } else {
+            // Comportement normal pour une connexion depuis le formulaire de login
             providedPasswordHash = hashPassword(data.motDePasse, salt).passwordHash;
         }
 

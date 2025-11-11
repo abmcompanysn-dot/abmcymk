@@ -1,6 +1,6 @@
 const CONFIG = {
     // NOUVEAU: URL de l'API CENTRALE qui gère maintenant tout (comptes, commandes, etc.)
-    ACCOUNT_API_URL:"https://script.google.com/macros/s/AKfycbwaDeb-u8gZzXb2QKrHUs0d6MwyOdDZKp3GplPnUW8eHOkHCvcE2ScWguhE91GD9LPrsw/exec",
+    ACCOUNT_API_URL:"https://script.google.com/macros/s/AKfycbzWPeWar4K34gsIJnuqxR0zX7qIz75_mkynqyHqcSu--10UbDby-AJk9-oug_lRW1daWQ/exec",
     // Les URL spécifiques pour commandes, livraisons et notifications sont maintenant obsolètes
     // car tout est géré par l'API centrale (ACCOUNT_API_URL).
     
@@ -73,6 +73,9 @@ async function initializeApp() {
         initializeOrderTrackingPage();
     }
 
+    // NOUVEAU: Charger les options de livraison depuis l'API centrale.
+    // Cela rend les frais de port dynamiques et gérables depuis le backend.
+    await loadDeliveryOptions();
 
     if (document.getElementById('countdown')) {
         startCountdown(); // Le compte à rebours est indépendant.
@@ -163,6 +166,28 @@ function initializeBannerTextAnimation() {
         }, 500); // Doit correspondre à la durée de la transition (duration-500)
 
     }, 5000); // Changer de phrase toutes les 5 secondes
+}
+
+/**
+ * NOUVEAU: Charge les options de livraison depuis l'API de gestion de compte.
+ */
+async function loadDeliveryOptions() {
+    try {
+        // On interroge l'API centrale avec l'action 'getDeliveryOptions'
+        const response = await fetch(`${CONFIG.ACCOUNT_API_URL}?action=getDeliveryOptions`);
+        if (!response.ok) {
+            throw new Error('La réponse du réseau pour les options de livraison n\'était pas bonne.');
+        }
+        const result = await response.json();
+        if (result.success && typeof result.data === 'object') {
+            DELIVERY_OPTIONS = result.data;
+            console.log("Options de livraison chargées avec succès:", DELIVERY_OPTIONS);
+        } else {
+            throw new Error(result.error || 'Les données de livraison reçues ne sont pas valides.');
+        }
+    } catch (error) {
+        console.error("Impossible de charger les options de livraison:", error);
+    }
 }
 
 /**
@@ -1112,12 +1137,6 @@ function initializeCheckoutPage() {
  * NOUVEAU: Remplit les sélecteurs de livraison sur la page de paiement.
  */
 function populateDeliverySelectorsCheckout() {
-    // Simulé pour l'instant, devrait venir de l'API de livraison
-    DELIVERY_OPTIONS = {
-        "Dakar": { "Dakar": { "Standard": 1500, "Express": 3000 } },
-        "Régions": { "Thiès": { "Standard": 2500 }, "Saint-Louis": { "Standard": 3500 } }
-    };
-
     const locationSelect = document.getElementById('delivery-location');
     const methodSelect = document.getElementById('delivery-method');
     if (!locationSelect || !methodSelect) return;
@@ -2106,10 +2125,41 @@ function switchTab(tabName) {
  * Affiche les informations de l'utilisateur.
  */
 async function initializeAccountPage() {
-    const user = JSON.parse(localStorage.getItem('abmcyUser'));
-    if (!user) { // Si pas d'utilisateur, redirection immédiate
+    let user = JSON.parse(localStorage.getItem('abmcyUser'));
+    if (!user) {
         window.location.href = 'authentification.html';
         return;
+    }
+
+    // NOUVEAU: Tenter de rafraîchir les données utilisateur depuis le serveur.
+    try {
+        const response = await fetch(CONFIG.ACCOUNT_API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain' },
+            body: JSON.stringify({
+                action: 'connecterClient',
+                data: { email: user.Email, motDePasse: user.PasswordHash, isHash: true } // Utilise le hash stocké
+            })
+        });
+        const result = await response.json();
+        if (result.success && result.user) {
+            user = result.user; // Mettre à jour l'objet utilisateur avec les données fraîches
+            localStorage.setItem('abmcyUser', JSON.stringify(user)); // Mettre à jour le cache local
+        } else {
+            // Si la récupération échoue (ex: compte supprimé), on déconnecte
+            throw new Error(result.error || "Session invalide, veuillez vous reconnecter.");
+        }
+    } catch (error) {
+        console.warn("Impossible de rafraîchir les données utilisateur. Utilisation des données en cache.", error.message);
+        // En cas d'erreur réseau ou de session invalide, on peut soit continuer avec le cache, soit déconnecter.
+        // Pour une meilleure expérience hors ligne, on continue avec le cache.
+        // Si l'erreur est "Session invalide", on pourrait vouloir déconnecter :
+        if (error.message.includes("Session invalide")) {
+            localStorage.removeItem('abmcyUser');
+            localStorage.removeItem('abmcyUserOrders');
+            window.location.href = 'authentification.html';
+            return;
+        }
     }
 
     // Afficher les informations de l'utilisateur
@@ -2126,7 +2176,7 @@ async function initializeAccountPage() {
     };
 
     document.getElementById('logout-link').addEventListener('click', logoutAction);
-    document.getElementById('logout-nav-link').addEventListener('click', logoutAction);
+    if(document.getElementById('logout-nav-link')) document.getElementById('logout-nav-link').addEventListener('click', logoutAction);
 
     // Charger et afficher les commandes récentes (avec le nouveau système de cache)
     loadRecentOrdersForAccount(user.IDClient);
