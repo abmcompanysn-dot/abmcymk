@@ -1,6 +1,6 @@
 const CONFIG = {
     // NOUVEAU: URL de l'API CENTRALE qui gère maintenant tout (comptes, commandes, etc.)
-    ACCOUNT_API_URL:"https://script.google.com/macros/s/AKfycbyeJUmc7yeQAL3QeUPh7MbVDVXx7TvKfHtxjFfKvga4r7GAqpofVtCYBcrvp0c61uo5Qg/exec",
+    ACCOUNT_API_URL:"https://script.google.com/macros/s/AKfycbylbiuPJLHk6ttaClyTYNI2IL2vLIPOFZVFxHBInf5KDPl7PUqKhb725Y276oO9jE4-4g/exec",
     // Les URL spécifiques pour commandes, livraisons et notifications sont maintenant obsolètes
     // car tout est géré par l'API centrale (ACCOUNT_API_URL).
     
@@ -33,6 +33,8 @@ document.addEventListener('DOMContentLoaded', () => {
  * Fonction principale ASYNCHRONE qui initialise l'application.
  */
 async function initializeApp() {
+    // NOUVEAU: Définir les paramètres de l'URL au début pour qu'ils soient accessibles partout.
+    const params = new URLSearchParams(window.location.search);
     const currentPage = window.location.pathname.split('/').pop();
 
     // Vérifier si l'utilisateur est sur la page de déconnexion
@@ -342,12 +344,31 @@ function addToCart(event, productId, name, price, imageUrl) {
  * @param {boolean} isError Si true, affiche une notification d'erreur.
  */
 function showToast(message, isError = false) {
-    const toastContainer = document.getElementById('toast-container');
+    // CORRECTION: Le conteneur est maintenant fixe en bas à droite dans le HTML.
+    const toastContainer = document.getElementById('toast-container'); 
     if (!toastContainer) return;
 
     const toast = document.createElement('div');
-    toast.textContent = message;
-    toast.className = `fixed bottom-20 left-1/2 -translate-x-1/2 px-6 py-3 rounded-full text-white shadow-lg transition-all duration-300 transform translate-y-10 opacity-0 ${isError ? 'bg-red-600' : 'bg-gray-800'}`;
+    
+    // NOUVEAU: Icônes pour un feedback visuel immédiat.
+    const icon = isError 
+        ? `<svg class="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>`
+        : `<svg class="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>`;
+
+    // NOUVEAU: Structure HTML plus riche pour la notification.
+    toast.innerHTML = `
+        <div class="flex items-center">
+            <div class="flex-shrink-0">
+                ${icon}
+            </div>
+            <div class="ml-3">
+                <p class="text-sm font-medium text-gray-900">${message}</p>
+            </div>
+        </div>
+    `;
+    
+    // NOUVEAU: Classes pour un style de carte moderne en bas à droite.
+    toast.className = `w-full max-w-sm bg-white shadow-lg rounded-lg pointer-events-auto ring-1 ring-black ring-opacity-5 overflow-hidden transition-all duration-300 transform translate-y-10 opacity-0 mb-4`;
     
     toastContainer.appendChild(toast);
 
@@ -2121,21 +2142,31 @@ function switchTab(tabName) {
  * Affiche les informations de l'utilisateur.
  */
 async function initializeAccountPage() {
-    const user = JSON.parse(localStorage.getItem('abmcyUser'));
-    if (!user) {
+    const userFromCache = JSON.parse(localStorage.getItem('abmcyUser'));
+    if (!userFromCache) {
         window.location.href = 'authentification.html';
         return;
     }
 
     // --- AMÉLIORATION: Affichage instantané des données en cache ---
     // Affiche immédiatement les informations de l'utilisateur pour une meilleure réactivité.
-    displayUserData(user);
+    displayUserData(userFromCache);
 
     // --- Chargement des données du compte ---
     // Les informations personnelles sont déjà affichées depuis le cache.
     // On charge maintenant les commandes et les favoris.
-    loadRecentOrdersForAccount(user.IDClient);
+    loadRecentOrdersForAccount(userFromCache.IDClient);
     loadFavoriteProducts();
+
+    // NOUVEAU: Logique pour la modale de modification du profil
+    const editModal = document.getElementById('edit-profile-modal');
+    if (editModal) {
+        document.getElementById('open-edit-modal-btn').addEventListener('click', () => openEditProfileModal(userFromCache));
+        document.getElementById('close-edit-modal-btn').addEventListener('click', closeEditProfileModal);
+        document.getElementById('cancel-edit-btn').addEventListener('click', closeEditProfileModal);
+        document.getElementById('edit-profile-form').addEventListener('submit', (e) => handleUpdateProfile(e, userFromCache.IDClient));
+    }
+
 
     // Logique de déconnexion
     const logoutAction = (e) => {
@@ -2158,6 +2189,86 @@ function handleLogout() {
     localStorage.removeItem('abmcyCart');
     localStorage.removeItem('abmcyFavorites');
     window.location.href = 'authentification.html';
+}
+
+/**
+ * NOUVEAU: Ouvre la fenêtre modale pour modifier le profil et la pré-remplit.
+ * @param {object} user - L'objet utilisateur actuel.
+ */
+function openEditProfileModal(user) {
+    document.getElementById('edit-nom').value = user.Nom || '';
+    document.getElementById('edit-email').value = user.Email || '';
+    document.getElementById('edit-telephone').value = user.Telephone || '';
+    document.getElementById('edit-adresse').value = user.Adresse || '';
+    document.getElementById('edit-profile-status').textContent = ''; // Vider les messages de statut
+    document.getElementById('edit-profile-modal').classList.remove('hidden');
+}
+
+/**
+ * NOUVEAU: Ferme la fenêtre modale de modification du profil.
+ */
+function closeEditProfileModal() {
+    document.getElementById('edit-profile-modal').classList.add('hidden');
+}
+
+/**
+ * NOUVEAU: Gère la soumission du formulaire de mise à jour du profil.
+ * @param {Event} event - L'événement de soumission du formulaire.
+ * @param {string} clientId - L'ID du client à mettre à jour.
+ */
+async function handleUpdateProfile(event, clientId) {
+    event.preventDefault();
+    const form = event.target;
+    const statusDiv = document.getElementById('edit-profile-status');
+    const submitButton = form.querySelector('button[type="submit"]');
+
+    statusDiv.textContent = 'Enregistrement...';
+    statusDiv.className = 'text-center font-semibold text-gray-600';
+    submitButton.disabled = true;
+
+    const updatedData = {
+        Nom: document.getElementById('edit-nom').value,
+        Telephone: document.getElementById('edit-telephone').value,
+        Adresse: document.getElementById('edit-adresse').value
+    };
+
+    try {
+        const response = await fetch(CONFIG.ACCOUNT_API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain' },
+            body: JSON.stringify({
+                action: 'updateUserProfile', // Nouvelle action à créer dans l'API
+                data: {
+                    clientId: clientId,
+                    updatedData: updatedData
+                }
+            })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            statusDiv.textContent = 'Profil mis à jour avec succès !';
+            statusDiv.className = 'text-center font-semibold text-green-600';
+
+            // Mettre à jour les données dans le localStorage
+            let user = JSON.parse(localStorage.getItem('abmcyUser'));
+            user = { ...user, ...updatedData };
+            localStorage.setItem('abmcyUser', JSON.stringify(user));
+
+            // Mettre à jour l'affichage sur la page
+            displayUserData(user);
+
+            setTimeout(closeEditProfileModal, 1500);
+        } else {
+            throw new Error(result.error || 'Une erreur est survenue.');
+        }
+    } catch (error) {
+        statusDiv.textContent = `Erreur : ${error.message}`;
+        statusDiv.className = 'text-center font-semibold text-red-600';
+    } finally {
+        submitButton.disabled = false;
+    }
 }
 
 /**

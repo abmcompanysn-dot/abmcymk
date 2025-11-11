@@ -97,6 +97,8 @@ function doPost(e) {
                 return connecterClient(data, origin);
             case 'getOrderById': // NOUVEAU
                 return getOrderById(data, origin);
+            case 'updateUserProfile': // NOUVEAU: Pour modifier le profil
+                return updateUserProfile(data, origin);
             case 'updateUserAddress': // NOUVEAU: Pour modifier l'adresse
                 return updateUserAddress(data, origin);
             case 'getOrdersByClientId':
@@ -531,6 +533,51 @@ function getOrderById(data, origin) {
         return createJsonResponse({ success: false, error: error.message }, origin);
     }
 }
+
+/**
+ * NOUVEAU: Met à jour les informations d'un profil utilisateur.
+ * @param {object} data - Contient { clientId, updatedData: { Nom, Telephone, Adresse } }.
+ * @param {string} origin - L'origine de la requête.
+ * @returns {GoogleAppsScript.Content.TextOutput} Réponse JSON.
+ */
+function updateUserProfile(data, origin) {
+    try {
+        if (!data.clientId || !data.updatedData) {
+            throw new Error("Données de mise à jour incomplètes.");
+        }
+
+        const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.USERS);
+        const allUsers = sheet.getDataRange().getValues();
+        const headers = allUsers.shift() || [];
+        
+        const idClientIndex = headers.indexOf("IDClient");
+        const rowIndex = allUsers.findIndex(row => row[idClientIndex] === data.clientId);
+
+        if (rowIndex === -1) {
+            return createJsonResponse({ success: false, error: "Utilisateur non trouvé." }, origin);
+        }
+
+        // Mettre à jour les colonnes spécifiques
+        const rowToUpdate = rowIndex + 2; // +1 pour l'index 0, +1 pour la ligne d'en-tête
+        const { Nom, Telephone, Adresse } = data.updatedData;
+
+        const nomIndex = headers.indexOf("Nom");
+        const telIndex = headers.indexOf("Telephone");
+        const adresseIndex = headers.indexOf("Adresse");
+
+        if (nomIndex > -1 && Nom !== undefined) sheet.getRange(rowToUpdate, nomIndex + 1).setValue(Nom);
+        if (telIndex > -1 && Telephone !== undefined) sheet.getRange(rowToUpdate, telIndex + 1).setValue(Telephone);
+        if (adresseIndex > -1 && Adresse !== undefined) sheet.getRange(rowToUpdate, adresseIndex + 1).setValue(Adresse);
+
+        logAction('updateUserProfile', { clientId: data.clientId });
+        return createJsonResponse({ success: true, message: "Profil mis à jour avec succès." }, origin);
+
+    } catch (error) {
+        logError(JSON.stringify({ action: 'updateUserProfile', data }), error);
+        return createJsonResponse({ success: false, error: error.message }, origin);
+    }
+}
+
 
 /**
  * NOUVEAU: Met à jour l'adresse d'un utilisateur.
