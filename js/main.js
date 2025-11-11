@@ -449,14 +449,15 @@ function updateCartSummary() {
     if (!document.getElementById('summary-subtotal')) return;
 
     const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);    
-    // Les frais de livraison sont maintenant calculés sur la page de paiement.
-    const shippingCost = parseFloat(localStorage.getItem('shippingCost') || 0);
-
-    const total = subtotal + shippingCost;
+    // AMÉLIORATION: Sur la page panier, on ne calcule pas encore les frais de livraison.
+    // On indique simplement qu'ils seront calculés à l'étape suivante.
+    const shippingCostText = "Calculée à l'étape suivante";
+    const total = subtotal; // Le total sur cette page est juste le sous-total.
 
     document.getElementById('summary-subtotal').textContent = `${subtotal.toLocaleString('fr-FR')} F CFA`;
-    document.getElementById('summary-shipping').textContent = shippingCost > 0 ? `${shippingCost.toLocaleString('fr-FR')} F CFA` : 'Gratuite';
+    document.getElementById('summary-shipping').textContent = shippingCostText;
     document.getElementById('summary-total').textContent = `${total.toLocaleString('fr-FR')} F CFA`;
+    // Le total affiché est maintenant le sous-total, ce qui est correct pour la page panier.
 }
 
 /**
