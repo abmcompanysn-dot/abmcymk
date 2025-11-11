@@ -2130,7 +2130,7 @@ async function initializeAccountPage() {
 
     // Charger et afficher les commandes récentes (avec le nouveau système de cache)
     loadRecentOrdersForAccount(user.IDClient);
-    loadFavoriteProducts();
+    loadFavoriteProducts(); // NOUVEAU: Charger les produits favoris
 }
 
 /**
@@ -2251,7 +2251,50 @@ function renderOrders(orders, container) {
     container.innerHTML = ordersHTML;
 }
 
-// --- NOUVEAU: LOGIQUE DES FAVORIS ---
+/**
+ * NOUVEAU: Charge et affiche les produits favoris sur la page de compte.
+ */
+async function loadFavoriteProducts() {
+    const container = document.getElementById('favorite-products-section');
+    if (!container) return;
+
+    const favoriteIds = getFavorites();
+    if (favoriteIds.length === 0) {
+        container.innerHTML = '<h2 class="text-xl font-bold text-gray-800 mb-4">Mes produits favoris</h2><p class="text-gray-500">Vous n\'avez aucun produit en favori pour le moment.</p>';
+        return;
+    }
+
+    container.innerHTML = '<h2 class="text-xl font-bold text-gray-800 mb-4">Mes produits favoris</h2><div class="loader mx-auto"></div>';
+
+    try {
+        const catalog = await getCatalogAndRefreshInBackground();
+        const allProducts = catalog.data.products || [];
+
+        const favoriteProducts = allProducts.filter(p => favoriteIds.includes(p.IDProduit));
+
+        if (favoriteProducts.length === 0) {
+            container.innerHTML = '<h2 class="text-xl font-bold text-gray-800 mb-4">Mes produits favoris</h2><p class="text-gray-500">Certains de vos favoris ne sont plus disponibles.</p>';
+            return;
+        }
+
+        // Utiliser un conteneur de défilement horizontal pour les favoris
+        const productsHTML = favoriteProducts.map(p => `
+            <div class="flex-shrink-0 w-2/3 sm:w-1/2 md:w-1/3 lg:w-1/4 p-2">
+                ${renderProductCard(p)}
+            </div>
+        `).join('');
+
+        container.innerHTML = `
+            <h2 class="text-xl font-bold text-gray-800 mb-4">Mes produits favoris</h2>
+            <div class="horizontal-scroll-container flex overflow-x-auto -mx-2">
+                ${productsHTML}
+            </div>
+        `;
+    } catch (error) {
+        console.error("Erreur lors du chargement des favoris:", error);
+        container.innerHTML = '<h2 class="text-xl font-bold text-gray-800 mb-4">Mes produits favoris</h2><p class="text-red-500">Impossible de charger vos favoris.</p>';
+    }
+}
 
 /**
  * Récupère les favoris depuis le localStorage.

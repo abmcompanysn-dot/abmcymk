@@ -2,10 +2,10 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Mon Compte - ABMCY MARKET</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap">
     <style>
         :root { --gold-color: #D4AF37; }
         .font-montserrat { font-family: 'Montserrat', sans-serif; }
@@ -24,74 +24,109 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+        /* NOUVEAU: Pour cacher la scrollbar sur les sections de produits */
+        .horizontal-scroll-container::-webkit-scrollbar { display: none; }
+        .horizontal-scroll-container { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 </head>
 <body class="bg-gray-100 font-montserrat">
 
     <!-- En-tête -->
-    <header class="bg-white shadow-sm sticky top-0 z-50">
+    <header class="bg-white shadow-md sticky top-0 z-50">
         <div class="container mx-auto px-4 py-3">
             <div class="flex justify-between items-center">
                 <a href="index.html" class="flex items-center">
-                    <img src="https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png" alt="ABMCY MARKET Logo" class="h-8">
+                    <img src="https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png" alt="ABMCY MARKET Logo" class="h-10">
                 </a>
                 <div class="flex items-center space-x-4">
                     <a href="panier.html" aria-label="Panier" class="relative text-gray-600 hover:text-gold">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 10V6a4 4 0 00-8 0v4M5 10h14l-1 10H6L5 10z"></path></svg>
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.658-.463 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007zM8.625 10.5a.375.375 0 11-.75 0 .375.375 0 01.75 0zm7.5 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" /></svg>
                         <span class="cart-badge absolute -top-2 -right-2 bg-red-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center hidden">0</span>
                     </a>
-                    <a href="compte.html" class="text-gold font-semibold">Mon Compte</a>
+                    <a href="compte.html" class="text-gold font-semibold flex items-center gap-2">
+                        <span id="dashboard-user-name-link" class="hidden md:inline">Mon Compte</span>
+                        <div id="user-initials" class="w-8 h-8 rounded-full bg-gold text-white flex items-center justify-center text-sm font-bold"></div>
+                    </a>
                 </div>
             </div>
         </div>
     </header>
 
-    <main class="container mx-auto px-4 py-8">
-        <div class="flex flex-col md:flex-row gap-8">
-            <!-- Menu de navigation du compte -->
-            <aside class="w-full md:w-1/4">
-                <div class="bg-white p-4 rounded-lg shadow">
-                    <div class="flex items-center space-x-4 mb-6">
-                        <div id="user-initials-avatar" class="w-12 h-12 rounded-full bg-gold text-white flex items-center justify-center text-xl font-bold">
-                            <!-- Les initiales seront injectées ici -->
-                        </div>
-                        <div>
-                            <p class="font-semibold text-gray-800" id="dashboard-user-name">Chargement...</p>
-                            <p class="text-sm text-gray-500" id="user-email-display">...</p>
-                        </div>
-                    </div>
-                    <nav class="space-y-2">
-                        <a href="#" class="flex items-center px-4 py-2 text-white bg-gray-800 rounded-md">
-                            <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"></path></svg>
-                            Mes commandes
-                        </a>
-                        <a href="#" id="logout-link" class="flex items-center px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-md">
-                            <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
-                            Déconnexion
-                        </a>
-                    </nav>
-                </div>
-            </aside>
+    <main class="container mx-auto px-4 py-8 space-y-12">
+        <!-- Section de bienvenue -->
+        <div>
+            <h1 class="text-3xl font-bold text-gray-800">Bonjour, <span id="user-name-display">Chargement...</span> !</h1>
+            <p class="text-gray-600 mt-1">Bienvenue sur votre tableau de bord personnel.</p>
+        </div>
 
-            <!-- Contenu principal du compte -->
-            <section class="w-full md:w-3/4">
-                <div class="bg-white p-6 rounded-lg shadow">
-                    <h1 class="text-2xl font-bold text-gray-800 mb-6">Mes commandes récentes</h1>
+        <!-- Grille principale du tableau de bord -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            
+            <!-- Colonne principale (Commandes et Favoris) -->
+            <div class="lg:col-span-2 space-y-8">
+                <!-- Section Mes Commandes -->
+                <section class="bg-white p-6 rounded-lg shadow-md">
                     <div id="recent-orders-section">
-                        <!-- Le contenu des commandes sera injecté ici par JavaScript -->
-                        <div class="flex justify-center items-center py-10">
-                            <div class="loader"></div>
-                        </div>
+                        <h2 class="text-xl font-bold text-gray-800 mb-4">Mes commandes récentes</h2>
+                        <div class="flex justify-center items-center py-10"><div class="loader"></div></div>
                         <p class="text-center text-gray-500 mt-2">Chargement de vos commandes...</p>
                     </div>
-                </div>
-            </section>
+                </section>
+
+                <!-- NOUVEAU: Section Mes Favoris -->
+                <section class="bg-white p-6 rounded-lg shadow-md">
+                    <div id="favorite-products-section">
+                        <h2 class="text-xl font-bold text-gray-800 mb-4">Mes produits favoris</h2>
+                        <p class="text-gray-500">Vous n'avez aucun produit en favori pour le moment.</p>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Colonne latérale (Infos et Actions) -->
+            <div class="space-y-8">
+                <!-- Section Informations Personnelles -->
+                <section class="bg-white p-6 rounded-lg shadow-md">
+                    <h2 class="text-xl font-bold text-gray-800 mb-4">Mes informations</h2>
+                    <div class="space-y-3 text-sm">
+                        <div class="flex justify-between">
+                            <span class="text-gray-500">Nom:</span>
+                            <span id="dashboard-user-name" class="font-semibold text-gray-800">Chargement...</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-500">Email:</span>
+                            <span id="user-email-display" class="font-semibold text-gray-800">...</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-500">Téléphone:</span>
+                            <span id="user-phone-display" class="font-semibold text-gray-800">...</span>
+                        </div>
+                        <div class="flex justify-between items-start">
+                            <span class="text-gray-500">Adresse:</span>
+                            <span id="user-address-display" class="font-semibold text-gray-800 text-right">...</span>
+                        </div>
+                    </div>
+                    <button class="mt-6 w-full text-sm text-blue-600 hover:underline font-semibold">Modifier mes informations</button>
+                </section>
+
+                <!-- Section Actions Rapides -->
+                <section class="bg-white p-6 rounded-lg shadow-md">
+                    <h2 class="text-xl font-bold text-gray-800 mb-4">Actions rapides</h2>
+                    <nav class="space-y-2">
+                        <a href="suivi-commande.html" class="flex items-center px-4 py-3 text-gray-700 bg-gray-50 hover:bg-gray-100 rounded-md transition">
+                            <svg class="w-5 h-5 mr-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                            Suivre une commande
+                        </a>
+                        <a href="#" id="logout-nav-link" class="flex items-center px-4 py-3 text-gray-700 bg-gray-50 hover:bg-gray-100 rounded-md transition">
+                            <svg class="w-5 h-5 mr-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                            Se déconnecter
+                        </a>
+                    </nav>
+                </section>
+            </div>
         </div>
     </main>
 
-    <footer class="text-center py-6 mt-12 text-sm text-gray-500">
-        <p>&copy; 2024 ABMCY MARKET. Tous droits réservés.</p>
-    </footer>
+    <!-- Le footer a été retiré car il est déjà présent dans les autres pages. Si cette page est autonome, il faudrait le remettre. -->
 
     <!-- Conteneur pour les notifications toast -->
     <div id="toast-container" class="fixed bottom-5 right-5 z-50"></div>
@@ -99,4 +134,3 @@
     <script src="js/main.js"></script>
 </body>
 </html>
-
