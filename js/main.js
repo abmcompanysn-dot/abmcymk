@@ -2713,7 +2713,7 @@ function createOrderTrackingHTML(order) {
             <div class="border-t pt-6 mt-6 bg-gray-50 p-4 rounded-lg">
                 <h4 class="font-semibold text-lg mb-3">Un problème avec votre commande ?</h4>
                 <p class="text-sm text-gray-600 mb-4">Notre service client est là pour vous aider. Contactez-nous via l'un des canaux ci-dessous.</p>
-                <div class="flex flex-col sm:flex-row gap-4"> // CORRECTION: L'apostrophe dans "j'ai" a été remplacée par son entité HTML `&apos;` pour éviter de casser la chaîne de caractères.
+                <div class="flex flex-col sm:flex-row gap-4">
                     <a href="https://wa.me/221769047999?text=Bonjour, j'ai une question concernant ma commande #${order.IDCommande}" target="_blank" class="flex-1 text-center bg-green-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-600 transition">
                         Contacter sur WhatsApp
                     </a>
