@@ -8,7 +8,7 @@ const CONFIG = {
     CENTRAL_API_URL: "https://script.google.com/macros/s/AKfycbzOIugCMx16XP3kGtJ25PMYJoss7dPGGGpae_bOTNeR6j7L_QrG2uvkTlyvb4jjxghG/exec",
     
     // Autres configurations
-    DEFAULT_PRODUCT_IMAGE: "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png",
+    DEFAULT_PRODUCT_IMAGE: "logo/l.svg",
 };
 
 // Variables globales pour le chargement progressif de la page d'accueil
@@ -848,16 +848,43 @@ function loadProductPage(catalog) {
         descriptionEl.classList.remove('h-20', 'bg-gray-200', 'animate-pulse');
         mainImage.parentElement.classList.remove('animate-pulse');
 
-        // Remplir les données
+        // SEO: Remplir les données de base et les méta-tags
         nameEl.textContent = product.Nom;
         descriptionEl.textContent = product.Description;
 
         // NOUVEAU: Mettre à jour les méta-tags Open Graph pour le partage
-        document.querySelector('meta[property="og:title"]').setAttribute('content', product.Nom);
-        document.querySelector('meta[property="og:description"]').setAttribute('content', product.Description || `Découvrez ${product.Nom} sur ABMCY MARKET.`);
+        document.querySelector('meta[property="og:title"]').setAttribute('content', `${product.Nom} - ABMCY MARKET Sénégal`);
+        document.querySelector('meta[property="og:description"]').setAttribute('content', product.Description || `Découvrez ${product.Nom} au meilleur prix au Sénégal.`);
         document.querySelector('meta[property="og:image"]').setAttribute('content', product.ImageURL || CONFIG.DEFAULT_PRODUCT_IMAGE);
         document.querySelector('meta[property="og:url"]').setAttribute('content', window.location.href);
-        document.querySelector('title').textContent = `${product.Nom} - ABMCY MARKET`;
+        document.querySelector('title').textContent = `${product.Nom} - ABMCY MARKET Sénégal`;
+
+        // SEO: Générer les données structurées JSON-LD pour un meilleur référencement
+        const structuredData = {
+            "@context": "https://schema.org/",
+            "@type": "Product",
+            "name": product.Nom,
+            "image": product.ImageURL || CONFIG.DEFAULT_PRODUCT_IMAGE,
+            "description": product.Description,
+            "sku": product.IDProduit,
+            "brand": {
+                "@type": "Brand",
+                "name": product.Marque || "ABMCY MARKET"
+            },
+            "offers": {
+                "@type": "Offer",
+                "url": window.location.href,
+                "priceCurrency": "XOF", // Code pour le Franc CFA
+                "price": product.PrixActuel,
+                "availability": product.Stock > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+                "seller": {
+                    "@type": "Organization",
+                    "name": "ABMCY MARKET Sénégal"
+                }
+            }
+        };
+        document.getElementById('product-structured-data').textContent = JSON.stringify(structuredData);
+
 
         // CORRECTION: Charger l'image immédiatement
         mainImage.src = product.ImageURL || CONFIG.DEFAULT_PRODUCT_IMAGE;
