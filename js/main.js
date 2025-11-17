@@ -1,6 +1,6 @@
 const CONFIG = {
     // NOUVEAU: URL de l'API CENTRALE qui gère maintenant tout (comptes, commandes, etc.)
-    ACCOUNT_API_URL:"https://script.google.com/macros/s/AKfycbw4Agvax6OZGgUwN-DohYQUDheWVSF4MPmPc1nfkcN75WITIPcE3TphuFxXA8HSCvFhHA/exec",
+    ACCOUNT_API_URL:"https://script.google.com/macros/s/AKfycbznYMJ9HyV4UjBpb0qlPoEz9bxeGBqkpsTB9sBcg29euSJ7JUVJjU1MHIs6dzZV3maSZw/exec",
     // Les URL spécifiques pour commandes, livraisons et notifications sont maintenant obsolètes
     // car tout est géré par l'API centrale (ACCOUNT_API_URL).
     
@@ -1434,9 +1434,9 @@ async function processCheckout(event) {
     let action = '';
     let paymentNote = '';
 
-    if (customerData.paymentMethod === 'paydunya') {
-        action = 'createPaydunyaInvoice';
-        paymentNote = 'Paydunya (en ligne)';
+    if (customerData.paymentMethod === 'mobile-money') {
+        action = 'createMobileMoneyInvoice'; // NOUVEAU: Action générique
+        paymentNote = 'Mobile Money (en ligne)';
     } else { // 'cod' pour Cash On Delivery
         action = 'enregistrerCommandeEtNotifier';
         paymentNote = 'Paiement à la livraison';
@@ -1484,7 +1484,7 @@ async function processCheckout(event) {
             statusDiv.className = 'mt-4 text-center font-semibold text-green-600';
             saveCart([]); // Vider le panier après la commande
 
-            if (customerData.paymentMethod === 'paydunya') {
+            if (customerData.paymentMethod === 'mobile-money') {
                 statusDiv.textContent = `Facture créée. Redirection vers la page de paiement...`;
                 // Rediriger l'utilisateur vers l'URL de paiement de Paydunya
                 localStorage.removeItem('abmcyUserOrders'); // Invalider le cache des commandes
@@ -1505,20 +1505,12 @@ async function processCheckout(event) {
 
         // Vérifier les erreurs réseau côté client (ex: pas de connexion internet)
         if (error.message.includes("Failed to fetch") || error.message.includes("NetworkError")) {
-            userFriendlyMessage = "Impossible de contacter le service de paiement. Veuillez vérifier votre connexion internet ou réessayer plus tard.";
+            userFriendlyMessage = "Impossible de contacter nos serveurs. Veuillez vérifier votre connexion internet ou réessayer plus tard.";
+        } else if (error.message.includes("Aucun service de paiement mobile n'est actif.")) {
+            userFriendlyMessage = "Le service de paiement en ligne est temporairement indisponible. Veuillez choisir le paiement à la livraison ou réessayer plus tard.";
+        } else if (error.message.includes("Erreur Paydunya") || error.message.includes("Erreur PawaPay")) {
+            userFriendlyMessage = `Le service de paiement a rencontré un problème : ${error.message}. Veuillez réessayer ou choisir une autre méthode.`;
         }
-        // Vérifier les erreurs spécifiques à Paydunya remontées par le backend
-        else if (error.message.includes("Erreur Paydunya")) {
-            const payduniaErrorDetail = error.message.split("Erreur Paydunya:")[1]?.trim();
-            if (payduniaErrorDetail && payduniaErrorDetail.includes("Erreur DNS")) {
-                userFriendlyMessage = `Le service de paiement Paydunya est temporairement indisponible. Veuillez réessayer dans quelques instants.`;
-            } else if (payduniaErrorDetail) {
-                userFriendlyMessage = `Le service de paiement Paydunya a rencontré un problème: ${payduniaErrorDetail}. Veuillez réessayer ou contacter le support.`;
-            } else {
-                userFriendlyMessage = `Le service de paiement Paydunya a rencontré un problème inattendu. Veuillez réessayer ou contacter le support.`;
-            }
-        }
-        // Erreur générique de l'API backend (si result.error n'était pas spécifique)
         else if (error.message.includes("Une erreur inconnue est survenue.")) {
             userFriendlyMessage = "Une erreur est survenue lors de la communication avec notre serveur. Veuillez réessayer.";
         }

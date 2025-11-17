@@ -51,6 +51,14 @@ function doGet(e) {
         return createJsonResponse({ success: true, data: config.delivery_options || {} }, origin);
     }
 
+    // NOUVEAU: Action pour servir la page du tableau de bord administrateur
+    if (action === 'showAdminDashboard') {
+        // Note: Idéalement, ajoutez une vérification ici pour s'assurer que seul un admin peut voir cette page.
+        return HtmlService.createHtmlOutputFromFile('admin_dashboard')
+            .setTitle('Tableau de Bord Admin - ABMCY MARKET')
+            .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+    }
+
     // Réponse par défaut pour un simple test de l'API
     // CORRECTION: N'appelle plus addCorsHeaders
     return createJsonResponse({
@@ -97,8 +105,23 @@ function doPost(e) {
                 return connecterClient(data, origin);
             case 'getOrderById': // NOUVEAU
                 return getOrderById(data, origin);
+            case 'getAllUsers': // NOUVEAU: Pour le panneau admin
+                return getAllUsers(data, origin);
             case 'updateUserProfile': // NOUVEAU: Pour modifier le profil
                 return updateUserProfile(data, origin);
+            // NOUVEAU: Actions pour le panneau d'administration des paiements
+            case 'getPaymentSettings':
+                return getPaymentSettings(data, origin);
+            case 'savePaymentSettings':
+                return savePaymentSettings(data, origin);
+            case 'getRecentTransactions': // NOUVEAU: Pour le tableau de bord admin
+                return getRecentTransactions(data, origin);
+            case 'exportOrdersToCSV': // NOUVEAU: Pour exporter les commandes
+                return exportOrdersToCSV(origin);
+            case 'getSalesDataForChart': // NOUVEAU: Pour le graphique des ventes
+                return getSalesDataForChart(origin);
+            case 'updateOrderStatus': // NOUVEAU: Pour modifier le statut d'une commande
+                return updateOrderStatus(data, origin);
             case 'updateUserAddress': // NOUVEAU: Pour modifier l'adresse
                 return updateUserAddress(data, origin);
             case 'getOrdersByClientId':
@@ -111,6 +134,15 @@ function doPost(e) {
                 const orderData = JSON.parse(orderResult.getContent());
                 if (orderData.success) { sendOrderConfirmationEmail(orderData, data, "cod"); }
                 return orderResult;
+            // NOUVEAU: Action générique qui décide quel agrégateur utiliser
+            case 'createMobileMoneyInvoice':
+                const mobileMoneyConfig = getConfig();
+                if (mobileMoneyConfig.DEFAULT_AGGREGATOR === 'pawapay' && mobileMoneyConfig.PAWAPAY_ACTIVE === 'true') {
+                    return createPawaPayRequest(data, origin);
+                } else if (mobileMoneyConfig.DEFAULT_AGGREGATOR === 'paydunya' && mobileMoneyConfig.PAYDUNYA_ACTIVE === 'true') {
+                    return createPaydunyaInvoice(data, origin);
+                }
+                return createJsonResponse({ success: false, error: "Aucun service de paiement mobile n'est actif." }, origin);
             case 'logClientEvent':
                 return logClientEvent(data, origin);
             // NOUVEAU: Gérer le webhook de Paydunya
@@ -119,6 +151,11 @@ function doPost(e) {
                 // donc e.parameter sera utilisé.
                 logAction('paydunia-webhook', e.parameter);
                 handlePaydunyaWebhook(e); // On passe l'événement complet 'e'
+                return createJsonResponse({ success: true }, origin);
+            // NOUVEAU: Gérer le webhook de PawaPay
+            case 'pawapay-webhook':
+                logAction('pawapay-webhook', e.postData.contents);
+                handlePawaPayWebhook(e);
                 return createJsonResponse({ success: true }, origin);
             default:
                 logAction('doPost', { error: 'Action non reconnue', action: action });
@@ -401,7 +438,97 @@ function createPaydunyaInvoice(data, origin) {
 
     } catch (error) {
         logError(JSON.stringify({ action: 'createPaydunyaInvoice', data }), error);
+        sendPaymentFailureEmail('Paydunya', error, data); // NOUVEAU: Alerte email
         return createJsonResponse({ success: false, error: `Erreur Paydunya: ${error.message}` }, origin);
+    } finally {
+        lock.releaseLock();
+    }
+}
+
+/**
+ * NOUVEAU: Crée une requête de paiement PawaPay.
+ * @param {object} data - Les données de la commande.
+ * @param {string} origin - L'origine de la requête.
+ * @returns {GoogleAppsScript.Content.TextOutput} Réponse JSON avec l'URL de paiement ou une erreur.
+ */
+function createPawaPayRequest(data, origin) {
+    const lock = LockService.getScriptLock();
+    lock.waitLock(30000);
+
+    try {
+        const config = getConfig();
+        if (config.PAWAPAY_ACTIVE !== 'true') {
+            throw new Error("PawaPay n'est pas activé.");
+        }
+
+        const orderSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.ORDERS);
+        const idCommande = "CMD-" + new Date().getTime();
+
+        // 1. Enregistrer la commande avec un statut "En attente de paiement"
+        const produitsDetails = data.produits.map(p => `${p.name} (x${p.quantity})`).join(', ');
+        orderSheet.appendRow([
+            idCommande, data.idClient, produitsDetails,
+            data.total, "En attente de paiement (PawaPay)", new Date(),
+            false, false, false, false, // Etapes de suivi
+            data.adresseLivraison, "PawaPay", data.notes || ''
+        ]);
+
+        // 2. Préparer la requête pour l'API PawaPay
+        // Note: L'URL fournie était pour les "payouts". Pour recevoir un paiement, on utilise généralement "deposits".
+        const PAWAPAY_API_URL = "https://api.sandbox.pawapay.io/deposits";
+        const depositId = Utilities.getUuid(); // ID unique pour cette transaction
+
+        const pawaPayload = {
+            depositId: depositId,
+            amount: String(data.total), // PawaPay attend un string pour le montant
+            currency: "XOF",
+            country: "SEN", // Code ISO du pays (Sénégal)
+            reason: `Paiement commande ${idCommande}`,
+            depositor: {
+                type: "PERSON",
+                address: { country: "SEN" },
+                firstName: data.customer.name.split(' ')[0],
+                lastName: data.customer.name.split(' ').slice(1).join(' ') || data.customer.name.split(' ')[0]
+            },
+            // L'URL de callback doit être enregistrée dans votre dashboard PawaPay
+            // PawaPay enverra une notification à cette URL après la transaction.
+            // Nous ajoutons l'ID de commande pour le suivi.
+            "notificationUrl": {
+                "url": ScriptApp.getService().getUrl() + "?action=pawapay-webhook"
+            },
+            metadata: {
+                orderId: idCommande,
+                clientId: data.idClient
+            }
+        };
+
+        const options = {
+            'method': 'post',
+            'contentType': 'application/json',
+            'headers': {
+                'Authorization': 'Bearer ' + config.PAWAPAY_API_KEY // PawaPay utilise un Bearer Token
+            },
+            'payload': JSON.stringify(pawaPayload),
+            'muteHttpExceptions': true
+        };
+
+        const response = UrlFetchApp.fetch(PAWAPAY_API_URL, options);
+        const responseCode = response.getResponseCode();
+        const responseText = response.getContentText();
+        const responseData = JSON.parse(responseText);
+
+        if (responseCode >= 200 && responseCode < 300 && responseData.redirectUrl) {
+            // La requête a réussi, PawaPay a retourné une URL de redirection
+            return createJsonResponse({ success: true, payment_url: responseData.redirectUrl }, origin);
+        } else {
+            // Erreur de l'API PawaPay
+            throw new Error(responseData.error || responseData.message || `Erreur PawaPay: ${responseText}`);
+        }
+
+    } catch (error) {
+        logError(JSON.stringify({ action: 'createPawaPayRequest', data }), error);
+        sendPaymentFailureEmail('PawaPay', error, data); // NOUVEAU: Alerte email
+        return createJsonResponse({ success: false, error: `Erreur PawaPay: ${error.message}` }, origin);
     } finally {
         lock.releaseLock();
     }
@@ -440,6 +567,83 @@ function sendOrderConfirmationEmail(orderData, originalData, type) {
         }
     } catch (error) {
         logError('sendOrderConfirmationEmail', error);
+    }
+}
+
+/**
+ * NOUVEAU: Gère le webhook (IPN) de confirmation de paiement de PawaPay.
+ * @param {object} e - L'objet événement complet de la requête POST.
+ */
+function handlePawaPayWebhook(e) {
+    const webhookPayload = e.postData.contents;
+    const headers = e.headers;
+
+    try {
+        // --- Étape 1: Vérification de sécurité ---
+        const signature = headers['x-pawa-signature'];
+        const config = getConfig();
+
+        // PawaPay signe le corps de la requête (payload) avec votre clé secrète.
+        const expectedSignature = Utilities.base64Encode(
+            Utilities.computeHmacSha256Signature(webhookPayload, config.PAWAPAY_WEBHOOK_SECRET)
+        );
+
+        if (signature !== expectedSignature) {
+            logAction('PAWAPAY_IPN_SECURITY_FAIL', { received: signature, expected: expectedSignature, payload: webhookPayload });
+            throw new Error("Signature de webhook PawaPay invalide. Tentative de fraude possible.");
+        }
+
+        // --- Étape 2: Traitement de la notification ---
+        const webhookData = JSON.parse(webhookPayload);
+        const status = webhookData.status;
+        const metadata = webhookData.metadata || {};
+        const orderId = metadata.orderId;
+
+        if (!orderId) {
+            throw new Error("ID de commande manquant dans les métadonnées du webhook PawaPay.");
+        }
+
+        if (status === 'COMPLETED') {
+            const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.ORDERS);
+            const sheetData = sheet.getDataRange().getValues();
+            const sheetHeaders = sheetData[0];
+            const idCommandeIndex = sheetHeaders.indexOf("IDCommande");
+            const statutIndex = sheetHeaders.indexOf("Statut");
+            const etapeConfirmeeIndex = sheetHeaders.indexOf("EtapeConfirmee");
+
+            const rowIndex = sheetData.findIndex(row => row[idCommandeIndex] === orderId);
+
+            if (rowIndex > 0) {
+                // Mettre à jour le statut et l'étape de confirmation
+                sheet.getRange(rowIndex + 1, statutIndex + 1).setValue("Payée et confirmée");
+                sheet.getRange(rowIndex + 1, etapeConfirmeeIndex + 1).setValue(true);
+
+                logAction('PAWAPAY_PAIEMENT_REUSSI', { orderId: orderId, webhookData: webhookData });
+
+                // --- Étape 3: Envoyer l'email de confirmation de paiement au client ---
+                const customerEmail = webhookData.depositor.emailAddress;
+                const totalAmount = webhookData.amount;
+                
+                if (customerEmail) {
+                    const emailSubject = `Confirmation de paiement pour votre commande #${orderId}`;
+                    const emailBody = `
+                        <h2>Bonjour,</h2>
+                        <p>Nous confirmons avoir bien reçu votre paiement de <strong>${Number(totalAmount).toLocaleString('fr-FR')} F CFA</strong> pour la commande <strong>#${orderId}</strong>.</p>
+                        <p>Votre commande est maintenant confirmée et va être préparée pour l'expédition.</p>
+                        <p>Vous pouvez suivre son avancement ici : <a href="https://abmcymarket.abmcy.com/suivi-commande.html?orderId=${orderId}">Suivre ma commande</a></p>
+                        <p>Merci de votre confiance.</p>
+                        <p>L'équipe ABMCY MARKET.</p>
+                    `;
+                    MailApp.sendEmail(customerEmail, emailSubject, "", { htmlBody: emailBody });
+                    logAction('PAWAPAY_EMAIL_CONFIRMATION', { orderId: orderId, email: customerEmail });
+                }
+            }
+        } else {
+            logAction('PAWAPAY_PAIEMENT_NON_COMPLETE', { orderId: orderId, status: status, webhookData: webhookData });
+            sendPaymentFailureEmail('PawaPay Webhook', new Error(`Statut: ${status}`), { orderId: orderId, webhookData: webhookData }); // NOUVEAU
+        }
+    } catch (error) {
+        logError('handlePawaPayWebhook', error, webhookPayload);
     }
 }
 
@@ -512,6 +716,7 @@ function handlePaydunyaWebhook(e) {
             }
         } else {
             logAction('PAIEMENT_NON_COMPLETE', { orderId: orderId, status: status, webhookData: webhookData });
+            sendPaymentFailureEmail('Paydunya Webhook', new Error(`Statut: ${status}`), { orderId: orderId, webhookData: webhookData }); // NOUVEAU
         }
     } catch (error) {
         logError('handlePaydunyaWebhook', error, e.postData.contents);
@@ -547,6 +752,184 @@ function getOrdersByClientId(data, origin) {
         return createJsonResponse({ success: false, error: error.message }, origin);
     }
 }
+
+/**
+ * NOUVEAU: Récupère les paramètres de paiement depuis la feuille Config.
+ * @param {object} data - Données de la requête (inutilisé ici).
+ * @param {string} origin - L'origine de la requête.
+ * @returns {GoogleAppsScript.Content.TextOutput} Réponse JSON avec les paramètres.
+ */
+function getPaymentSettings(data, origin) {
+    try {
+        const config = getConfig(); // Utilise la fonction existante qui lit depuis la feuille Config
+        // On retourne directement les clés nécessaires au tableau de bord
+        const settings = {
+            DEFAULT_AGGREGATOR: config.DEFAULT_AGGREGATOR || 'paydunya', // 'paydunya' par défaut si non défini
+            PAYDUNYA_MASTER_KEY: config.PAYDUNYA_MASTER_KEY,
+            PAYDUNYA_PRIVATE_KEY: config.PAYDUNYA_PRIVATE_KEY,
+            PAYDUNYA_TOKEN: config.PAYDUNYA_TOKEN,
+            PAWAPAY_API_KEY: config.PAWAPAY_API_KEY,
+            PAWAPAY_WEBHOOK_SECRET: config.PAWAPAY_WEBHOOK_SECRET
+        };
+        return createJsonResponse({ success: true, data: settings }, origin);
+    } catch (error) {
+        logError('getPaymentSettings', error, origin);
+        return createJsonResponse({ success: false, error: error.message }, origin);
+    }
+}
+
+/**
+ * NOUVEAU: Sauvegarde les paramètres des agrégateurs de paiement dans la feuille Config.
+ * @param {object} data - Les nouveaux paramètres.
+ * @param {string} origin - L'origine de la requête.
+ * @returns {GoogleAppsScript.Content.TextOutput} Réponse JSON.
+ */
+function savePaymentSettings(data, origin) {
+    try {
+        // On pourrait ajouter une vérification d'administrateur ici.
+        const configSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.CONFIG);
+        const configData = configSheet.getDataRange().getValues();
+
+        const settingsToUpdate = {
+            'DEFAULT_AGGREGATOR': data.DEFAULT_AGGREGATOR,
+            'PAYDUNYA_ACTIVE': data.DEFAULT_AGGREGATOR === 'paydunya', // Met à jour automatiquement
+            'PAWAPAY_ACTIVE': data.DEFAULT_AGGREGATOR === 'pawapay',   // Met à jour automatiquement
+            'PAYDUNYA_MASTER_KEY': data.PAYDUNYA_MASTER_KEY,
+            'PAYDUNYA_PRIVATE_KEY': data.PAYDUNYA_PRIVATE_KEY,
+            'PAYDUNYA_TOKEN': data.PAYDUNYA_TOKEN,
+            'PAWAPAY_API_KEY': data.PAWAPAY_API_KEY,
+            'PAWAPAY_WEBHOOK_SECRET': data.PAWAPAY_WEBHOOK_SECRET
+        };
+
+        Object.entries(settingsToUpdate).forEach(([key, value]) => {
+            const rowIndex = configData.findIndex(row => row[0] === key);
+            if (rowIndex > -1) {
+                // Mettre à jour la valeur dans la colonne 2 (index 1)
+                configSheet.getRange(rowIndex + 1, 2).setValue(value);
+            } else {
+                // Ajouter la nouvelle clé/valeur si elle n'existe pas
+                configSheet.appendRow([key, value]);
+            }
+        });
+
+        // Invalider le cache pour que les prochaines lectures prennent en compte les changements
+        CacheService.getScriptCache().remove('script_config');
+        logAction('savePaymentSettings', { user: 'admin' });
+        return createJsonResponse({ success: true, message: "Paramètres sauvegardés." }, origin);
+    } catch (error) {
+        logError(JSON.stringify({ action: 'savePaymentSettings', data }), error, origin);
+        return createJsonResponse({ success: false, error: error.message }, origin);
+    }
+}
+
+/**
+ * NOUVEAU: Récupère les transactions de paiement récentes pour le tableau de bord.
+ * @param {object} data - Données de la requête (inutilisé ici).
+ * @param {string} origin - L'origine de la requête.
+ * @returns {GoogleAppsScript.Content.TextOutput} Réponse JSON avec les transactions.
+ */
+function getRecentTransactions(data, origin) {
+    try {
+        const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.ORDERS);
+        const allOrders = sheet.getDataRange().getValues();
+        const headers = allOrders.shift() || [];
+
+        const paymentMethodIndex = headers.indexOf("MoyenPaiement");
+
+        // Filtrer pour ne garder que les paiements en ligne, prendre les 50 derniers
+        const onlinePayments = allOrders.filter(row => 
+            row[paymentMethodIndex] === 'Paydunya' || row[paymentMethodIndex] === 'PawaPay'
+        ).slice(-50); // Prend les 50 dernières transactions
+
+        const transactions = onlinePayments.map(row => {
+            return headers.reduce((obj, header, index) => {
+                obj[header] = row[index];
+                return obj;
+            }, {});
+        }).reverse(); // Afficher les plus récentes en premier
+
+        return createJsonResponse({ success: true, data: transactions }, origin);
+
+    } catch (error) {
+        logError('getRecentTransactions', error, origin);
+        return createJsonResponse({ success: false, error: error.message }, origin);
+    }
+}
+
+/**
+ * NOUVEAU: Envoie un email d'alerte en cas d'échec de paiement.
+ * @param {string} provider - Le nom du fournisseur de paiement (ex: "Paydunya", "PawaPay").
+ * @param {Error} error - L'objet erreur capturé.
+ * @param {object} orderContext - Les données de la commande ou du contexte de l'erreur.
+ */
+function sendPaymentFailureEmail(provider, error, orderContext) {
+    try {
+        const subject = `⚠️ Alerte: Échec de paiement ${provider}`;
+        
+        // Formatter le contexte de la commande pour l'email
+        let contextHtml = '<h3>Contexte de la commande :</h3><ul>';
+        if (orderContext.data && orderContext.data.customer) {
+            contextHtml += `<li>Client: ${orderContext.data.customer.name} (${orderContext.data.customer.email})</li>`;
+            contextHtml += `<li>Montant: ${orderContext.data.total} F CFA</li>`;
+        } else if (orderContext.orderId) {
+            contextHtml += `<li>ID Commande: ${orderContext.orderId}</li>`;
+        } else {
+            contextHtml += '<li>Contexte de la commande non disponible.</li>';
+        }
+        contextHtml += '</ul>';
+
+        const body = `
+            <h2>Une tentative de paiement via ${provider} a échoué.</h2>
+            <p><strong>Date :</strong> ${new Date().toLocaleString('fr-FR')}</p>
+            <p><strong>Message d'erreur :</strong> ${error.message}</p>
+            <hr>
+            ${contextHtml}
+            <p>Veuillez consulter les logs pour plus de détails.</p>
+        `;
+        MailApp.sendEmail(ADMIN_EMAIL, subject, "", { htmlBody: body });
+        logAction('sendPaymentFailureEmail', { provider: provider, error: error.message });
+    } catch (e) {
+        logError('sendPaymentFailureEmail', e);
+    }
+}
+
+/**
+ * NOUVEAU: Exporte toutes les commandes en format CSV.
+ * @param {string} origin - L'origine de la requête.
+ * @returns {GoogleAppsScript.Content.TextOutput} Réponse JSON contenant les données CSV.
+ */
+function exportOrdersToCSV(origin) {
+    try {
+        const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.ORDERS);
+        const data = sheet.getDataRange().getValues();
+
+        // Fonction utilitaire pour s'assurer que les champs CSV sont correctement formatés
+        const toCsvField = (field) => {
+            let value = field === null || field === undefined ? '' : String(field);
+            // Si la valeur contient une virgule, des guillemets ou un retour à la ligne, on l'entoure de guillemets
+            if (value.includes(',') || value.includes('"') || value.includes('\n')) {
+                // On double les guillemets existants à l'intérieur du champ
+                value = value.replace(/"/g, '""');
+                return `"${value}"`;
+            }
+            return value;
+        };
+
+        // Convertir chaque ligne en une ligne CSV
+        const csvContent = data.map(row => row.map(toCsvField).join(',')).join('\n');
+
+        logAction('exportOrdersToCSV', { user: 'admin' });
+
+        // Renvoyer les données CSV dans une réponse JSON
+        // Le téléchargement sera géré côté client
+        return createJsonResponse({ success: true, csvData: csvContent }, origin);
+
+    } catch (error) {
+        logError('exportOrdersToCSV', error, origin);
+        return createJsonResponse({ success: false, error: `Erreur lors de l'export CSV: ${error.message}` }, origin);
+    }
+}
+
 
 /**
  * NOUVEAU: Récupère une commande spécifique par son ID.
@@ -815,6 +1198,7 @@ function onOpen() {
   SpreadsheetApp.getUi()
       .createMenu('Configuration Module')
       .addItem('🚀 Initialiser le projet', 'setupProject')
+      .addItem('🔑 Ouvrir le Tableau de Bord Admin', 'openAdminDashboardInSidebar') // NOUVEAU
       .addToUi();
 }
 
@@ -915,7 +1299,12 @@ function setupProject() {
     'PAYDUNYA_MASTER_KEY': 'ZosA6n35-Tyd6-KhH9-TaPR-7ZOFqyBxfjvz',
     'PAYDUNYA_PRIVATE_KEY': 'live_private_3CzZajIPeFrcWxNOvDxyTuan3dm',
     'PAYDUNYA_PUBLIC_KEY': 'live_public_TgcjrnTM5MmbDajbWjZQJdFjuro',
-    'PAYDUNYA_TOKEN': 'QSUiqdHl3U7iaXsnoT69'
+    'PAYDUNYA_TOKEN': 'QSUiqdHl3U7iaXsnoT69',
+    'DEFAULT_AGGREGATOR': 'paydunya', // NOUVEAU
+    'PAYDUNYA_ACTIVE': 'true', // NOUVEAU
+    'PAWAPAY_ACTIVE': 'false', // NOUVEAU
+    'PAWAPAY_API_KEY': 'VOTRE_CLE_API_PAWAPAY', // NOUVEAU
+    'PAWAPAY_WEBHOOK_SECRET': 'VOTRE_SECRET_WEBHOOK_PAWAPAY', // NOUVEAU
   };
 
   Object.entries(defaultConfigValues).forEach(([key, value]) => {
@@ -926,4 +1315,15 @@ function setupProject() {
   
   CacheService.getScriptCache().remove('script_config'); // Vider le cache pour prendre en compte les changements
   ui.alert("Projet Central initialisé avec succès ! Tous les onglets sont prêts.");
+}
+
+/**
+ * NOUVEAU: Ouvre le tableau de bord administrateur dans une barre latérale de la feuille de calcul.
+ */
+function openAdminDashboardInSidebar() {
+  // CORRECTION: Charge le fichier HTML directement depuis le projet Apps Script.
+  const html = HtmlService.createHtmlOutputFromFile('admin_dashboard')
+    .setWidth(500)
+    .setTitle('Tableau de Bord Admin');
+  SpreadsheetApp.getUi().showSidebar(html);
 }
