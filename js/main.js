@@ -1734,7 +1734,7 @@ async function shareProduct(event, productId) {
         return;
     }
 
-    // NOUVEAU : Personnalisation du message de partage avec le prix.
+    // Personnalisation du message de partage avec le prix.
     const priceText = `${product.PrixActuel.toLocaleString('fr-FR')} F CFA`;
     const shareData = {
         title: `À découvrir sur ABMCY MARKET : ${product.Nom}`,
@@ -1742,21 +1742,24 @@ async function shareProduct(event, productId) {
         url: productUrl,
     };
 
-    // CORRECTION: On ne partage plus le fichier image directement pour garantir
-    // que le texte et le lien soient toujours partagés. Les applications modernes
-    // généreront un aperçu riche (avec l'image) à partir de l'URL fournie.
+    // La logique est de ne partager que le titre, le texte et l'URL.
+    // Les applications modernes (WhatsApp, Facebook, etc.) utiliseront l'URL
+    // pour récupérer les balises Open Graph (og:image, og:title...) et générer un aperçu riche.
+    // On ne doit PAS inclure de champ 'files' ici.
     try {
         if (navigator.share) {
             await navigator.share(shareData);
-            console.log("Produit partagé avec succès via l API de partage");
+            console.log("Produit partagé avec succès via l'API de partage.");
         } else {
             // Solution de secours pour les navigateurs qui ne supportent pas l'API de partage
             navigator.clipboard.writeText(productUrl);
             showToast('Lien du produit copié !');
         }
     } catch (err) {
-        console.error('Erreur de partage: ', err);
-        // En cas d'erreur (par exemple, l'utilisateur annule le partage), on ne fait rien.
+        // On ignore l'erreur si l'utilisateur annule le partage ('AbortError').
+        if (err.name !== 'AbortError') {
+            console.error('Erreur de partage: ', err);
+        }
     }
 }
 
