@@ -105,11 +105,11 @@ function doPost(e) {
                 return getOrdersByClientId(data, origin);
             case 'createPaydunyaInvoice': // NOUVEAU: Action pour créer une facture Paydunya
                 return createPaydunyaInvoice(data, origin);
-            // NOUVEAU: Action fusionnée depuis Gestion Commandes & Notifications
+            // NOUVEAU: Action pour le paiement à la livraison
             case 'enregistrerCommandeEtNotifier':
                 const orderResult = enregistrerCommande(data, origin);
                 const orderData = JSON.parse(orderResult.getContent());
-                if (orderData.success) { sendOrderConfirmationEmail(orderData, data); }
+                if (orderData.success) { sendOrderConfirmationEmail(orderData, data, "cod"); }
                 return orderResult;
             case 'logClientEvent':
                 return logClientEvent(data, origin);
@@ -118,7 +118,7 @@ function doPost(e) {
                 // Paydunia envoie des données en `application/x-www-form-urlencoded`
                 // donc e.parameter sera utilisé.
                 logAction('paydunia-webhook', e.parameter);
-                handlePayduniaWebhook(e.parameter);
+                handlePaydunyaWebhook(e); // On passe l'événement complet 'e'
                 return createJsonResponse({ success: true }, origin);
             default:
                 logAction('doPost', { error: 'Action non reconnue', action: action });
@@ -411,14 +411,15 @@ function createPaydunyaInvoice(data, origin) {
  * NOUVEAU: Envoie un email de confirmation de commande à l'admin. Fusionné depuis Gestion Notifications.
  * @param {object} orderResult - Le résultat de la fonction enregistrerCommande.
  * @param {object} originalData - Les données originales de la commande contenant les détails des produits.
+ * @param {string} type - Le type de confirmation ('cod' pour cash on delivery, 'payment' pour paiement en ligne).
  */
-function sendOrderConfirmationEmail(orderData, originalData) {
+function sendOrderConfirmationEmail(orderData, originalData, type) {
     try {
         // 1. Envoyer l'email à l'administrateur
-        const adminSubject = `Nouvelle commande #${orderData.id}`;
+        const adminSubject = `Nouvelle commande #${orderData.id} (${type === 'cod' ? 'Paiement à la livraison' : 'Payée en ligne'})`;
         const adminBody = `Une nouvelle commande a été passée.\n\nID Commande: ${orderData.id}\nClient: ${orderData.clientId}\nTotal: ${orderData.total} F CFA\nEmail Client: ${orderData.customerEmail}\n\nDétails: ${JSON.stringify(originalData.produits, null, 2)}`;
         MailApp.sendEmail(ADMIN_EMAIL, adminSubject, adminBody);
-        logAction('sendAdminConfirmationEmail', { orderId: orderData.id });
+        logAction('sendAdminConfirmationEmail', { orderId: orderData.id, type: type });
 
         // 2. Envoyer l'email de confirmation au client
         if (orderData.customerEmail) {
@@ -428,7 +429,7 @@ function sendOrderConfirmationEmail(orderData, originalData) {
                 <h2>Bonjour,</h2>
                 <p>Merci pour votre commande sur ABMCY MARKET !</p>
                 <p>Nous avons bien reçu votre commande <strong>#${orderData.id}</strong> et nous la préparons pour l'expédition.</p>
-                <h3>Récapitulatif :</h3>
+                <h3>Récapitulatif de votre commande :</h3>
                 <ul>${productDetailsHTML}</ul>
                 <p><strong>Total : ${orderData.total.toLocaleString('fr-FR')} F CFA</strong></p>
                 <p>Vous pouvez suivre l'avancement de votre commande à tout moment ici : <a href="https://abmcymarket.abmcy.com/suivi-commande.html?orderId=${orderData.id}">Suivre ma commande</a></p>
@@ -443,32 +444,80 @@ function sendOrderConfirmationEmail(orderData, originalData) {
 }
 
 /**
- * NOUVEAU: Gère le webhook de confirmation de paiement de Paydunya.
- * @param {object} webhookData - Les données envoyées par Paydunya (e.parameter).
+ * NOUVEAU: Gère le webhook (IPN) de confirmation de paiement de Paydunya.
+ * @param {object} e - L'objet événement complet de la requête POST.
  */
-function handlePaydunyaWebhook(webhookData) {
-    // Paydunya envoie le statut dans `invoice_token` et les données custom dans `custom_data`
-    const status = webhookData.status;
+function handlePaydunyaWebhook(e) {
+    const webhookData = e.parameter;
+    const headers = e.headers;
 
-    if (status === 'completed') {
-        const customData = JSON.parse(webhookData.custom_data || '{}');
+    try {
+        // --- Étape 1: Vérification de sécurité ---
+        const signature = headers['Paydunya-Signature'];
+        const invoiceToken = webhookData.data.invoice.token;
+        const config = getConfig();
+
+        const expectedSignature = Utilities.base64Encode(
+            Utilities.computeHmacSha256Signature(invoiceToken, config.PAYDUNYA_MASTER_KEY)
+        );
+
+        if (signature !== expectedSignature) {
+            logAction('IPN_SECURITY_FAIL', { received: signature, expected: expectedSignature, data: webhookData });
+            throw new Error("Signature de webhook invalide. Tentative de fraude possible.");
+        }
+
+        // --- Étape 2: Traitement de la notification ---
+        const status = webhookData.data.status;
+        const customData = webhookData.data.custom_data || {};
         const orderId = customData.order_id;
 
-        if (orderId) {
-            const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.ORDERS);
-            const data = sheet.getDataRange().getValues();
-            const idCommandeIndex = data[0].indexOf("IDCommande");
-            const statutIndex = data[0].indexOf("Statut");
+        if (!orderId) {
+            throw new Error("ID de commande manquant dans les données du webhook.");
+        }
 
-            const rowIndex = data.findIndex(row => row[idCommandeIndex] === orderId);
+        if (status === 'completed') {
+            const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.ORDERS);
+            const sheetData = sheet.getDataRange().getValues();
+            const sheetHeaders = sheetData[0];
+            const idCommandeIndex = sheetHeaders.indexOf("IDCommande");
+            const statutIndex = sheetHeaders.indexOf("Statut");
+            const etapeConfirmeeIndex = sheetHeaders.indexOf("EtapeConfirmee");
+
+            const rowIndex = sheetData.findIndex(row => row[idCommandeIndex] === orderId);
 
             if (rowIndex > 0) {
+                // Mettre à jour le statut et l'étape de confirmation
                 sheet.getRange(rowIndex + 1, statutIndex + 1).setValue("Payée et confirmée");
-                logAction('Paiement Réussi', { orderId: orderId, webhookData: webhookData });
+                sheet.getRange(rowIndex + 1, etapeConfirmeeIndex + 1).setValue(true);
+
+                logAction('PAIEMENT_REUSSI', { orderId: orderId, webhookData: webhookData });
+
+                // --- Étape 3: Envoyer l'email de confirmation de paiement au client ---
+                const customerEmail = webhookData.data.customer.email;
+                const totalAmount = webhookData.data.invoice.total_amount;
+                
+                if (customerEmail) {
+                    const emailSubject = `Confirmation de paiement pour votre commande #${orderId}`;
+                    const emailBody = `
+                        <h2>Bonjour,</h2>
+                        <p>Nous confirmons avoir bien reçu votre paiement de <strong>${Number(totalAmount).toLocaleString('fr-FR')} F CFA</strong> pour la commande <strong>#${orderId}</strong>.</p>
+                        <p>Votre commande est maintenant confirmée et va être préparée pour l'expédition.</p>
+                        <p>Vous pouvez suivre son avancement ici : <a href="https://abmcymarket.abmcy.com/suivi-commande.html?orderId=${orderId}">Suivre ma commande</a></p>
+                        <p>Merci de votre confiance.</p>
+                        <p>L'équipe ABMCY MARKET.</p>
+                    `;
+                    MailApp.sendEmail(customerEmail, emailSubject, "", { htmlBody: emailBody });
+                    logAction('EMAIL_CONFIRMATION_PAIEMENT', { orderId: orderId, email: customerEmail });
+                }
             }
+        } else {
+            logAction('PAIEMENT_NON_COMPLETE', { orderId: orderId, status: status, webhookData: webhookData });
         }
+    } catch (error) {
+        logError('handlePaydunyaWebhook', error, e.postData.contents);
     }
 }
+
 
 /**
  * Récupère les commandes d'un client spécifique.
