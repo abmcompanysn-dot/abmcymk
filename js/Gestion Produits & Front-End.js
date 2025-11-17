@@ -165,6 +165,13 @@ function doGet(e) {
       return createJsonResponse({ success: true, data: catalog, cacheVersion: cacheVersion }, origin);
     }
 
+    // NOUVEAU: Point d'entrée optimisé pour la page d'accueil
+    if (action === 'getHomepageCatalog') {
+      const catalog = getHomepageCatalog();
+      const cacheVersion = PropertiesService.getScriptProperties().getProperty('cacheVersion');
+      return createJsonResponse({ success: true, data: catalog, cacheVersion: cacheVersion }, origin);
+    }
+
     // Comportement par défaut (peut être utilisé pour des tests ou l'ancienne logique)
     return createJsonResponse({ success: true, message: "API Centrale ABMCY Market - Active" }, origin);
 
@@ -367,6 +374,52 @@ function getPublicCatalog() {
 }
 
 /**
+ * NOUVEAU: Récupère uniquement les données nécessaires pour la page d'accueil.
+ * - Toutes les catégories (car elles sont légères).
+ * - Uniquement les produits en promotion et les 12 premiers produits de chaque catégorie.
+ */
+function getHomepageCatalog() {
+  const categories = getCategories();
+  const activeCategories = categories.filter(c => c.ScriptURL && !c.ScriptURL.startsWith('REMPLIR_'));
+
+  if (activeCategories.length === 0) {
+    return { categories: categories, products: [], categoryConfig: CATEGORY_CONFIG };
+  }
+
+  // Récupérer tous les produits en parallèle
+  const requests = activeCategories.map(category => ({
+    url: `${category.ScriptURL}?action=getProducts`,
+    method: 'get',
+    muteHttpExceptions: true
+  }));
+
+  const responses = UrlFetchApp.fetchAll(requests);
+  let allProducts = [];
+  responses.forEach(response => {
+    if (response.getResponseCode() === 200) {
+      const result = JSON.parse(response.getContentText());
+      if (result.success && Array.isArray(result.data)) {
+        allProducts = allProducts.concat(result.data);
+      }
+    }
+  });
+
+  // Filtrer les produits pour ne garder que l'essentiel
+  const productsByCategory = groupProductsByCategory(allProducts);
+  const promoProducts = allProducts.filter(p => p['Réduction%'] && parseFloat(p['Réduction%']) > 0);
+  let homepageProducts = [...promoProducts];
+
+  Object.values(productsByCategory).forEach(productList => {
+    homepageProducts.push(...productList.slice(0, 12)); // 12 premiers produits de chaque catégorie
+  });
+
+  // Dédoublonner les produits (un produit en promo peut aussi être dans les 12 premiers)
+  const uniqueProducts = Array.from(new Map(homepageProducts.map(p => [p.IDProduit, p])).values());
+
+  return { categories: categories, products: uniqueProducts, categoryConfig: CATEGORY_CONFIG };
+}
+
+/**
  * Récupère TOUS les produits de TOUTES les catégories.
  * Appelée par l'UI via google.script.run ou par l'API.
  */
@@ -510,6 +563,22 @@ function sheetToJSON(sheet) {
     });
     return obj;
   });
+}
+
+/**
+ * NOUVEAU: Utilitaire pour grouper les produits par nom de catégorie.
+ * @param {Array} products - La liste de tous les produits.
+ * @returns {Object} Un objet où les clés sont les noms de catégories et les valeurs sont des listes de produits.
+ */
+function groupProductsByCategory(products) {
+  return products.reduce((acc, product) => {
+    const categoryName = product.Catégorie;
+    if (!acc[categoryName]) {
+      acc[categoryName] = [];
+    }
+    acc[categoryName].push(product);
+    return acc;
+  }, {});
 }
 
 /**

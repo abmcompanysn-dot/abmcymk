@@ -5,7 +5,7 @@ const CONFIG = {
     // car tout est géré par l'API centrale (ACCOUNT_API_URL).
     
     // URL du script central pour le catalogue de produits.
-    CENTRAL_API_URL: "https://script.google.com/macros/s/AKfycbzOIugCMx16XP3kGtJ25PMYJoss7dPGGGpae_bOTNeR6j7L_QrG2uvkTlyvb4jjxghG/exec",
+    CENTRAL_API_URL: "https://script.google.com/macros/s/AKfycbwVdylGEMDzUS8o6l1Zb7ZadP10fAJRG6yXtoAoYOhpFyTV-V8ymzpaCsXQmJ2tHyQe/exec",
     
     // Autres configurations
     DEFAULT_PRODUCT_IMAGE: "logo/l.svg",
@@ -667,6 +667,15 @@ function initializeCategoryPage() {
 
     // Afficher le nom de la catégorie immédiatement
     nameDisplay.textContent = categoryName || "Catégorie";
+
+    // NOUVEAU: Mettre à jour les balises meta pour le SEO dès le début.
+    const pageTitle = `${categoryName || 'Catégorie'} - ABMCY MARKET Sénégal`;
+    const pageDescription = `Découvrez notre sélection de produits dans la catégorie ${categoryName}. Meilleurs prix et livraison rapide au Sénégal.`;
+    document.title = pageTitle;
+    document.querySelector('meta[property="og:title"]').setAttribute('content', pageTitle);
+    document.querySelector('meta[name="description"]').setAttribute('content', pageDescription);
+    document.querySelector('meta[property="og:description"]').setAttribute('content', pageDescription);
+    document.querySelector('meta[property="og:url"]').setAttribute('content', window.location.href);
 
     // Afficher le squelette de chargement
     const skeletonCard = `
