@@ -120,6 +120,7 @@ async function initializeApp() {
       if (document.getElementById('superdeals-products')) {
           renderDailyDealsHomepage(catalog);
           renderAllCategoriesSection(catalog);
+          renderRecentlyViewedProducts(catalog); // NOUVEAU
           renderHomepageCategorySections(catalog);
           initializeBannerTextAnimation(); // NOUVEAU: Lancer l'animation du texte de la bannière
       }
@@ -977,6 +978,9 @@ function loadProductPage(catalog) {
         // NOUVEAU: Activer le zoom sur l'image principale
         activateInternalZoom("image-zoom-wrapper");
 
+        // NOUVEAU: Ajouter le produit à la liste des produits récemment consultés
+        addRecentlyViewedProduct(product.IDProduit);
+
     } catch (error) {
         console.error("Erreur de chargement du produit:", error);
         const mainContent = document.querySelector('main');
@@ -984,6 +988,77 @@ function loadProductPage(catalog) {
     }
 }
 
+/**
+ * NOUVEAU: Ajoute un produit à la liste des "consultés récemment" dans le localStorage.
+ * @param {string} productId L'ID du produit à ajouter.
+ */
+function addRecentlyViewedProduct(productId) {
+    const RECENTLY_VIEWED_KEY = 'abmcyRecentlyViewed';
+    const MAX_RECENTLY_VIEWED = 12;
+
+    let recentlyViewed = getRecentlyViewed();
+
+    // Retirer le produit s'il existe déjà pour le remettre au début
+    recentlyViewed = recentlyViewed.filter(id => id !== productId);
+
+    // Ajouter le nouveau produit au début de la liste
+    recentlyViewed.unshift(productId);
+
+    // Limiter la taille de la liste
+    if (recentlyViewed.length > MAX_RECENTLY_VIEWED) {
+        recentlyViewed = recentlyViewed.slice(0, MAX_RECENTLY_VIEWED);
+    }
+
+    localStorage.setItem(RECENTLY_VIEWED_KEY, JSON.stringify(recentlyViewed));
+}
+
+/**
+ * NOUVEAU: Récupère la liste des produits récemment consultés.
+ * @returns {string[]} Un tableau d'ID de produits.
+ */
+function getRecentlyViewed() {
+    return JSON.parse(localStorage.getItem('abmcyRecentlyViewed')) || [];
+}
+
+/**
+ * NOUVEAU: Vide la liste des produits récemment consultés.
+ */
+function clearRecentlyViewed() {
+    localStorage.removeItem('abmcyRecentlyViewed');
+    const section = document.getElementById('recently-viewed-section');
+    if (section) {
+        section.classList.add('hidden');
+    }
+    showToast('L\'historique de consultation a été effacé.');
+}
+
+/**
+ * NOUVEAU: Affiche la section des produits récemment consultés sur la page d'accueil.
+ * @param {object} catalog L'objet catalogue complet.
+ */
+function renderRecentlyViewedProducts(catalog) {
+    const section = document.getElementById('recently-viewed-section');
+    const container = document.getElementById('recently-viewed-container');
+    const clearButton = document.getElementById('clear-recently-viewed');
+
+    if (!section || !container || !clearButton) return;
+
+    const viewedIds = getRecentlyViewed();
+    if (viewedIds.length === 0) return;
+
+    const allProducts = catalog.data.products || [];
+    // Créer une Map pour un accès rapide aux produits par ID
+    const productMap = new Map(allProducts.map(p => [p.IDProduit, p]));
+
+    // Filtrer et conserver l'ordre de consultation (le plus récent en premier)
+    const viewedProducts = viewedIds.map(id => productMap.get(id)).filter(Boolean); // .filter(Boolean) pour enlever les produits qui n'existent plus
+
+    if (viewedProducts.length === 0) return;
+
+    container.innerHTML = viewedProducts.map(product => renderProductCard(product)).join('');
+    section.classList.remove('hidden');
+    clearButton.addEventListener('click', clearRecentlyViewed);
+}
 /**
  * NOUVEAU: Change l'image principale du produit.
  * @param {string} newImageUrl L'URL de la nouvelle image à afficher.
