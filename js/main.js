@@ -5,7 +5,7 @@ const CONFIG = {
     // car tout est géré par l'API centrale (ACCOUNT_API_URL).
     
     // URL du script central pour le catalogue de produits.
-    CENTRAL_API_URL: "https://script.google.com/macros/s/AKfycbwv1fXA9tvtcFvssiKLzM51RFbgBV3Al94n8otiaYG-L2mLkFGsEXtPVb8PTy4Tzpk7/exec",
+    CENTRAL_API_URL: "https://script.google.com/macros/s/AKfycbzHSJAAuqjgfc38JzlAUrIpLw-F9jyZeiqHbIPslqssNJE8Dl472G0dSoanUexmjxC0/exec",
     
     // Autres configurations
     DEFAULT_PRODUCT_IMAGE: "logo/l.svg",
@@ -667,15 +667,6 @@ function initializeCategoryPage() {
 
     // Afficher le nom de la catégorie immédiatement
     nameDisplay.textContent = categoryName || "Catégorie";
-
-    // NOUVEAU: Mettre à jour les balises meta pour le SEO dès le début.
-    const pageTitle = `${categoryName || 'Catégorie'} - ABMCY MARKET Sénégal`;
-    const pageDescription = `Découvrez notre sélection de produits dans la catégorie ${categoryName}. Meilleurs prix et livraison rapide au Sénégal.`;
-    document.title = pageTitle;
-    document.querySelector('meta[property="og:title"]').setAttribute('content', pageTitle);
-    document.querySelector('meta[name="description"]').setAttribute('content', pageDescription);
-    document.querySelector('meta[property="og:description"]').setAttribute('content', pageDescription);
-    document.querySelector('meta[property="og:url"]').setAttribute('content', window.location.href);
 
     // Afficher le squelette de chargement
     const skeletonCard = `
@@ -1743,7 +1734,7 @@ async function shareProduct(event, productId) {
         return;
     }
 
-    // Personnalisation du message de partage avec le prix.
+    // NOUVEAU : Personnalisation du message de partage avec le prix.
     const priceText = `${product.PrixActuel.toLocaleString('fr-FR')} F CFA`;
     const shareData = {
         title: `À découvrir sur ABMCY MARKET : ${product.Nom}`,
@@ -1751,24 +1742,21 @@ async function shareProduct(event, productId) {
         url: productUrl,
     };
 
-    // La logique est de ne partager que le titre, le texte et l'URL.
-    // Les applications modernes (WhatsApp, Facebook, etc.) utiliseront l'URL
-    // pour récupérer les balises Open Graph (og:image, og:title...) et générer un aperçu riche.
-    // On ne doit PAS inclure de champ 'files' ici.
+    // CORRECTION: On ne partage plus le fichier image directement pour garantir
+    // que le texte et le lien soient toujours partagés. Les applications modernes
+    // généreront un aperçu riche (avec l'image) à partir de l'URL fournie.
     try {
         if (navigator.share) {
             await navigator.share(shareData);
-            console.log("Produit partagé avec succès via l'API de partage.");
+            console.log("Produit partagé avec succès via l API de partage");
         } else {
             // Solution de secours pour les navigateurs qui ne supportent pas l'API de partage
             navigator.clipboard.writeText(productUrl);
             showToast('Lien du produit copié !');
         }
     } catch (err) {
-        // On ignore l'erreur si l'utilisateur annule le partage ('AbortError').
-        if (err.name !== 'AbortError') {
-            console.error('Erreur de partage: ', err);
-        }
+        console.error('Erreur de partage: ', err);
+        // En cas d'erreur (par exemple, l'utilisateur annule le partage), on ne fait rien.
     }
 }
 

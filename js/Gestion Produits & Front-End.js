@@ -152,12 +152,6 @@ function doGet(e) {
       return createJsonResponse({ success: true, cacheVersion: cacheVersion }, origin);
     }
 
-    // NOUVEAU: Point d'entrée pour générer le sitemap.xml
-    if (action === 'getSitemap') {
-      const sitemapContent = generateSitemap();
-      return ContentService.createTextOutput(sitemapContent).setMimeType(ContentService.MimeType.XML);
-    }
-
     // NOUVEAU: Point d'entrée unique pour le front-end public (main.js)
     if (action === 'getPublicCatalog') {
       const catalog = getPublicCatalog();
@@ -171,65 +165,6 @@ function doGet(e) {
   } catch (error) {
     return createJsonResponse({ success: false, error: error.message }, origin);
   } 
-}
-
-/**
- * NOUVEAU: Génère le contenu du fichier sitemap.xml.
- * @returns {string} Le contenu XML du sitemap.
- */
-function generateSitemap() {
-  const baseUrl = "https://abmcymarket.abmcy.com"; // CORRECTION: Utilisation de la nouvelle URL de production.
-  const today = new Date().toISOString().split('T')[0]; // Format YYYY-MM-DD
-
-  let xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
-  xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n';
-
-  // 1. Page d'accueil
-  xml += createUrlEntry(baseUrl + '/index.html', today, '1.0', 'daily');
-
-  // 2. Pages statiques importantes
-  xml += createUrlEntry(baseUrl + '/promotions.html', today, '0.8', 'daily');
-  xml += createUrlEntry(baseUrl + '/authentification.html', today, '0.6', 'monthly');
-  xml += createUrlEntry(baseUrl + '/suivi-commande.html', today, '0.6', 'monthly');
-  xml += createUrlEntry(baseUrl + '/politique-retour.html', today, '0.3', 'yearly');
-  xml += createUrlEntry(baseUrl + '/politique-confidentialite.html', today, '0.3', 'yearly');
-
-  const catalog = getPublicCatalog();
-  
-  // 3. Pages de catégories
-  if (catalog.categories && catalog.categories.length > 0) {
-    catalog.categories.forEach(category => {
-      if (category.IDCategorie && category.NomCategorie) {
-        const catUrl = `${baseUrl}/categorie.html?id=${category.IDCategorie}&name=${encodeURIComponent(category.NomCategorie)}`;
-        xml += createUrlEntry(catUrl, today, '0.9', 'weekly');
-      }
-    });
-  }
-
-  // 4. Pages de produits
-  if (catalog.products && catalog.products.length > 0) {
-    catalog.products.forEach(product => {
-      if (product.IDProduit) {
-        const prodUrl = `${baseUrl}/produit.html?id=${product.IDProduit}`;
-        xml += createUrlEntry(prodUrl, today, '0.8', 'weekly');
-      }
-    });
-  }
-
-  xml += '</urlset>';
-  return xml;
-}
-
-/**
- * NOUVEAU: Crée une entrée <url> pour le sitemap.
- * @param {string} loc - L'URL de la page.
- * @param {string} lastmod - La date de dernière modification (YYYY-MM-DD).
- * @param {string} priority - La priorité de la page (0.0 à 1.0).
- * @param {string} changefreq - La fréquence de changement (daily, weekly, etc.).
- * @returns {string} L'entrée XML.
- */
-function createUrlEntry(loc, lastmod, priority, changefreq) {
-  return `  <url>\n    <loc>${loc}</loc>\n    <lastmod>${lastmod}</lastmod>\n    <priority>${priority}</priority>\n    <changefreq>${changefreq}</changefreq>\n  </url>\n`;
 }
 
 /**
