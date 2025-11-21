@@ -1225,7 +1225,9 @@ function renderSimilarProducts(currentProduct, allProducts, container) {
 /**
  * NOUVEAU: Initialise la page de paiement.
  */
-function initializeCheckoutPage() {
+// CORRECTION: La fonction doit être 'async' pour pouvoir utiliser 'await'
+// et s'assurer que les méthodes de paiement sont chargées avant de continuer.
+async function initializeCheckoutPage() {
     const form = document.getElementById('checkout-form');
     if (!form) return;
 
@@ -1242,7 +1244,8 @@ function initializeCheckoutPage() {
     // Charger les options de livraison
     populateDeliverySelectorsCheckout();
 
-    loadPaymentMethods(); // Charger les méthodes de paiement dynamiquement
+    // CORRECTION: Utiliser 'await' pour forcer le script à attendre que les options de paiement soient chargées et affichées.
+    await loadPaymentMethods(); // Charger les méthodes de paiement dynamiquement
     // Afficher les articles du résumé
     renderCheckoutSummaryItems();
 
