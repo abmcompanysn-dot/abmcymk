@@ -1,6 +1,6 @@
 const CONFIG = {
     // NOUVEAU: URL de l'API CENTRALE qui gère maintenant tout (comptes, commandes, etc.)
-    ACCOUNT_API_URL:"https://script.google.com/macros/s/AKfycbyYQjYW9mTPtBHhaI1NKrLuBA83DjA3h9sVsEUe_Wt-CkHMXYo4ZF-6hnSmGKKzSO4fqg/exec",
+    ACCOUNT_API_URL:"https://script.google.com/macros/s/AKfycbx1N96Dwx4CBck3c-NAQc5nDXsOr4TZKxSSJjQMFCKKyvmdI1mrnNwEqw_SB85aC24_ag/exec",
     // Les URL spécifiques pour commandes, livraisons et notifications sont maintenant obsolètes
     // car tout est géré par l'API centrale (ACCOUNT_API_URL).
     
@@ -1242,6 +1242,7 @@ function initializeCheckoutPage() {
     // Charger les options de livraison
     populateDeliverySelectorsCheckout();
 
+    loadPaymentMethods(); // NOUVEAU: Charger les méthodes de paiement dynamiquement
     // Afficher les articles du résumé
     renderCheckoutSummaryItems();
 
@@ -1251,6 +1252,68 @@ function initializeCheckoutPage() {
     // Ajouter l'écouteur pour la soumission du formulaire
     form.addEventListener('submit', processCheckout);
 }
+/**
+ * NOUVEAU: Charge les méthodes de paiement (Paydunya, ABMCY Aggregator) depuis l'API centrale.
+ * Met à jour l'interface utilisateur en conséquence.
+ */
+async function loadPaymentMethods() {
+    const paymentMethodsContainer = document.getElementById('payment-methods-container');
+    if (!paymentMethodsContainer) return;
+
+    try {
+        const response = await fetch(CONFIG.ACCOUNT_API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain' },
+            body: JSON.stringify({ action: 'getPaymentSettings' })
+        });
+        const result = await response.json();
+
+        if (result.success && result.data) {
+            const settings = result.data;
+            let paymentHTML = '';
+
+            // Option Paiement à la livraison (toujours disponible)
+            paymentHTML += `
+                <label for="cod" class="flex items-center space-x-3 p-4 border rounded-lg cursor-pointer hover:bg-gray-50">
+                    <input type="radio" id="cod" name="payment-method" value="cod" class="form-radio h-4 w-4 text-gold" checked>
+                    <span class="text-gray-700 font-medium">Paiement à la livraison</span>
+                </label>
+            `;
+
+            // Option Paydunya (si active)
+            if (settings.PAYDUNYA_ACTIVE) {
+                paymentHTML += `
+                    <label for="paydunya" class="flex items-center space-x-3 p-4 border rounded-lg cursor-pointer hover:bg-gray-50 mt-3">
+                        <input type="radio" id="paydunya" name="payment-method" value="paydunya" class="form-radio h-4 w-4 text-gold">
+                        <img src="https://paydunya.com/assets/img/logo-paydunya.png" alt="Paydunya" class="h-6">
+                    </label>
+                `;
+            }
+
+            // NOUVEAU: Options ABMCY Aggregator (si actif)
+            if (settings.ABMCY_AGGREGATOR_ACTIVE && settings.ABMCY_PAYMENT_METHODS) {
+                for (const providerKey in settings.ABMCY_PAYMENT_METHODS) {
+                    const provider = settings.ABMCY_PAYMENT_METHODS[providerKey];
+                    paymentHTML += `
+                        <label for="${providerKey}" class="flex items-center space-x-3 p-4 border rounded-lg cursor-pointer hover:bg-gray-50 mt-3">
+                            <input type="radio" id="${providerKey}" name="payment-method" value="${providerKey}" class="form-radio h-4 w-4 text-gold">
+                            <img src="${provider.logo}" alt="${provider.name}" class="h-6">
+                        </label>
+                    `;
+                }
+            }
+
+            paymentMethodsContainer.innerHTML = paymentHTML;
+        } else {
+            console.error("Impossible de charger les paramètres de paiement:", result.error);
+            paymentMethodsContainer.innerHTML = '<p class="text-red-500">Erreur de chargement des méthodes de paiement.</p>';
+        }
+    } catch (error) {
+        console.error("Erreur lors de la récupération des paramètres de paiement:", error);
+        paymentMethodsContainer.innerHTML = '<p class="text-red-500">Erreur de communication avec le serveur pour les méthodes de paiement.</p>';
+    }
+}
+
 /**
  * NOUVEAU: Remplit les sélecteurs de livraison sur la page de paiement.
  */
@@ -1401,6 +1464,17 @@ async function processCheckout(event) {
     submitButton.textContent = 'Traitement en cours...';
     statusDiv.textContent = 'Veuillez patienter...';
 
+    // NOUVEAU: Récupérer les paramètres de paiement pour vérifier l'activation des agrégateurs
+    let paymentSettings;
+    try {
+        const settingsResponse = await fetch(CONFIG.ACCOUNT_API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ action: 'getPaymentSettings' }) });
+        const settingsResult = await settingsResponse.json();
+        if (settingsResult.success) paymentSettings = settingsResult.data;
+        else throw new Error(settingsResult.error || "Impossible de récupérer les paramètres de paiement.");
+    } catch (error) {
+        statusDiv.textContent = `Erreur lors de la récupération des paramètres de paiement: ${error.message}`;
+        statusDiv.className = 'mt-4 text-center font-semibold text-red-600'; return;
+    }
     // 1. Récupérer les données du formulaire
     const customerData = {
         firstname: form.querySelector('#firstname').value,
@@ -1409,7 +1483,7 @@ async function processCheckout(event) {
         phone: form.querySelector('#phone').value,
         notes: form.querySelector('#notes').value,
         address: form.querySelector('#delivery-address').value,
-        location: form.querySelector('#delivery-location').value,
+        location: form.querySelector('#delivery-location').value, // NOUVEAU: Assurez-vous que la valeur est correcte
         deliveryMethod: form.querySelector('#delivery-method').value,
         paymentMethod: form.querySelector('input[name="payment-method"]:checked').value
     };
@@ -1447,15 +1521,26 @@ async function processCheckout(event) {
     const total = subtotal + shippingCost;
 
     // 5. Préparer l'objet de la commande pour le backend en fonction du mode de paiement
-    let action = '';
-    let paymentNote = '';
+    let action;
+    let paymentNote;
 
-    if (customerData.paymentMethod === 'mobile-money') {
-        action = 'createPaydunyaInvoice'; // AMÉLIORATION: Action directe car Paydunya est le seul agrégateur.
-        paymentNote = 'Paydunya (en ligne)';
-    } else { // 'cod' pour Cash On Delivery
-        action = 'enregistrerCommandeEtNotifier';
+    if (customerData.paymentMethod === 'paydunya' && paymentSettings.PAYDUNYA_ACTIVE) {
+        action = 'createPaydunyaInvoice';
+        paymentNote = 'Paydunya';
+    } else if (['wave', 'orange_money', 'yaas'].includes(customerData.paymentMethod) && paymentSettings.ABMCY_AGGREGATOR_ACTIVE) {
+        action = 'createAbmcyAggregatorInvoice'; // NOUVEAU: Action pour l'agrégateur ABMCY
+        paymentNote = customerData.paymentMethod;
+    }
+    else { // 'cod' ou si les agrégateurs sont désactivés
+        action = 'enregistrerCommandeEtNotifier'; // Paiement à la livraison
         paymentNote = 'Paiement à la livraison';
+        // Si un agrégateur était sélectionné mais est inactif, on force le COD
+        if (customerData.paymentMethod !== 'cod') {
+            statusDiv.textContent = "Le mode de paiement sélectionné est actuellement indisponible. La commande sera enregistrée en 'Paiement à la livraison'.";
+            statusDiv.className = 'mt-4 text-center font-semibold text-orange-600';
+            customerData.paymentMethod = 'cod'; // Mettre à jour pour la logique suivante
+            // On ne redirige pas ici, on continue avec l'enregistrement COD.
+        }
     }
 
     const orderPayload = {
@@ -1477,7 +1562,8 @@ async function processCheckout(event) {
             adresseLivraison: `${customerData.address}, ${customerData.location}`,
             total: total,
             moyenPaiement: paymentNote, // NOUVEAU: Ajout des infos client pour Paydunya
-            customer: {
+            paymentProvider: customerData.paymentMethod, // NOUVEAU: Pour l'agrégateur ABMCY
+            customer: { // NOUVEAU: Ajout des infos client pour Paydunya/ABMCY Aggregator
                 name: clientName,
                 email: customerData.email,
                 phone: customerData.phone
@@ -1500,10 +1586,10 @@ async function processCheckout(event) {
             statusDiv.className = 'mt-4 text-center font-semibold text-green-600';
             saveCart([]); // Vider le panier après la commande
 
-            if (customerData.paymentMethod === 'mobile-money') {
+            if (customerData.paymentMethod === 'paydunya' || ['wave', 'orange_money', 'yaas'].includes(customerData.paymentMethod)) {
                 statusDiv.textContent = `Facture créée. Redirection vers la page de paiement...`;
-                // Rediriger l'utilisateur vers l'URL de paiement de Paydunya
                 localStorage.removeItem('abmcyUserOrders'); // Invalider le cache des commandes
+                // Rediriger l'utilisateur vers l'URL de paiement de l'agrégateur
                 window.location.href = result.payment_url;
             } else {
                 statusDiv.textContent = `Commande #${result.id} enregistrée avec succès ! Vous allez être redirigé.`;
@@ -2667,6 +2753,7 @@ async function initializeConfirmationPage() {
     const orderId = params.get('orderId');
     const orderIdElement = document.getElementById('order-id');
     const orderDetailsContainer = document.getElementById('order-details');
+    const countdownContainer = document.getElementById('payment-countdown'); // NOUVEAU
 
     if (!orderId || !orderIdElement || !orderDetailsContainer) {
         if (orderIdElement) orderIdElement.textContent = 'Non disponible';
@@ -2684,7 +2771,7 @@ async function initializeConfirmationPage() {
         const response = await fetch(CONFIG.ACCOUNT_API_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'text/plain' },
-            body: JSON.stringify({ action: 'getOrderById', data: { orderId: orderId } })
+            body: JSON.stringify({ action: 'getAbmcyPaymentStatus', data: { orderId: orderId } }) // NOUVEAU: Utiliser la fonction de statut spécifique
         });
         const result = await response.json();
 
@@ -2692,19 +2779,70 @@ async function initializeConfirmationPage() {
         const loadingMessage = document.getElementById('loading-details');
         if (loadingMessage) loadingMessage.remove();
 
-        if (result.success && result.data) {
-            const order = result.data;
+        if (result.success && result.order) { // NOUVEAU: 'result.order' au lieu de 'result.data'
+            const order = result.order;
             // Injecter les détails de la commande dans la page
             orderDetailsContainer.innerHTML = `
                 <h2 class="font-semibold mb-2">Récapitulatif :</h2>
                 <div class="space-y-1 text-sm">
                     <p><strong>Numéro de commande :</strong> <span class="font-mono">#${order.IDCommande}</span></p>
                     <p><strong>Montant total :</strong> <span class="font-semibold">${Number(order.MontantTotal).toLocaleString('fr-FR')} F CFA</span></p>
-                    <p><strong>Produits :</strong> ${order.DetailsProduits}</p>
+                    <p><strong>Produits :</strong> ${order.DetailsProduits || 'Non disponible'}</p>
                     <p><strong>Adresse de livraison :</strong> ${order.AdresseLivraison}</p>
+                    <p><strong>Statut actuel :</strong> <span id="current-order-status" class="font-semibold">${order.Statut}</span></p>
                 </div>
                 <p class="text-xs text-gray-500 mt-3">Un email de confirmation vous a été envoyé.</p>
             `;
+
+            // NOUVEAU: Gérer le timer et le polling si le statut est "En attente de paiement ABMCY"
+            if (order.Statut.startsWith("En attente de paiement ABMCY") && order.InitiationTimestamp && countdownContainer) {
+                countdownContainer.classList.remove('hidden');
+                const initiationTime = new Date(order.InitiationTimestamp).getTime();
+                const EXPIRATION_TIME_MS = 25 * 60 * 1000; // 25 minutes
+                const endTime = initiationTime + EXPIRATION_TIME_MS;
+
+                const updateCountdown = () => {
+                    const now = new Date().getTime();
+                    const timeLeft = endTime - now;
+
+                    if (timeLeft <= 0) {
+                        clearInterval(countdownInterval);
+                        countdownContainer.innerHTML = '<p class="text-red-600 font-bold">Délai de paiement expiré.</p>';
+                        document.getElementById('current-order-status').textContent = 'Expiré (Délai dépassé)';
+                        return;
+                    }
+
+                    const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
+                    const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
+
+                    countdownContainer.innerHTML = `
+                        <p class="text-sm text-gray-700">Veuillez effectuer votre paiement dans les :</p>
+                        <p class="text-2xl font-bold text-gold">${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}</p>
+                    `;
+                };
+
+                const countdownInterval = setInterval(updateCountdown, 1000);
+                updateCountdown(); // Appel initial
+
+                // Polling pour le statut de la commande toutes les 30 secondes
+                const pollingInterval = setInterval(async () => {
+                    const pollResponse = await fetch(CONFIG.ACCOUNT_API_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'text/plain' },
+                        body: JSON.stringify({ action: 'getAbmcyPaymentStatus', data: { orderId: orderId } })
+                    });
+                    const pollResult = await pollResponse.json();
+
+                    if (pollResult.success && pollResult.status !== order.Statut) {
+                        document.getElementById('current-order-status').textContent = pollResult.status;
+                        if (pollResult.status === 'Confirmée' || pollResult.status.startsWith('Payée')) {
+                            clearInterval(countdownInterval);
+                            clearInterval(pollingInterval);
+                            countdownContainer.innerHTML = '<p class="text-green-600 font-bold">Paiement confirmé !</p>';
+                        }
+                    }
+                }, 30000); // Toutes les 30 secondes
+            }
         } else {
             // En cas d'erreur, afficher un message simple
             orderDetailsContainer.innerHTML += '<p class="text-sm text-red-500">Impossible de charger les détails.</p>';

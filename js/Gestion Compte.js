@@ -131,7 +131,11 @@ function doPost(e) {
             case 'createPaydunyaInvoice': // NOUVEAU: Action pour créer une facture Paydunya
                 return createPaydunyaInvoice(data, origin);
             // NOUVEAU: Action pour le paiement à la livraison
-            case 'enregistrerCommandeEtNotifier':
+            case 'createAbmcyAggregatorInvoice': // NOUVEAU: Action pour le nouvel agrégateur ABMCY
+                return createAbmcyAggregatorInvoice(data, origin);
+            case 'getAbmcyPaymentStatus': // NOUVEAU: Pour le suivi de statut des paiements ABMCY
+                return getAbmcyPaymentStatus(data, origin);
+            case 'enregistrerCommandeEtNotifier': // Pour le paiement à la livraison (COD)
                 const orderResult = enregistrerCommande(data, origin);
                 const orderData = JSON.parse(orderResult.getContent());
                 if (orderData.success) { sendOrderConfirmationEmail(orderData, data, "cod"); }
@@ -434,6 +438,182 @@ function createPaydunyaInvoice(data, origin) {
 }
 
 /**
+ * NOUVEAU: Crée une facture pour l'agrégateur ABMCY (Wave, Orange Money, Yaas) et retourne l'URL de paiement.
+ * @param {object} data - Les données de la commande, incluant le `paymentProvider` (wave, orange_money, yaas).
+ * @param {string} origin - L'origine de la requête.
+ * @returns {GoogleAppsScript.Content.TextOutput} Réponse JSON avec l'URL de paiement.
+ */
+function createAbmcyAggregatorInvoice(data, origin) {
+    const lock = LockService.getScriptLock();
+    lock.waitLock(30000);
+
+    try {
+        const config = getConfig();
+        if (!config.ABMCY_AGGREGATOR_ACTIVE) {
+            throw new Error("L'agrégateur de paiement ABMCY n'est pas actif.");
+        }
+
+        const paymentMethods = config.ABMCY_PAYMENT_METHODS;
+        const selectedProvider = data.paymentProvider;
+
+        if (!paymentMethods || !paymentMethods[selectedProvider]) {
+            throw new Error(`Fournisseur de paiement '${selectedProvider}' non configuré.`);
+        }
+
+        const providerConfig = paymentMethods[selectedProvider];
+        const orderSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.ORDERS);
+        const idCommande = "CMD-" + new Date().getTime();
+        const transactionReference = "ABMCY-" + new Date().getTime(); // Référence unique pour le suivi
+
+        // 1. Enregistrer la commande avec un statut "En attente de paiement ABMCY"
+        const produitsDetails = data.produits.map(p => `${p.name} (x${p.quantity})`).join(', ');
+        const initiationTimestamp = new Date().toISOString(); // Timestamp de début du timer
+
+        // AMÉLIORATION: Ajouter la référence de transaction et le timestamp d'initiation
+        orderSheet.appendRow([
+            idCommande, data.idClient, produitsDetails,
+            data.total, `En attente de paiement ABMCY (${selectedProvider})`, new Date(),
+            false, false, false, false, // EtapeConfirmee, EtapePreparation, EtapeExpediee, EtapeLivree
+            data.adresseLivraison, selectedProvider, data.notes || '',
+            transactionReference, // Nouvelle colonne pour la référence
+            initiationTimestamp // Nouvelle colonne pour le timestamp d'initiation
+        ]);
+
+        // 2. NOUVEAU: Construire l'URL de redirection vers notre page intermédiaire abmcymarket.html
+        // On passe les informations nécessaires en paramètres d'URL.
+        const aggregatorPageUrl = "https://abmcymarket.abmcy.com/abmcy_aggregator.html"; // URL de votre nouvelle page
+        const paymentUrl = `${aggregatorPageUrl}?orderId=${idCommande}&total=${data.total}&ref=${transactionReference}`;
+
+        // L'ancienne logique de remplacement est maintenant gérée par la page abmcymarket.html elle-même.
+
+        // NOUVEAU: Envoyer l'email de "Paiement en attente" au client
+        const emailData = { customerEmail: data.customer.email, orderId: idCommande, total: data.total, paymentUrl: paymentUrl, paymentProvider: providerConfig.name };
+        sendAbmcyStatusEmail(emailData, 'pending');
+
+        // NOUVEAU: Envoyer un email de notification à l'admin avec le lien de confirmation
+        const adminNotificationData = { id: idCommande, clientId: data.idClient, total: data.total, customerEmail: data.customer.email };
+        const originalOrderData = { produits: data.produits };
+        // Le type 'abmcy_pending' déclenchera l'ajout du lien de confirmation
+        sendOrderConfirmationEmail(adminNotificationData, originalOrderData, 'abmcy_pending');
+
+
+        logAction('createAbmcyAggregatorInvoice', { id: idCommande, provider: selectedProvider, url: paymentUrl });
+        return createJsonResponse({ success: true, payment_url: paymentUrl, orderId: idCommande }, origin);
+
+    } catch (error) {
+        logError(JSON.stringify({ action: 'createAbmcyAggregatorInvoice', data }), error);
+        sendPaymentFailureEmail('ABMCY Aggregator', error, data);
+        return createJsonResponse({ success: false, error: `Erreur ABMCY Aggregator: ${error.message}` }, origin);
+    } finally {
+        lock.releaseLock();
+    }
+}
+
+/**
+ * NOUVEAU: Récupère le statut d'un paiement ABMCY Aggregator.
+ * Utilisé par le front-end pour le polling.
+ * @param {object} data - Contient { orderId }.
+ * @param {string} origin - L'origine de la requête.
+ * @returns {GoogleAppsScript.Content.TextOutput} Réponse JSON avec le statut.
+ */
+function getAbmcyPaymentStatus(data, origin) {
+    try {
+        const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.ORDERS);
+        const allOrders = sheet.getDataRange().getValues();
+        const headers = allOrders.shift() || [];
+        const idCommandeIndex = headers.indexOf("IDCommande");
+        const statutIndex = headers.indexOf("Statut");
+
+        if (!data.orderId) {
+            return createJsonResponse({ success: false, error: "L'ID de la commande est manquant." }, origin);
+        }
+
+        const orderRow = allOrders.find(row => row[idCommandeIndex] === data.orderId);
+
+        if (!orderRow) {
+            return createJsonResponse({ success: false, error: "Commande non trouvée." }, origin);
+        }
+
+        const currentStatus = orderRow[statutIndex];
+        const orderObject = headers.reduce((obj, header, index) => {
+            obj[header] = orderRow[index];
+            return obj;
+        }, {});
+
+        logAction('getAbmcyPaymentStatus', { orderId: data.orderId, status: currentStatus });
+        return createJsonResponse({ success: true, status: currentStatus, order: orderObject }, origin);
+
+    } catch (error) {
+        logError(JSON.stringify({ action: 'getAbmcyPaymentStatus', data }), error);
+        return createJsonResponse({ success: false, error: error.message }, origin);
+    }
+}
+
+/**
+ * NOUVEAU: Envoie un email au client concernant le statut de son paiement ABMCY.
+ * @param {object} data - Contient { customerEmail, orderId, total, paymentUrl, paymentProvider }.
+ * @param {string} statusType - 'pending' ou 'confirmed'.
+ */
+function sendAbmcyStatusEmail(data, statusType) {
+    if (!data.customerEmail) {
+        logAction('sendAbmcyStatusEmail', { warning: `Tentative d'envoi d'email sans adresse pour la commande ${data.orderId}.` });
+        return;
+    }
+
+    let subject, body;
+
+    if (statusType === 'pending') {
+        subject = `Votre commande #${data.orderId} est en attente de paiement`;
+        body = `
+            <h2>Bonjour,</h2>
+            <p>Votre commande <strong>#${data.orderId}</strong> a bien été enregistrée et est en attente de votre paiement.</p>
+            <p>Pour finaliser votre commande, veuillez effectuer le paiement de <strong>${data.total.toLocaleString('fr-FR')} F CFA</strong> via <strong>${data.paymentProvider}</strong>.</p>
+            <p>Vous disposez de 25 minutes pour effectuer le paiement avant que la commande n'expire.</p>
+            <p style="text-align:center; margin: 20px 0;">
+                <a href="${data.paymentUrl}" style="background-color: #D4AF37; color: black; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+                    Payer ma commande maintenant
+                </a>
+            </p>
+            <p>Si le bouton ne fonctionne pas, copiez et collez ce lien dans votre navigateur : ${data.paymentUrl}</p>
+            <p>Merci de votre confiance,<br>L'équipe ABMCY MARKET.</p>
+        `;
+    } else if (statusType === 'confirmed') {
+        subject = `Paiement confirmé pour votre commande #${data.orderId}`;
+        body = `
+            <h2>Bonjour,</h2>
+            <p>Bonne nouvelle ! Nous avons bien reçu votre paiement pour la commande <strong>#${data.orderId}</strong>.</p>
+            <p>Votre commande est maintenant confirmée et nous allons commencer à la préparer pour l'expédition.</p>
+            <p>Vous pouvez suivre son statut à tout moment sur notre site.</p>
+            <p>Merci de votre confiance,<br>L'équipe ABMCY MARKET.</p>
+        `;
+    } else {
+        return; // Type de statut non reconnu
+    }
+
+    try {
+        MailApp.sendEmail(data.customerEmail, subject, "", { htmlBody: body });
+        logAction('sendAbmcyStatusEmail', { orderId: data.orderId, email: data.customerEmail, status: statusType });
+    } catch (error) {
+        logError('sendAbmcyStatusEmail', error);
+    }
+}
+
+/**
+ * NOUVEAU: Fonction utilitaire pour trouver l'email d'un client à partir de son ID de commande.
+ * C'est une simplification. Idéalement, l'email devrait être stocké avec la commande.
+ */
+function findCustomerEmailByOrderId(orderId, allOrders, headers) {
+    const usersSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.USERS);
+    const usersData = usersSheet.getDataRange().getValues();
+    const usersHeaders = usersData.shift();
+    const orderRow = allOrders.find(row => row[headers.indexOf("IDCommande")] === orderId);
+    if (!orderRow) return null;
+    const clientId = orderRow[headers.indexOf("IDClient")];
+    const userRow = usersData.find(row => row[usersHeaders.indexOf("IDClient")] === clientId);
+    return userRow ? userRow[usersHeaders.indexOf("Email")] : null;
+}
+
+/**
  * NOUVEAU: Envoie un email de confirmation de commande à l'admin. Fusionné depuis Gestion Notifications.
  * @param {object} orderResult - Le résultat de la fonction enregistrerCommande.
  * @param {object} originalData - Les données originales de la commande contenant les détails des produits.
@@ -442,9 +622,22 @@ function createPaydunyaInvoice(data, origin) {
 function sendOrderConfirmationEmail(orderData, originalData, type) {
     try {
         // 1. Envoyer l'email à l'administrateur
-        const adminSubject = `Nouvelle commande #${orderData.id} (${type === 'cod' ? 'Paiement à la livraison' : 'Payée en ligne'})`;
-        const adminBody = `Une nouvelle commande a été passée.\n\nID Commande: ${orderData.id}\nClient: ${orderData.clientId}\nTotal: ${orderData.total} F CFA\nEmail Client: ${orderData.customerEmail}\n\nDétails: ${JSON.stringify(originalData.produits, null, 2)}`;
-        MailApp.sendEmail(ADMIN_EMAIL, adminSubject, adminBody);
+        let adminSubject, adminBodyHTML;
+        const adminConfirmationUrl = ScriptApp.getService().getUrl() + "?action=showAbmcyAdmin";
+
+        if (type === 'abmcy_pending') {
+            adminSubject = `⏳ Paiement initié pour commande #${orderData.id}`;
+            adminBodyHTML = `
+                <p>Un paiement a été initié via l'agrégateur ABMCY pour la commande <strong>#${orderData.id}</strong>.</p>
+                <p><strong>Montant :</strong> ${orderData.total.toLocaleString('fr-FR')} F CFA</p>
+                <p>Veuillez vérifier la réception des fonds avant de confirmer manuellement.</p>
+                <a href="${adminConfirmationUrl}" style="display: inline-block; padding: 10px 15px; background-color: #28a745; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;">Confirmer le paiement</a>
+            `;
+        } else { // 'cod' ou autre
+            adminSubject = `Nouvelle commande #${orderData.id} (Paiement à la livraison)`;
+            adminBodyHTML = `<p>Une nouvelle commande a été passée en paiement à la livraison.</p><p><strong>ID Commande:</strong> ${orderData.id}</p><p><strong>Client:</strong> ${orderData.clientId}</p><p><strong>Total:</strong> ${orderData.total} F CFA</p><p><strong>Détails:</strong> ${JSON.stringify(originalData.produits, null, 2)}</p>`;
+        }
+        MailApp.sendEmail(ADMIN_EMAIL, adminSubject, "", { htmlBody: adminBodyHTML });
         logAction('sendAdminConfirmationEmail', { orderId: orderData.id, type: type });
 
         // 2. Envoyer l'email de confirmation au client
@@ -540,7 +733,7 @@ function handlePaydunyaWebhook(e) {
             logAction('PAIEMENT_NON_COMPLETE', { orderId: orderId, status: status, webhookData: webhookData });
             sendPaymentFailureEmail('Paydunya Webhook', new Error(`Statut: ${status}`), { orderId: orderId, webhookData: webhookData }); // NOUVEAU
         }
-    } catch (error) {
+    } catch (error) { // CORRECTION: Passer 'e.postData.contents' pour le contexte de l'erreur
         logError('handlePaydunyaWebhook', error, e.postData.contents);
     }
 }
@@ -591,6 +784,7 @@ function getPaymentSettings(data, origin) {
             PAYDUNYA_PRIVATE_KEY: config.PAYDUNYA_PRIVATE_KEY,
             PAYDUNYA_TOKEN: config.PAYDUNYA_TOKEN,
             PAYDUNYA_PUBLIC_KEY: config.PAYDUNYA_PUBLIC_KEY,
+            ABMCY_AGGREGATOR_ACTIVE: String(config.ABMCY_AGGREGATOR_ACTIVE).toLowerCase() === 'true', // NOUVEAU
         };
         return createJsonResponse({ success: true, data: settings }, origin);
     } catch (error) {
@@ -616,6 +810,7 @@ function savePaymentSettings(data, origin) {
             'PAYDUNYA_MASTER_KEY': data.PAYDUNYA_MASTER_KEY,
             'PAYDUNYA_PRIVATE_KEY': data.PAYDUNYA_PRIVATE_KEY,
             'PAYDUNYA_TOKEN': data.PAYDUNYA_TOKEN,
+            'ABMCY_AGGREGATOR_ACTIVE': data.ABMCY_AGGREGATOR_ACTIVE, // NOUVEAU
         };
 
         Object.entries(settingsToUpdate).forEach(([key, value]) => {
@@ -1118,7 +1313,9 @@ function getCorrectionSuggestion(error, context) {
 function onOpen() {
   SpreadsheetApp.getUi()
       .createMenu('Configuration Module')
-      .addItem('🚀 Initialiser le projet', 'setupProject')
+      .addItem('🚀 Initialiser le projet (Feuilles & Config)', 'setupProject')
+      .addSeparator()
+      .addItem('⏰ Configurer le déclencheur d\'expiration des paiements ABMCY', 'createAbmcyPaymentExpirationTrigger') // NOUVEAU
       .addItem('🔑 Ouvrir le Tableau de Bord Admin', 'openAdminDashboardInSidebar') // NOUVEAU
       .addToUi();
 }
@@ -1144,7 +1341,9 @@ function getConfig() {
     PAYDUNYA_MASTER_KEY: "VOTRE_MASTER_KEY",
     PAYDUNYA_PRIVATE_KEY: "VOTRE_PRIVATE_KEY",
     PAYDUNYA_PUBLIC_KEY: "VOTRE_PUBLIC_KEY",
-    PAYDUNYA_TOKEN: "VOTRE_TOKEN"
+    PAYDUNYA_TOKEN: "VOTRE_TOKEN",
+    ABMCY_AGGREGATOR_ACTIVE: "false", // NOUVEAU: Par défaut désactivé
+    ABMCY_PAYMENT_METHODS: "{}" // NOUVEAU: JSON vide par défaut
   };
 
   try {
@@ -1167,7 +1366,9 @@ function getConfig() {
       PAYDUNYA_MASTER_KEY: config.PAYDUNYA_MASTER_KEY || defaultConfig.PAYDUNYA_MASTER_KEY,
       PAYDUNYA_PRIVATE_KEY: config.PAYDUNYA_PRIVATE_KEY || defaultConfig.PAYDUNYA_PRIVATE_KEY,
       PAYDUNYA_PUBLIC_KEY: config.PAYDUNYA_PUBLIC_KEY || defaultConfig.PAYDUNYA_PUBLIC_KEY,
-      PAYDUNYA_TOKEN: config.PAYDUNYA_TOKEN || defaultConfig.PAYDUNYA_TOKEN
+      PAYDUNYA_TOKEN: config.PAYDUNYA_TOKEN || defaultConfig.PAYDUNYA_TOKEN,
+      ABMCY_AGGREGATOR_ACTIVE: config.ABMCY_AGGREGATOR_ACTIVE === 'true', // NOUVEAU
+      ABMCY_PAYMENT_METHODS: config.ABMCY_PAYMENT_METHODS ? JSON.parse(config.ABMCY_PAYMENT_METHODS) : defaultConfig.ABMCY_PAYMENT_METHODS // NOUVEAU
     };
 
     cache.put(CACHE_KEY, JSON.stringify(finalConfig), 600); // Cache pendant 10 minutes
@@ -1186,9 +1387,10 @@ function setupProject() {
 
   const sheetsToCreate = {
     [SHEET_NAMES.USERS]: ["IDClient", "Nom", "Email", "PasswordHash", "Salt", "Telephone", "Adresse", "DateInscription", "Statut", "Role"],
-    [SHEET_NAMES.ORDERS]: ["IDCommande", "IDClient", "DetailsProduits", "MontantTotal", "Statut", "Date", "EtapeConfirmee", "EtapePreparation", "EtapeExpediee", "EtapeLivree", "AdresseLivraison", "MoyenPaiement", "Notes"],
+    [SHEET_NAMES.ORDERS]: ["IDCommande", "IDClient", "DetailsProduits", "MontantTotal", "Statut", "Date", "EtapeConfirmee", "EtapePreparation", "EtapeExpediee", "EtapeLivree", "AdresseLivraison", "MoyenPaiement", "Notes", "TransactionReference", "InitiationTimestamp"], // NOUVEAU: Ajout de colonnes
     [SHEET_NAMES.LOGS]: ["Timestamp", "Source", "Action", "Détails"],
     [SHEET_NAMES.CONFIG]: ["Clé", "Valeur"],
+    [SHEET_NAMES.ABMCY_Admin]: ["Clé", "Valeur"], // NOUVEAU
     [SHEET_NAMES.LIVRAISONS]: ["IDLivraison", "IDCommande", "IDClient", "Adresse", "Statut", "DateMiseAJour", "Transporteur"],
     [SHEET_NAMES.NOTIFICATIONS]: ["IDNotification", "IDCommande", "Type", "Message", "Statut", "Date"],
   };
@@ -1221,7 +1423,25 @@ function setupProject() {
     'PAYDUNYA_PRIVATE_KEY': 'live_private_3CzZajIPeFrcWxNOvDxyTuan3dm',
     'PAYDUNYA_PUBLIC_KEY': 'live_public_TgcjrnTM5MmbDajbWjZQJdFjuro',
     'PAYDUNYA_TOKEN': 'QSUiqdHl3U7iaXsnoT69',
-    'PAYDUNYA_ACTIVE': 'true', // NOUVEAU
+    'PAYDUNYA_ACTIVE': 'true',
+    'ABMCY_AGGREGATOR_ACTIVE': 'false', // NOUVEAU: Par défaut désactivé
+    'ABMCY_PAYMENT_METHODS': JSON.stringify({ // NOUVEAU: Exemple de configuration
+        "wave": {
+            "name": "Wave Money",
+            "logo": "https://i.postimg.cc/yY022b72/wave-logo.png",
+            "baseUrl": "https://pay.wave.com/m/M_sn_J3jR9Wg9ilPF/c/sn/?amount={amount}&ref={reference}&order_id={order_id}"
+        },
+        "orange_money": {
+            "name": "Orange Money",
+            "logo": "https://i.postimg.cc/W341922c/orange-money-logo.png",
+            "baseUrl": "https://example.com/orange-money-pay?amount={amount}&ref={reference}&phone={customer_phone}&order_id={order_id}" // REMPLACER PAR URL RÉELLE
+        },
+        "yaas": {
+            "name": "Yaas",
+            "logo": "https://i.postimg.cc/Qx011b72/yaas-logo.png",
+            "baseUrl": "https://example.com/yaas-pay?amount={amount}&ref={reference}&email={customer_email}&order_id={order_id}" // REMPLACER PAR URL RÉELLE
+        }
+    })
   };
 
   Object.entries(defaultConfigValues).forEach(([key, value]) => {
@@ -1229,9 +1449,87 @@ function setupProject() {
       configSheet.appendRow([key, value]);
     }
   });
+
+  // NOUVEAU: Remplir la feuille ABMCY_Admin
+  const abmcyAdminSheet = ss.getSheetByName(SHEET_NAMES.ABMCY_Admin);
+  const abmcyAdminData = abmcyAdminSheet.getDataRange().getValues();
+  const abmcyAdminMap = new Map(abmcyAdminData.map(row => [row[0], row[1]]));
+  if (!abmcyAdminMap.has('AdminPassword')) {
+      abmcyAdminSheet.appendRow(['AdminPassword', 'abmcy2024']); // Mot de passe par défaut
+  }
+
+  // NOUVEAU: S'assurer que les colonnes 'TransactionReference' et 'InitiationTimestamp' existent dans la feuille 'Commandes'
+  const ordersSheet = ss.getSheetByName(SHEET_NAMES.ORDERS);
+  const ordersHeaders = ordersSheet.getRange(1, 1, 1, ordersSheet.getLastColumn()).getValues()[0];
+  if (ordersHeaders.indexOf("TransactionReference") === -1) {
+      ordersSheet.insertColumnAfter(ordersHeaders.length);
+      ordersSheet.getRange(1, ordersHeaders.length + 1).setValue("TransactionReference");
+  }
+  if (ordersHeaders.indexOf("InitiationTimestamp") === -1) {
+      ordersSheet.insertColumnAfter(ordersHeaders.length + 1); // +1 car on vient d'ajouter une colonne
+      ordersSheet.getRange(1, ordersHeaders.length + 2).setValue("InitiationTimestamp");
+  }
   
   CacheService.getScriptCache().remove('script_config'); // Vider le cache pour prendre en compte les changements
   ui.alert("Projet Central initialisé avec succès ! Tous les onglets sont prêts.");
+}
+
+/**
+ * NOUVEAU: Crée un déclencheur horaire pour vérifier les paiements ABMCY expirés.
+ */
+function createAbmcyPaymentExpirationTrigger() {
+    const ui = SpreadsheetApp.getUi();
+    // Supprimer les déclencheurs existants pour éviter les doublons
+    const triggers = ScriptApp.getProjectTriggers();
+    for (let i = 0; i < triggers.length; i++) {
+        if (triggers[i].getHandlerFunction() === 'checkExpiredAbmcyPayments') {
+            ScriptApp.deleteTrigger(triggers[i]);
+        }
+    }
+
+    // Créer un nouveau déclencheur qui s'exécute toutes les 5 minutes
+    ScriptApp.newTrigger('checkExpiredAbmcyPayments')
+        .timeBased()
+        .everyMinutes(5)
+        .create();
+
+    ui.alert("Déclencheur d'expiration des paiements ABMCY créé. Il s'exécutera toutes les 5 minutes.");
+}
+
+/**
+ * NOUVEAU: Fonction exécutée par un déclencheur horaire pour vérifier les paiements ABMCY expirés.
+ * Marque les commandes "En attente de paiement ABMCY" comme "Expiré" si le délai de 25 minutes est dépassé.
+ */
+function checkExpiredAbmcyPayments() {
+    const EXPIRATION_TIME_MS = 25 * 60 * 1000; // 25 minutes en millisecondes
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.ORDERS);
+    const allOrders = sheet.getDataRange().getValues();
+    const headers = allOrders.shift() || [];
+
+    const statutIndex = headers.indexOf("Statut");
+    const initiationTimestampIndex = headers.indexOf("InitiationTimestamp");
+
+    if (statutIndex === -1 || initiationTimestampIndex === -1) {
+        logError('checkExpiredAbmcyPayments', new Error("Colonnes 'Statut' ou 'InitiationTimestamp' manquantes dans la feuille Commandes."));
+        return;
+    }
+
+    const now = new Date().getTime();
+    let updatedCount = 0;
+
+    for (let i = 0; i < allOrders.length; i++) {
+        const row = allOrders[i];
+        if (row[statutIndex].startsWith("En attente de paiement ABMCY")) {
+            const initiationTime = new Date(row[initiationTimestampIndex]).getTime();
+            if (now - initiationTime > EXPIRATION_TIME_MS) {
+                sheet.getRange(i + 2, statutIndex + 1).setValue("Expiré (Paiement ABMCY)");
+                updatedCount++;
+            }
+        }
+    }
+    if (updatedCount > 0) {
+        logAction('checkExpiredAbmcyPayments', { message: `${updatedCount} paiements ABMCY expirés mis à jour.` });
+    }
 }
 
 /**

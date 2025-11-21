@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Confirmation Paiements ABMCY</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="bg-gray-100">
+
+    <div id="login-screen" class="min-h-screen flex items-center justify-center">
+        <div class="bg-white p-8 rounded-lg shadow-md w-full max-w-sm">
+            <h1 class="text-2xl font-bold text-center mb-6">Accès Admin</h1>
+            <form id="login-form">
+                <div class="mb-4">
+                    <label for="password" class="block text-gray-700 text-sm font-bold mb-2">Mot de passe</label>
+                    <input type="password" id="password" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                </div>
+                <button type="submit" class="font-bold py-2 px-4 rounded transition duration-300 ease-in-out bg-blue-500 text-white hover:bg-blue-600 w-full">Se connecter</button>
+                <p id="login-status" class="text-red-500 text-xs italic mt-4 text-center"></p>
+            </form>
+        </div>
+    </div>
+
+    <div id="admin-panel" class="hidden container mx-auto p-4 md:p-8">
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-3xl font-bold text-gray-800">Paiements ABMCY en attente</h1>
+            <button id="refresh-btn" class="font-bold py-2 px-4 rounded transition duration-300 ease-in-out bg-blue-500 text-white hover:bg-blue-600">Rafraîchir</button>
+        </div>
+
+        <div id="status-message" class="mb-4"></div>
+
+        <div class="bg-white rounded-lg shadow overflow-hidden">
+            <div id="loader" class="loader"></div>
+            <div id="transactions-list" class="divide-y divide-gray-200">
+                <!-- Les transactions seront injectées ici -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = "https://script.google.com/macros/s/AKfycbyYQjYW9mTPtBHhaI1NKrLuBA83DjA3h9sVsEUe_Wt-CkHMXYo4ZF-6hnSmGKKzSO4fqg/exec";
+        const loginForm = document.getElementById('login-form');
+        const loginScreen = document.getElementById('login-screen');
+        const adminPanel = document.getElementById('admin-panel');
+        const passwordInput = document.getElementById('password');
+        const loginStatus = document.getElementById('login-status');
+        const transactionsList = document.getElementById('transactions-list');
+        const loader = document.getElementById('loader');
+        const refreshBtn = document.getElementById('refresh-btn');
+        const statusMessage = document.getElementById('status-message');
+
+        let adminPassword = '';
+
+        loginForm.addEventListener('submit', e => {
+            e.preventDefault();
+            adminPassword = passwordInput.value;
+            loginStatus.textContent = 'Vérification...';
+            loadPendingTransactions();
+        });
+
+        refreshBtn.addEventListener('click', loadPendingTransactions);
+
+        async function apiCall(action, data = {}) {
+            const payload = {
+                action: action,
+                password: adminPassword, // Toujours envoyer le mot de passe pour l'authentification
+                data: data
+            };
+            const response = await fetch(API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain' },
+                body: JSON.stringify(payload)
+            });
+            return response.json();
+        }
+
+        async function loadPendingTransactions() {
+            loader.style.display = 'block';
+            transactionsList.innerHTML = '';
+            statusMessage.innerHTML = '';
+
+            const result = await apiCall('getPendingAbmcyPayments');
+
+            loader.style.display = 'none';
+
+            if (result.unauthorized) {
+                loginStatus.textContent = 'Mot de passe incorrect.';
+                return;
+            }
+
+            if (result.success) {
+                loginScreen.classList.add('hidden');
+                adminPanel.classList.remove('hidden');
+                
+                if (result.data.length === 0) {
+                    transactionsList.innerHTML = '<p class="p-6 text-center text-gray-500">Aucune transaction en attente de confirmation.</p>';
+                } else {
+                    renderTransactions(result.data);
+                }
+            } else {
+                statusMessage.innerHTML = `<p class="p-4 bg-red-100 text-red-700 rounded">${result.error}</p>`;
+            }
+        }
+
+        function renderTransactions(transactions) {
+            transactionsList.innerHTML = transactions.map(tx => `
+                <div class="p-4 flex flex-col md:flex-row justify-between items-start md:items-center" id="tx-${tx.IDCommande}">
+                    <div>
+                        <p class="font-bold text-lg">${tx.IDCommande}</p>
+                        <p class="text-sm text-gray-600">
+                            <span class="font-semibold">${tx.MontantTotal.toLocaleString('fr-FR')} F CFA</span> via 
+                            <span class="font-semibold">${tx.MoyenPaiement}</span>
+                        </p>
+                        <p class="text-xs text-gray-500">Le ${new Date(tx.Date).toLocaleString('fr-FR')}</p>
+                    </div>
+                    <div class="flex space-x-2 mt-4 md:mt-0">
+                        <button onclick="confirmPayment('${tx.IDCommande}')" class="font-bold py-2 px-4 rounded transition duration-300 ease-in-out bg-green-500 text-white hover:bg-green-600">Confirmer</button>
+                        <button onclick="expirePayment('${tx.IDCommande}')" class="font-bold py-2 px-4 rounded transition duration-300 ease-in-out bg-red-500 text-white hover:bg-red-600">Expirer</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function confirmPayment(orderId) {
+            if (!confirm(`Voulez-vous vraiment confirmer le paiement pour la commande ${orderId} ?`)) return;
+            
+            const result = await apiCall('manuallyConfirmAbmcyPayment', { orderId });
+            handleActionResponse(result, orderId, 'Paiement confirmé avec succès !', 'bg-green-100 text-green-700');
+        }
+
+        async function expirePayment(orderId) {
+            if (!confirm(`Voulez-vous vraiment marquer la commande ${orderId} comme expirée ?`)) return;
+
+            const result = await apiCall('manuallyExpireAbmcyPayment', { orderId });
+            handleActionResponse(result, orderId, 'Paiement marqué comme expiré.', 'bg-yellow-100 text-yellow-700');
+        }
+
+        function handleActionResponse(result, orderId, successMessage, successClasses) {
+            if (result.success) {
+                const txElement = document.getElementById(`tx-${orderId}`);
+                if (txElement) {
+                    txElement.style.transition = 'opacity 0.5s ease';
+                    txElement.style.opacity = '0';
+                    setTimeout(() => txElement.remove(), 500);
+                }
+                statusMessage.innerHTML = `<p class="p-4 rounded ${successClasses}">${successMessage}</p>`;
+            } else {
+                statusMessage.innerHTML = `<p class="p-4 bg-red-100 text-red-700 rounded">Erreur: ${result.error}</p>`;
+            }
+            setTimeout(() => statusMessage.innerHTML = '', 4000);
+        }
+    </script>
+</body>
+</html>

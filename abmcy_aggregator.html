@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Finaliser le Paiement - ABMCY MARKET</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root { --gold-color: #D4AF37; }
+        .font-montserrat { font-family: 'Montserrat', sans-serif; }
+        .text-gold { color: var(--gold-color); }
+    </style>
+</head>
+<body class="bg-gray-100 font-montserrat flex items-center justify-center min-h-screen">
+
+    <main class="w-full max-w-md mx-auto p-4">
+        <div class="bg-white p-8 rounded-lg shadow-lg text-center">
+            
+            <a href="index.html" class="inline-block mb-6">
+                <img src="logo/l.svg" alt="ABMCY MARKET Logo" class="h-10 mx-auto">
+            </a>
+
+            <h1 class="text-2xl font-bold text-gray-800 mb-2">Finalisez votre paiement</h1>
+            <p class="text-gray-600 mb-6">Vous êtes sur le point de régler votre commande.</p>
+            
+            <div class="bg-gray-50 p-6 rounded-md mb-8 border">
+                <p class="text-sm text-gray-500">Montant à payer</p>
+                <p id="order-total" class="text-4xl font-bold text-gold my-2">Chargement...</p>
+                <p class="text-xs text-gray-500">Commande N° <span id="order-id" class="font-mono">...</span></p>
+            </div>
+
+            <div id="payment-options">
+                <h2 class="font-semibold mb-4">Choisissez votre moyen de paiement :</h2>
+                <div id="payment-buttons-container" class="space-y-4">
+                    <!-- Les boutons de paiement seront injectés ici -->
+                    <div class="text-center text-gray-500">
+                        <div class="loader border-t-gray-400 animate-spin rounded-full border-4 h-6 w-6 mx-auto"></div>
+                        <p class="text-sm mt-2">Chargement des options...</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-8 text-xs text-gray-400">
+                <p>En cliquant sur "Payer", vous serez redirigé vers le portail sécurisé de notre partenaire.</p>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const params = new URLSearchParams(window.location.search);
+            const orderId = params.get('orderId');
+            const total = params.get('total');
+            const transactionReference = params.get('ref');
+
+            const orderTotalEl = document.getElementById('order-total');
+            const orderIdEl = document.getElementById('order-id');
+            const paymentButtonsContainer = document.getElementById('payment-buttons-container');
+
+            if (!orderId || !total || !transactionReference) {
+                paymentButtonsContainer.innerHTML = '<p class="text-red-500">Erreur: Les informations de la commande sont manquantes. Veuillez réessayer.</p>';
+                orderTotalEl.textContent = 'Erreur';
+                return;
+            }
+
+            // Afficher les informations de la commande
+            orderTotalEl.textContent = `${Number(total).toLocaleString('fr-FR')} F CFA`;
+            orderIdEl.textContent = orderId;
+
+            // Définir les options de paiement (pour l'instant, juste Wave)
+            const paymentMethods = {
+                wave: {
+                    name: "Wave",
+                    logo: "https://i.postimg.cc/yY022b72/wave-logo.png",
+                    // IMPORTANT: Voici le lien de base de Wave
+                    baseUrl: "https://pay.wave.com/m/M_sn_J3jR9Wg9ilPF/c/sn/"
+                }
+                // Vous pourrez ajouter Orange Money et Yaas ici plus tard
+            };
+
+            // Construire le bouton de paiement pour Wave
+            const waveConfig = paymentMethods.wave;
+            const wavePaymentUrl = `${waveConfig.baseUrl}?amount=${total}&ref=${transactionReference}`;
+
+            paymentButtonsContainer.innerHTML = `
+                <a href="${wavePaymentUrl}" class="flex items-center justify-between w-full bg-blue-500 text-white font-bold py-4 px-6 rounded-lg hover:bg-blue-600 transition text-lg">
+                    <span>Payer avec</span>
+                    <img src="${waveConfig.logo}" alt="${waveConfig.name}" class="h-6">
+                </a>
+            `;
+
+            // Vous pouvez ajouter d'autres boutons ici de la même manière
+
+        });
+    </script>
+</body>
+</html>
