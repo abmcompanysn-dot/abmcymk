@@ -1493,6 +1493,7 @@ async function processCheckout(event) {
         statusDiv.className = 'mt-4 text-center font-semibold text-red-600'; return;
     }
     // 1. Récupérer les données du formulaire
+    const selectedPaymentMethodElement = form.querySelector('input[name="payment-method"]:checked');
     const customerData = {
         firstname: form.querySelector('#firstname').value,
         lastname: form.querySelector('#lastname').value,
@@ -1502,7 +1503,9 @@ async function processCheckout(event) {
         address: form.querySelector('#delivery-address').value,
         location: form.querySelector('#delivery-location').value,
         deliveryMethod: form.querySelector('#delivery-method').value,
-        paymentMethod: form.querySelector('input[name="payment-method"]:checked').value
+        // CORRECTION: Vérifier si une méthode de paiement est bien sélectionnée avant d'accéder à sa valeur.
+        // S'il n'y en a pas (par ex. si l'API a échoué), on utilise 'cod' (Cash on Delivery) par défaut.
+        paymentMethod: selectedPaymentMethodElement ? selectedPaymentMethodElement.value : 'cod'
     };
 
     // 2. Récupérer les données du panier depuis le localStorage
