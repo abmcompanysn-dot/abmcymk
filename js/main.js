@@ -1440,8 +1440,8 @@ async function processCheckout(event) {
     let paymentNote = '';
 
     if (customerData.paymentMethod === 'mobile-money') {
-        action = 'createMobileMoneyInvoice'; // NOUVEAU: Action générique
-        paymentNote = 'Mobile Money (en ligne)';
+        action = 'createPaydunyaInvoice'; // ACTION SPÉCIFIQUE pour forcer l'utilisation de PayDunya
+        paymentNote = 'Mobile Money (Paydunya)';
     } else { // 'cod' pour Cash On Delivery
         action = 'enregistrerCommandeEtNotifier';
         paymentNote = 'Paiement à la livraison';
