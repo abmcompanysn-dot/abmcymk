@@ -4,12 +4,19 @@
   <base target="_top">
   <!-- Utilisation de Tailwind CSS via CDN pour un style rapide et responsive -->
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- NOUVEAU: Ajout de Chart.js pour les graphiques -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     /* Styles personnalisés pour une meilleure apparence dans la barre latérale de Google Sheets */
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
       padding: 1rem;
       background-color: #f8f9fa;
+    }
+    .card {
+      background-color: white;
+      border-radius: 0.5rem;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
     }
     .form-group {
       margin-bottom: 1.5rem;
@@ -81,56 +88,78 @@
   </style>
 </head>
 <body>
-  <div class="max-w-2xl mx-auto">
-    <h1 class="text-2xl font-bold mb-4 text-gray-800">Configuration des Paiements</h1>
-    <p class="text-gray-600 mb-6">Gérez ici les clés API pour les services de paiement en ligne.</p>
+  <div class="max-w-4xl mx-auto space-y-8">
+    <div class="flex justify-between items-center">
+      <h1 class="text-2xl font-bold text-gray-800">Tableau de Bord Administrateur</h1>
+      <button id="export-csv-btn" class="btn btn-primary text-sm">Exporter les commandes (CSV)</button>
+    </div>
 
-    <form id="payment-form">
-      <!-- Sélecteur de l'agrégateur par défaut -->
-      <div class="form-group">
-        <label for="default-aggregator" class="form-label">Service de Paiement par Défaut</label>
-        <select id="default-aggregator" class="form-input">
-          <option value="paydunya">Paydunya</option>
-          <option value="pawapay">PawaPay</option>
-        </select>
+    <!-- NOUVEAU: Section des statistiques -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div class="card p-4 text-center">
+        <h3 class="text-sm font-semibold text-gray-500">Ventes Totales</h3>
+        <p id="stats-total-sales" class="text-2xl font-bold text-gray-800 mt-1">Chargement...</p>
       </div>
-
-      <!-- Section Paydunya -->
-      <div id="paydunya-section" class="p-4 border rounded-lg mb-6">
-        <h2 class="text-xl font-semibold mb-4 text-gray-700">Paydunya</h2>
-        <div class="form-group">
-          <label for="paydunya-master-key" class="form-label">Master Key</label>
-          <input type="password" id="paydunya-master-key" class="form-input" placeholder="Votre clé maître Paydunya">
-        </div>
-        <div class="form-group">
-          <label for="paydunya-private-key" class="form-label">Private Key (Live)</label>
-          <input type="password" id="paydunya-private-key" class="form-input" placeholder="Votre clé privée live">
-        </div>
-        <div class="form-group">
-          <label for="paydunya-token" class="form-label">Token</label>
-          <input type="password" id="paydunya-token" class="form-input" placeholder="Votre token Paydunya">
-        </div>
-        <div class="form-group">
-          <label for="paydunya-public-key" class="form-label">Public Key (Live)</label>
-          <input type="password" id="paydunya-public-key" class="form-input" placeholder="Votre clé publique live">
-        </div>
+      <div class="card p-4 text-center">
+        <h3 class="text-sm font-semibold text-gray-500">Nombre de Commandes</h3>
+        <p id="stats-order-count" class="text-2xl font-bold text-gray-800 mt-1">Chargement...</p>
       </div>
-
-      <!-- Section PawaPay -->
-      <div id="pawapay-section" class="p-4 border rounded-lg mb-6">
-        <h2 class="text-xl font-semibold mb-4 text-gray-700">PawaPay</h2>
-        <div class="form-group">
-          <label for="pawapay-api-key" class="form-label">API Key</label>
-          <input type="password" id="pawapay-api-key" class="form-input" placeholder="Votre clé API PawaPay">
-        </div>
-        <div class="form-group">
-          <label for="pawapay-webhook-secret" class="form-label">Webhook Secret</label>
-          <input type="password" id="pawapay-webhook-secret" class="form-input" placeholder="Votre secret de webhook PawaPay">
-        </div>
+      <div class="card p-4 text-center">
+        <h3 class="text-sm font-semibold text-gray-500">Nombre de Clients</h3>
+        <p id="stats-user-count" class="text-2xl font-bold text-gray-800 mt-1">Chargement...</p>
       </div>
+    </div>
 
-      <button type="submit" id="save-button" class="btn btn-primary w-full">Enregistrer les modifications</button>
-    </form>
+    <!-- NOUVEAU: Section du graphique des ventes -->
+    <div class="card p-6">
+      <h2 class="text-xl font-semibold mb-4 text-gray-700">Ventes des 7 derniers jours</h2>
+      <canvas id="salesChart"></canvas>
+    </div>
+
+    <!-- NOUVEAU: Section des transactions récentes -->
+    <div class="card p-6">
+      <h2 class="text-xl font-semibold mb-4 text-gray-700">Transactions en ligne récentes</h2>
+      <div id="recent-transactions-container" class="overflow-x-auto">
+        <p class="text-gray-500">Chargement des transactions...</p>
+      </div>
+    </div>
+
+    <!-- Section de configuration des paiements -->
+    <div class="card p-6">
+      <h2 class="text-xl font-semibold mb-4 text-gray-700">Configuration des Paiements</h2>
+      <form id="payment-form">
+        <!-- Activation de Paydunya -->
+        <div class="form-group">
+          <label for="paydunya-active" class="form-label flex items-center cursor-pointer">
+            <input type="checkbox" id="paydunya-active" class="h-4 w-4 text-gold focus:ring-gold border-gray-300 rounded">
+            <span class="ml-2 text-gray-700">Activer le paiement par Paydunya</span>
+          </label>
+        </div>
+        
+        <!-- Section Paydunya -->
+        <div id="paydunya-section" class="p-4 border rounded-lg mb-6">
+          <h3 class="text-lg font-semibold mb-4 text-gray-700">Paydunya</h3>
+          <div class="form-group">
+            <label for="paydunya-master-key" class="form-label">Master Key</label>
+            <input type="password" id="paydunya-master-key" class="form-input" placeholder="Votre clé maître Paydunya">
+          </div>
+          <div class="form-group">
+            <label for="paydunya-private-key" class="form-label">Private Key (Live)</label>
+            <input type="password" id="paydunya-private-key" class="form-input" placeholder="Votre clé privée live">
+          </div>
+          <div class="form-group">
+            <label for="paydunya-token" class="form-label">Token</label>
+            <input type="password" id="paydunya-token" class="form-input" placeholder="Votre token Paydunya">
+          </div>
+          <div class="form-group">
+            <label for="paydunya-public-key" class="form-label">Public Key (Live)</label>
+            <input type="password" id="paydunya-public-key" class="form-input" placeholder="Votre clé publique live">
+          </div>
+        </div>
+
+        <button type="submit" id="save-button" class="btn btn-primary w-full">Enregistrer les modifications</button>
+      </form>
+    </div>
 
     <div id="status" class="hidden"></div>
   </div>
@@ -139,47 +168,113 @@
     const form = document.getElementById('payment-form');
     const saveButton = document.getElementById('save-button');
     const statusDiv = document.getElementById('status');
-    const aggregatorSelect = document.getElementById('default-aggregator');
+    const paydunyaActiveCheckbox = document.getElementById('paydunya-active');
+    let salesChartInstance = null;
 
     // Fonction pour afficher les messages de statut
     function showStatus(message, isError = false) {
       statusDiv.textContent = message;
       statusDiv.className = isError ? 'status-error' : 'status-success';
+      statusDiv.classList.remove('hidden');
+      setTimeout(() => statusDiv.classList.add('hidden'), 4000);
     }
 
-    // Fonction pour activer/désactiver les champs en fonction du choix
-    function toggleSections() {
-      const isPaydunya = aggregatorSelect.value === 'paydunya';
-      document.querySelectorAll('#paydunya-section input').forEach(input => input.disabled = !isPaydunya);
-      document.querySelectorAll('#pawapay-section input').forEach(input => input.disabled = isPaydunya);
-      document.getElementById('paydunya-section').style.opacity = isPaydunya ? '1' : '0.5';
-      document.getElementById('pawapay-section').style.opacity = isPaydunya ? '0.5' : '1';
+    function togglePaydunyaSection() {
+      const isChecked = paydunyaActiveCheckbox.checked;
+      document.querySelectorAll('#paydunya-section input').forEach(input => input.disabled = !isChecked);
+      document.getElementById('paydunya-section').style.opacity = isChecked ? '1' : '0.5';
     }
 
-    // Charger les paramètres actuels au démarrage
+    // NOUVEAU: Fonction pour afficher les statistiques
+    function renderStats(stats) {
+        document.getElementById('stats-total-sales').textContent = `${(stats.totalSales || 0).toLocaleString('fr-FR')} F CFA`;
+        document.getElementById('stats-order-count').textContent = stats.orderCount || 0;
+        document.getElementById('stats-user-count').textContent = stats.userCount || 0;
+    }
+
+    // NOUVEAU: Fonction pour afficher le graphique des ventes
+    function renderSalesChart(chartData) {
+        const ctx = document.getElementById('salesChart').getContext('2d');
+        if (salesChartInstance) {
+            salesChartInstance.destroy();
+        }
+        salesChartInstance = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: chartData.labels,
+                datasets: [{
+                    label: 'Ventes (F CFA)',
+                    data: chartData.values,
+                    backgroundColor: 'rgba(212, 175, 55, 0.6)',
+                    borderColor: 'rgba(212, 175, 55, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: { y: { beginAtZero: true } }
+            }
+        });
+    }
+
+    // NOUVEAU: Fonction pour afficher les transactions récentes
+    function renderRecentTransactions(transactions) {
+        const container = document.getElementById('recent-transactions-container');
+        if (!transactions || transactions.length === 0) {
+            container.innerHTML = '<p class="text-gray-500">Aucune transaction en ligne récente.</p>';
+            return;
+        }
+        const tableHTML = `
+            <table class="w-full text-sm text-left">
+                <thead class="bg-gray-50"><tr>
+                    <th class="p-2 font-semibold">ID Commande</th>
+                    <th class="p-2 font-semibold">Statut</th>
+                    <th class="p-2 font-semibold text-right">Montant</th>
+                </tr></thead>
+                <tbody>${transactions.map(tx => `
+                    <tr class="border-b">
+                        <td class="p-2">${tx.IDCommande}</td>
+                        <td class="p-2">${tx.Statut}</td>
+                        <td class="p-2 text-right font-semibold">${Number(tx.MontantTotal).toLocaleString('fr-FR')} F</td>
+                    </tr>`).join('')}
+                </tbody>
+            </table>`;
+        container.innerHTML = tableHTML;
+    }
+
+    // Charger toutes les données au démarrage
     document.addEventListener('DOMContentLoaded', () => {
-      showStatus('Chargement des paramètres...', false);
+      showStatus('Chargement du tableau de bord...', false);
       google.script.run
-        .withSuccessHandler(settings => {
-          document.getElementById('paydunya-master-key').value = settings.PAYDUNYA_MASTER_KEY || '';
-          document.getElementById('paydunya-private-key').value = settings.PAYDUNYA_PRIVATE_KEY || '';
-          document.getElementById('paydunya-token').value = settings.PAYDUNYA_TOKEN || '';
-          document.getElementById('paydunya-public-key').value = settings.PAYDUNYA_PUBLIC_KEY || '';
-          document.getElementById('pawapay-api-key').value = settings.PAWAPAY_API_KEY || '';
-          document.getElementById('pawapay-webhook-secret').value = settings.PAWAPAY_WEBHOOK_SECRET || '';
-          aggregatorSelect.value = settings.DEFAULT_AGGREGATOR || 'paydunya';
-          
-          toggleSections(); // Appliquer l'état initial
-          showStatus('Paramètres chargés.', false);
+        .withSuccessHandler(response => {
+          if (response.success) {
+            const data = response.data;
+            // Rendu des différentes sections
+            renderStats(data.stats);
+            renderSalesChart(data.salesChartData);
+            renderRecentTransactions(data.recentTransactions);
+
+            // Remplissage des paramètres de paiement
+            const settings = data.paymentSettings;
+            document.getElementById('paydunya-master-key').value = settings.PAYDUNYA_MASTER_KEY || '';
+            document.getElementById('paydunya-private-key').value = settings.PAYDUNYA_PRIVATE_KEY || '';
+            document.getElementById('paydunya-token').value = settings.PAYDUNYA_TOKEN || '';
+            document.getElementById('paydunya-public-key').value = settings.PAYDUNYA_PUBLIC_KEY || '';
+            paydunyaActiveCheckbox.checked = settings.PAYDUNYA_ACTIVE || false;
+            
+            togglePaydunyaSection();
+            showStatus('Tableau de bord chargé.', false);
+          } else {
+            throw new Error(response.error);
+          }
         })
         .withFailureHandler(err => showStatus(`Erreur de chargement: ${err.message}`, true))
-        .getPaymentSettings();
+        .getDashboardData();
     });
 
-    // Gérer le changement de sélection
-    aggregatorSelect.addEventListener('change', toggleSections);
+    paydunyaActiveCheckbox.addEventListener('change', togglePaydunyaSection);
 
-    // Gérer la soumission du formulaire
+    // Gérer la soumission du formulaire de paiement
     form.addEventListener('submit', (e) => {
       e.preventDefault();
       saveButton.disabled = true;
@@ -187,13 +282,11 @@
       showStatus('Sauvegarde en cours...', false);
 
       const settings = {
-        DEFAULT_AGGREGATOR: aggregatorSelect.value,
+        PAYDUNYA_ACTIVE: paydunyaActiveCheckbox.checked,
         PAYDUNYA_MASTER_KEY: document.getElementById('paydunya-master-key').value,
         PAYDUNYA_PRIVATE_KEY: document.getElementById('paydunya-private-key').value,
         PAYDUNYA_TOKEN: document.getElementById('paydunya-token').value,
         PAYDUNYA_PUBLIC_KEY: document.getElementById('paydunya-public-key').value,
-        PAWAPAY_API_KEY: document.getElementById('pawapay-api-key').value,
-        PAWAPAY_WEBHOOK_SECRET: document.getElementById('pawapay-webhook-secret').value,
       };
 
       google.script.run
@@ -208,6 +301,38 @@
           saveButton.textContent = 'Enregistrer les modifications';
         })
         .savePaymentSettings(settings);
+    });
+
+    // NOUVEAU: Gérer l'export CSV
+    document.getElementById('export-csv-btn').addEventListener('click', () => {
+        const btn = document.getElementById('export-csv-btn');
+        btn.disabled = true;
+        btn.textContent = 'Exportation...';
+
+        google.script.run
+            .withSuccessHandler(response => {
+                if (response.success) {
+                    const blob = new Blob([response.csvData], { type: 'text/csv;charset=utf-8;' });
+                    const link = document.createElement("a");
+                    const url = URL.createObjectURL(blob);
+                    link.setAttribute("href", url);
+                    link.setAttribute("download", `export_commandes_${new Date().toISOString().split('T')[0]}.csv`);
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    showStatus('Exportation réussie.', false);
+                } else {
+                    throw new Error(response.error);
+                }
+                btn.disabled = false;
+                btn.textContent = 'Exporter les commandes (CSV)';
+            })
+            .withFailureHandler(err => {
+                showStatus(`Erreur d'exportation: ${err.message}`, true);
+                btn.disabled = false;
+                btn.textContent = 'Exporter les commandes (CSV)';
+            })
+            .exportOrdersToCSV();
     });
   </script>
 </body>

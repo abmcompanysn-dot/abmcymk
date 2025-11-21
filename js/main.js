@@ -1,6 +1,6 @@
 const CONFIG = {
     // NOUVEAU: URL de l'API CENTRALE qui gère maintenant tout (comptes, commandes, etc.)
-    ACCOUNT_API_URL:"https://script.google.com/macros/s/AKfycby-vFLCTKx__N5YNgQrZvcde689jZcLrbVeVGNDQofIRG1mhIPlj_rPzWGmjY9NqrO2LA/exec",
+    ACCOUNT_API_URL:"https://script.google.com/macros/s/AKfycbwP3wFi2LRm5IScCwiC7zaLocNuZhqMu7YvptFqBNrc1CkNIFWDZEtV7_0wSFV0yuh1Sw/exec",
     // Les URL spécifiques pour commandes, livraisons et notifications sont maintenant obsolètes
     // car tout est géré par l'API centrale (ACCOUNT_API_URL).
     
@@ -89,6 +89,10 @@ async function initializeApp() {
     // NOUVEAU: Initialiser la page de suivi de commande
     if (window.location.pathname.endsWith('suivi-commande.html')) {
         initializeOrderTrackingPage();
+    }
+    // NOUVEAU: Initialiser la page de confirmation
+    if (window.location.pathname.endsWith('confirmation.html')) {
+        initializeConfirmationPage();
     }
 
     if (document.getElementById('countdown')) {
@@ -1246,6 +1250,12 @@ function initializeCheckoutPage() {
     // Ajouter l'écouteur pour la soumission du formulaire
     form.addEventListener('submit', processCheckout);
 }
+/**
+ * NOUVEAU: Initialise la page de paiement.
+ */
+function initializeCheckoutPage() {
+    const form = document.getElementById('checkout-form');
+    if (!form) return;
 
 /**
  * NOUVEAU: Remplit les sélecteurs de livraison sur la page de paiement.
@@ -1278,6 +1288,13 @@ function renderCheckoutSummaryItems() {
     const container = document.getElementById('checkout-summary-items');
     const cart = getCart();
     if (!container) return;
+
+    // NOUVEAU: Si le panier est vide, désactiver le bouton de paiement
+    const submitButton = document.querySelector('#checkout-form button[type="submit"]');
+    if (cart.length === 0 && submitButton) {
+        submitButton.disabled = true;
+        submitButton.textContent = 'Votre panier est vide';
+    }
 
     if (cart.length === 0) {
         container.innerHTML = '<p class="text-gray-500">Votre panier est vide.</p>';
@@ -2647,6 +2664,65 @@ async function loadFavoriteProducts() {
         container.innerHTML = '<h4 class="text-lg font-semibold mb-4">Mes produits favoris</h4><p class="text-red-500">Impossible de charger vos favoris.</p>';
     }
 }
+
+/**
+ * NOUVEAU: Initialise la page de confirmation de commande.
+ */
+async function initializeConfirmationPage() {
+    const params = new URLSearchParams(window.location.search);
+    const orderId = params.get('orderId');
+    const orderIdElement = document.getElementById('order-id');
+    const orderDetailsContainer = document.getElementById('order-details');
+
+    if (!orderId || !orderIdElement || !orderDetailsContainer) {
+        if (orderIdElement) orderIdElement.textContent = 'Non disponible';
+        return;
+    }
+
+    // Afficher l'ID immédiatement
+    orderIdElement.textContent = `#${orderId}`;
+
+    // Afficher un message de chargement
+    orderDetailsContainer.innerHTML += '<p id="loading-details" class="text-sm text-gray-500 mt-2">Chargement des détails de la commande...</p>';
+
+    try {
+        // Appeler l'API pour obtenir les détails de la commande
+        const response = await fetch(CONFIG.ACCOUNT_API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain' },
+            body: JSON.stringify({ action: 'getOrderById', data: { orderId: orderId } })
+        });
+        const result = await response.json();
+
+        // Cacher le message de chargement
+        const loadingMessage = document.getElementById('loading-details');
+        if (loadingMessage) loadingMessage.remove();
+
+        if (result.success && result.data) {
+            const order = result.data;
+            // Injecter les détails de la commande dans la page
+            orderDetailsContainer.innerHTML = `
+                <h2 class="font-semibold mb-2">Récapitulatif :</h2>
+                <div class="space-y-1 text-sm">
+                    <p><strong>Numéro de commande :</strong> <span class="font-mono">#${order.IDCommande}</span></p>
+                    <p><strong>Montant total :</strong> <span class="font-semibold">${Number(order.MontantTotal).toLocaleString('fr-FR')} F CFA</span></p>
+                    <p><strong>Produits :</strong> ${order.DetailsProduits}</p>
+                    <p><strong>Adresse de livraison :</strong> ${order.AdresseLivraison}</p>
+                </div>
+                <p class="text-xs text-gray-500 mt-3">Un email de confirmation vous a été envoyé.</p>
+            `;
+        } else {
+            // En cas d'erreur, afficher un message simple
+            orderDetailsContainer.innerHTML += '<p class="text-sm text-red-500">Impossible de charger les détails.</p>';
+        }
+    } catch (error) {
+        const loadingMessage = document.getElementById('loading-details');
+        if (loadingMessage) loadingMessage.remove();
+        orderDetailsContainer.innerHTML += '<p class="text-sm text-red-500">Erreur de communication avec le serveur.</p>';
+        console.error("Erreur lors de la récupération des détails de la commande:", error);
+    }
+}
+
 
 // --- NOUVEAU: LOGIQUE DE SUIVI DE COMMANDE ---
 
