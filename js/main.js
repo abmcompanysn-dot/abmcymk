@@ -1261,7 +1261,7 @@ async function initializeCheckoutPage() {
  */
 async function loadPaymentMethods() {
     const paymentMethodsContainer = document.getElementById('payment-methods-container');
-    const codRadio = document.getElementById('cod');
+    // const codRadio = document.getElementById('cod'); // N'est plus nécessaire car l'option est masquée
     if (!paymentMethodsContainer) return;
 
     try {
@@ -1306,28 +1306,17 @@ async function loadPaymentMethods() {
             if (hasMobilePayment) {
                 paymentMethodsContainer.innerHTML = `
                     <div class="border rounded-lg mt-3">
-                        <label for="mobile-payment-group" class="flex items-center space-x-3 p-4 cursor-pointer hover:bg-gray-50">
-                            <input type="radio" id="mobile-payment-group" name="payment-method" value="mobile-payment-group" class="form-radio h-4 w-4 text-gold">
+                        <label for="mobile-payment-group" class="flex items-center space-x-3 p-4 cursor-default">
+                            <!-- CORRECTION: Ajout de 'checked' pour que ce soit l'option par défaut -->
+                            <input type="radio" id="mobile-payment-group" name="payment-method" value="mobile-payment-group" class="form-radio h-4 w-4 text-gold" checked>
                             <span class="text-gray-700 font-medium">Paiement Mobile (Wave, Orange Money, etc.)</span>
                         </label>
-                        <!-- Conteneur pour les sous-options, caché par défaut -->
-                        <div id="mobile-payment-options" class="hidden p-4 border-t bg-gray-50 space-y-2">
+                        <!-- CORRECTION: La classe 'hidden' est retirée pour que les options soient visibles immédiatement -->
+                        <div id="mobile-payment-options" class="p-4 border-t bg-gray-50 space-y-2">
                             ${mobilePaymentOptionsHTML}
                         </div>
                     </div>
                 `;
-
-                // Ajouter les écouteurs d'événements pour afficher/cacher les sous-options
-                const mobilePaymentGroupRadio = document.getElementById('mobile-payment-group');
-                const mobilePaymentOptionsDiv = document.getElementById('mobile-payment-options');
-
-                codRadio.addEventListener('change', () => {
-                    if (codRadio.checked) mobilePaymentOptionsDiv.classList.add('hidden');
-                });
-
-                mobilePaymentGroupRadio.addEventListener('change', () => {
-                    if (mobilePaymentGroupRadio.checked) mobilePaymentOptionsDiv.classList.remove('hidden');
-                });
             } else {
                 paymentMethodsContainer.innerHTML = ''; // Pas d'options de paiement mobile à afficher
             }
