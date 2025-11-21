@@ -1,6 +1,6 @@
 const CONFIG = {
     // NOUVEAU: URL de l'API CENTRALE qui gère maintenant tout (comptes, commandes, etc.)
-    ACCOUNT_API_URL:"https://script.google.com/macros/s/AKfycbznYMJ9HyV4UjBpb0qlPoEz9bxeGBqkpsTB9sBcg29euSJ7JUVJjU1MHIs6dzZV3maSZw/exec",
+    ACCOUNT_API_URL:"https://script.google.com/macros/s/AKfycbx0UEvX1GQS5F-Ycr9utnkcTG8Al6xAmwi2ktYzoBw0ddsw2pDTFlCTh0TVUkxgl9xFqw/exec",
     // Les URL spécifiques pour commandes, livraisons et notifications sont maintenant obsolètes
     // car tout est géré par l'API centrale (ACCOUNT_API_URL).
     
@@ -1506,18 +1506,25 @@ async function processCheckout(event) {
             throw new Error(result.error || "Une erreur inconnue est survenue.");
         }
     } catch (error) {
-        let userFriendlyMessage = "Une erreur inattendue est survenue lors du traitement de votre paiement. Veuillez réessayer.";
+        let userFriendlyMessage;
 
-        // Vérifier les erreurs réseau côté client (ex: pas de connexion internet)
-        if (error.message.includes("Failed to fetch") || error.message.includes("NetworkError")) {
-            userFriendlyMessage = "Impossible de contacter nos serveurs. Veuillez vérifier votre connexion internet ou réessayer plus tard.";
-        } else if (error.message.includes("Aucun service de paiement mobile n'est actif.")) {
-            userFriendlyMessage = "Le paiement en ligne est momentanément indisponible. Vous pouvez choisir le 'Paiement à la livraison' pour finaliser votre commande.";
-        } else if (error.message.includes("Erreur Paydunya") || error.message.includes("Erreur PawaPay")) {
-            userFriendlyMessage = `Le service de paiement a rencontré un problème : ${error.message}. Veuillez réessayer ou choisir une autre méthode.`;
-        }
-        else if (error.message.includes("Une erreur inconnue est survenue.")) {
-            userFriendlyMessage = "Une erreur est survenue lors de la communication avec notre serveur. Veuillez réessayer.";
+        // NOUVEAU: Logique améliorée pour gérer l'indisponibilité du paiement en ligne
+        if (error.message.includes("Aucun service de paiement mobile n'est actif.")) {
+            userFriendlyMessage = "Le paiement en ligne est indisponible. Nous avons sélectionné 'Paiement à la livraison' pour vous. Veuillez valider à nouveau.";
+            
+            // Sélectionner automatiquement le paiement à la livraison
+            const codRadio = document.getElementById('cod');
+            if (codRadio) {
+                codRadio.checked = true;
+            }
+            
+            // Cacher le choix du paiement mobile pour éviter la confusion
+            const mobileMoneyLabel = document.getElementById('mobile-money-label');
+            if (mobileMoneyLabel) {
+                mobileMoneyLabel.style.display = 'none';
+            }
+        } else {
+            userFriendlyMessage = `Erreur: ${error.message}. Veuillez réessayer ou contacter le support.`;
         }
         // Autres erreurs inattendues
         // statusDiv.textContent = `Erreur lors de la commande: ${error.message}`; // Pour le débogage, on pourrait laisser le message technique ici

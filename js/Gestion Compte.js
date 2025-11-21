@@ -53,12 +53,12 @@ function doGet(e) {
 
     // NOUVEAU: Action pour servir la page du tableau de bord administrateur
     if (action === 'showAdminDashboard') {
-        // Note: Idéalement, ajoutez une vérification ici pour s'assurer que seul un admin peut voir cette page.
-        return HtmlService.createHtmlOutputFromFile('admin_dashboard')
-            .setTitle('Tableau de Bord Admin - ABMCY MARKET')
-            .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+      // Note: Idéalement, ajoutez une vérification ici pour s'assurer que seul un admin peut voir cette page.
+      return HtmlService.createHtmlOutputFromFile('admin_dashboard')
+          .setTitle('Tableau de Bord Admin - ABMCY MARKET')
+          .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
     }
-
+    
     // Réponse par défaut pour un simple test de l'API
     // CORRECTION: N'appelle plus addCorsHeaders
     return createJsonResponse({
@@ -136,13 +136,7 @@ function doPost(e) {
                 return orderResult;
             // NOUVEAU: Action générique qui décide quel agrégateur utiliser
             case 'createMobileMoneyInvoice':
-                const mobileMoneyConfig = getConfig();
-                if (mobileMoneyConfig.DEFAULT_AGGREGATOR === 'pawapay' && mobileMoneyConfig.PAWAPAY_ACTIVE === 'true') {
-                    return createPawaPayRequest(data, origin);
-                } else if (mobileMoneyConfig.DEFAULT_AGGREGATOR === 'paydunya' && mobileMoneyConfig.PAYDUNYA_ACTIVE === 'true') {
-                    return createPaydunyaInvoice(data, origin);
-                }
-                return createJsonResponse({ success: false, error: "Aucun service de paiement mobile n'est actif." }, origin);
+                return createMobileMoneyInvoice(data, origin);
             case 'logClientEvent':
                 return logClientEvent(data, origin);
             // NOUVEAU: Gérer le webhook de Paydunya
@@ -535,6 +529,29 @@ function createPawaPayRequest(data, origin) {
 }
 
 /**
+ * NOUVEAU: Action générique qui décide quel agrégateur utiliser.
+ * @param {object} data - Les données de la commande.
+ * @param {string} origin - L'origine de la requête.
+ * @returns {GoogleAppsScript.Content.TextOutput} Réponse JSON avec l'URL de paiement ou une erreur.
+ */
+function createMobileMoneyInvoice(data, origin) {
+    const config = getConfig();
+    const isPaydunyaActive = String(config.PAYDUNYA_ACTIVE).toLowerCase() === 'true';
+    const isPawaPayActive = String(config.PAWAPAY_ACTIVE).toLowerCase() === 'true';
+
+    // Logique de sélection améliorée
+    if (config.DEFAULT_AGGREGATOR === 'paydunya' && isPaydunyaActive) {
+        return createPaydunyaInvoice(data, origin);
+    } else if (config.DEFAULT_AGGREGATOR === 'pawapay' && isPawaPayActive) {
+        return createPawaPayRequest(data, origin);
+    } else if (isPaydunyaActive) { // Si le défaut n'est pas dispo, on prend le premier actif
+        return createPaydunyaInvoice(data, origin);
+    } else if (isPawaPayActive) {
+        return createPawaPayRequest(data, origin);
+    }
+    return createJsonResponse({ success: false, error: "Aucun service de paiement mobile n'est actif." }, origin);
+}
+/**
  * NOUVEAU: Envoie un email de confirmation de commande à l'admin. Fusionné depuis Gestion Notifications.
  * @param {object} orderResult - Le résultat de la fonction enregistrerCommande.
  * @param {object} originalData - Les données originales de la commande contenant les détails des produits.
@@ -764,12 +781,15 @@ function getPaymentSettings(data, origin) {
         const config = getConfig(); // Utilise la fonction existante qui lit depuis la feuille Config
         // On retourne directement les clés nécessaires au tableau de bord
         const settings = {
-            DEFAULT_AGGREGATOR: config.DEFAULT_AGGREGATOR || 'paydunya', // 'paydunya' par défaut si non défini
+            DEFAULT_AGGREGATOR: config.DEFAULT_AGGREGATOR || 'paydunya',
+            PAYDUNYA_ACTIVE: String(config.PAYDUNYA_ACTIVE).toLowerCase() === 'true',
+            PAWAPAY_ACTIVE: String(config.PAWAPAY_ACTIVE).toLowerCase() === 'true',
             PAYDUNYA_MASTER_KEY: config.PAYDUNYA_MASTER_KEY,
             PAYDUNYA_PRIVATE_KEY: config.PAYDUNYA_PRIVATE_KEY,
             PAYDUNYA_TOKEN: config.PAYDUNYA_TOKEN,
+            PAYDUNYA_PUBLIC_KEY: config.PAYDUNYA_PUBLIC_KEY,
             PAWAPAY_API_KEY: config.PAWAPAY_API_KEY,
-            PAWAPAY_WEBHOOK_SECRET: config.PAWAPAY_WEBHOOK_SECRET
+            PAWAPAY_WEBHOOK_SECRET: config.PAWAPAY_WEBHOOK_SECRET,
         };
         return createJsonResponse({ success: true, data: settings }, origin);
     } catch (error) {
