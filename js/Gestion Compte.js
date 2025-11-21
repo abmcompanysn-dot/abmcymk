@@ -136,9 +136,6 @@ function doPost(e) {
                 const orderData = JSON.parse(orderResult.getContent());
                 if (orderData.success) { sendOrderConfirmationEmail(orderData, data, "cod"); }
                 return orderResult;
-            // NOUVEAU: Action générique qui décide quel agrégateur utiliser
-            case 'createMobileMoneyInvoice':
-                return createMobileMoneyInvoice(data, origin);
             case 'logClientEvent':
                 return logClientEvent(data, origin);
             // NOUVEAU: Gérer le webhook de Paydunya
@@ -436,23 +433,6 @@ function createPaydunyaInvoice(data, origin) {
     }
 }
 
-/**
- * NOUVEAU: Action générique qui décide quel agrégateur utiliser.
- * @param {object} data - Les données de la commande.
- * @param {string} origin - L'origine de la requête.
- * @returns {GoogleAppsScript.Content.TextOutput} Réponse JSON avec l'URL de paiement ou une erreur.
- */
-function createMobileMoneyInvoice(data, origin) {
-    const config = getConfig();
-    const isPaydunyaActive = String(config.PAYDUNYA_ACTIVE).toLowerCase() === 'true';
-    
-    // Logique simplifiée: on utilise uniquement Paydunya s'il est actif.
-    if (isPaydunyaActive) {
-        return createPaydunyaInvoice(data, origin);
-    }
-
-    return createJsonResponse({ success: false, error: "Aucun service de paiement mobile n'est actif." }, origin);
-}
 /**
  * NOUVEAU: Envoie un email de confirmation de commande à l'admin. Fusionné depuis Gestion Notifications.
  * @param {object} orderResult - Le résultat de la fonction enregistrerCommande.
