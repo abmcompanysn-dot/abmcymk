@@ -529,6 +529,81 @@ function createPawaPayRequest(data, origin) {
 }
 
 /**
+ * NOUVEAU: Crée une requête de paiement PawaPay.
+ * @param {object} data - Les données de la commande.
+ * @param {string} origin - L'origine de la requête.
+ * @returns {GoogleAppsScript.Content.TextOutput} Réponse JSON avec l'URL de paiement ou une erreur.
+ */
+function createPawaPayRequest(data, origin) {
+    const lock = LockService.getScriptLock();
+    lock.waitLock(30000);
+
+    try {
+        const config = getConfig();
+        if (String(config.PAWAPAY_ACTIVE).toLowerCase() !== 'true') {
+            throw new Error("PawaPay n'est pas activé.");
+        }
+
+        const orderSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.ORDERS);
+        const idCommande = "CMD-" + new Date().getTime();
+
+        // 1. Enregistrer la commande avec un statut "En attente de paiement"
+        const produitsDetails = data.produits.map(p => `${p.name} (x${p.quantity})`).join(', ');
+        orderSheet.appendRow([
+            idCommande, data.idClient, produitsDetails,
+            data.total, "En attente de paiement (PawaPay)", new Date(),
+            false, false, false, false, // Etapes de suivi
+            data.adresseLivraison, "PawaPay", data.notes || ''
+        ]);
+
+        // 2. Préparer la requête pour l'API PawaPay
+        const PAWAPAY_API_URL = "https://api.sandbox.pawapay.io/deposits";
+        const depositId = Utilities.getUuid(); // ID unique pour cette transaction
+
+        const pawaPayload = {
+            depositId: depositId,
+            amount: String(data.total),
+            currency: "XOF",
+            country: "SEN",
+            reason: `Paiement commande ${idCommande}`,
+            depositor: {
+                type: "PERSON",
+                address: { country: "SEN" },
+                firstName: data.customer.name.split(' ')[0],
+                lastName: data.customer.name.split(' ').slice(1).join(' ') || data.customer.name.split(' ')[0]
+            },
+            notificationUrl: { "url": ScriptApp.getService().getUrl() + "?action=pawapay-webhook" },
+            metadata: { orderId: idCommande, clientId: data.idClient }
+        };
+
+        const options = {
+            'method': 'post',
+            'contentType': 'application/json',
+            'headers': { 'Authorization': 'Bearer ' + config.PAWAPAY_API_KEY },
+            'payload': JSON.stringify(pawaPayload),
+            'muteHttpExceptions': true
+        };
+
+        const response = UrlFetchApp.fetch(PAWAPAY_API_URL, options);
+        const responseCode = response.getResponseCode();
+        const responseText = response.getContentText();
+        const responseData = JSON.parse(responseText);
+
+        if (responseCode >= 200 && responseCode < 300 && responseData.redirectUrl) {
+            return createJsonResponse({ success: true, payment_url: responseData.redirectUrl }, origin);
+        } else {
+            throw new Error(responseData.error || responseData.message || `Erreur PawaPay: ${responseText}`);
+        }
+    } catch (error) {
+        logError(JSON.stringify({ action: 'createPawaPayRequest', data }), error);
+        sendPaymentFailureEmail('PawaPay', error, data);
+        return createJsonResponse({ success: false, error: `Erreur PawaPay: ${error.message}` }, origin);
+    } finally {
+        lock.releaseLock();
+    }
+}
+
+/**
  * NOUVEAU: Action générique qui décide quel agrégateur utiliser.
  * @param {object} data - Les données de la commande.
  * @param {string} origin - L'origine de la requête.

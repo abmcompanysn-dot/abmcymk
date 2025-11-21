@@ -110,6 +110,10 @@
           <label for="paydunya-token" class="form-label">Token</label>
           <input type="password" id="paydunya-token" class="form-input" placeholder="Votre token Paydunya">
         </div>
+        <div class="form-group">
+          <label for="paydunya-public-key" class="form-label">Public Key (Live)</label>
+          <input type="password" id="paydunya-public-key" class="form-input" placeholder="Votre clé publique live">
+        </div>
       </div>
 
       <!-- Section PawaPay -->
@@ -160,6 +164,7 @@
           document.getElementById('paydunya-master-key').value = settings.PAYDUNYA_MASTER_KEY || '';
           document.getElementById('paydunya-private-key').value = settings.PAYDUNYA_PRIVATE_KEY || '';
           document.getElementById('paydunya-token').value = settings.PAYDUNYA_TOKEN || '';
+          document.getElementById('paydunya-public-key').value = settings.PAYDUNYA_PUBLIC_KEY || '';
           document.getElementById('pawapay-api-key').value = settings.PAWAPAY_API_KEY || '';
           document.getElementById('pawapay-webhook-secret').value = settings.PAWAPAY_WEBHOOK_SECRET || '';
           aggregatorSelect.value = settings.DEFAULT_AGGREGATOR || 'paydunya';
@@ -186,6 +191,7 @@
         PAYDUNYA_MASTER_KEY: document.getElementById('paydunya-master-key').value,
         PAYDUNYA_PRIVATE_KEY: document.getElementById('paydunya-private-key').value,
         PAYDUNYA_TOKEN: document.getElementById('paydunya-token').value,
+        PAYDUNYA_PUBLIC_KEY: document.getElementById('paydunya-public-key').value,
         PAWAPAY_API_KEY: document.getElementById('pawapay-api-key').value,
         PAWAPAY_WEBHOOK_SECRET: document.getElementById('pawapay-webhook-secret').value,
       };
