@@ -1,6 +1,6 @@
 const CONFIG = {
     // NOUVEAU: URL de l'API CENTRALE qui gère maintenant tout (comptes, commandes, etc.)
-    ACCOUNT_API_URL:"https://script.google.com/macros/s/AKfycbyQgFxtTcAPMQhMWj_zbwfwDho-7AWzwop8QKn0qTjKhspKv9klwZmZvjsZlstv1Kyzog/exec",
+    ACCOUNT_API_URL:"https://script.google.com/macros/s/AKfycbx1N96Dwx4CBck3c-NAQc5nDXsOr4TZKxSSJjQMFCKKyvmdI1mrnNwEqw_SB85aC24_ag/exec",
     // Les URL spécifiques pour commandes, livraisons et notifications sont maintenant obsolètes
     // car tout est géré par l'API centrale (ACCOUNT_API_URL).
     
@@ -21,7 +21,7 @@ const CATEGORIES_PER_LOAD = 3;
 const DELIVERY_OPTIONS = {
     "Point de retrait": { "Retrait en magasin": { "Gratuit": 0 } },
     "Dakar": {
-        "Dakar - Plateau": { "Standard": 1500 },
+        "Dakar - Plateau": { "Standard": 1500, "ABMCY Express": 2500 },
         "Rufisque": { "Standard": 3000 },
         "L'ENSETP": { "Standard": 500 },
         "LESP": { "Standard": 500 }
@@ -1258,52 +1258,77 @@ function initializeCheckoutPage() {
  */
 async function loadPaymentMethods() {
     const paymentMethodsContainer = document.getElementById('payment-methods-container');
+    const codRadio = document.getElementById('cod');
     if (!paymentMethodsContainer) return;
 
     try {
-        const response = await fetch(CONFIG.ACCOUNT_API_URL, {
+        const settingsResponse = await fetch(CONFIG.ACCOUNT_API_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'text/plain' },
             body: JSON.stringify({ action: 'getPaymentSettings' })
         });
-        const result = await response.json();
+        const result = await settingsResponse.json();
 
         if (result.success && result.data) {
             const settings = result.data;
-            let paymentHTML = '';
+            let mobilePaymentOptionsHTML = '';
+            let hasMobilePayment = false;
 
-            // Option Paiement à la livraison (toujours disponible)
-            paymentHTML += `
-                <label for="cod" class="flex items-center space-x-3 p-4 border rounded-lg cursor-pointer hover:bg-gray-50">
-                    <input type="radio" id="cod" name="payment-method" value="cod" class="form-radio h-4 w-4 text-gold" checked>
-                    <span class="text-gray-700 font-medium">Paiement à la livraison</span>
-                </label>
-            `;
-
-            // Option Paydunya (si active)
+            // Construire les sous-options pour Paydunya
             if (settings.PAYDUNYA_ACTIVE) {
-                paymentHTML += `
-                    <label for="paydunya" class="flex items-center space-x-3 p-4 border rounded-lg cursor-pointer hover:bg-gray-50 mt-3">
-                        <input type="radio" id="paydunya" name="payment-method" value="paydunya" class="form-radio h-4 w-4 text-gold">
+                hasMobilePayment = true;
+                mobilePaymentOptionsHTML += `
+                    <label for="paydunya" class="flex items-center space-x-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-100">
+                        <input type="radio" id="paydunya" name="mobile-payment-provider" value="paydunya" class="form-radio h-4 w-4 text-gold">
                         <img src="https://paydunya.com/assets/img/logo-paydunya.png" alt="Paydunya" class="h-6">
                     </label>
                 `;
             }
 
-            // NOUVEAU: Options ABMCY Aggregator (si actif)
+            // Construire les sous-options pour l'agrégateur ABMCY
             if (settings.ABMCY_AGGREGATOR_ACTIVE && settings.ABMCY_PAYMENT_METHODS) {
                 for (const providerKey in settings.ABMCY_PAYMENT_METHODS) {
+                    hasMobilePayment = true;
                     const provider = settings.ABMCY_PAYMENT_METHODS[providerKey];
-                    paymentHTML += `
-                        <label for="${providerKey}" class="flex items-center space-x-3 p-4 border rounded-lg cursor-pointer hover:bg-gray-50 mt-3">
-                            <input type="radio" id="${providerKey}" name="payment-method" value="${providerKey}" class="form-radio h-4 w-4 text-gold">
+                    mobilePaymentOptionsHTML += `
+                        <label for="${providerKey}" class="flex items-center space-x-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-100">
+                            <input type="radio" id="${providerKey}" name="mobile-payment-provider" value="${providerKey}" class="form-radio h-4 w-4 text-gold">
                             <img src="${provider.logo}" alt="${provider.name}" class="h-6">
                         </label>
                     `;
                 }
             }
 
-            paymentMethodsContainer.innerHTML = paymentHTML;
+            // Si au moins une option de paiement mobile est active, on affiche le bloc principal
+            if (hasMobilePayment) {
+                paymentMethodsContainer.innerHTML = `
+                    <div class="border rounded-lg mt-3">
+                        <label for="mobile-payment-group" class="flex items-center space-x-3 p-4 cursor-pointer hover:bg-gray-50">
+                            <input type="radio" id="mobile-payment-group" name="payment-method" value="mobile-payment-group" class="form-radio h-4 w-4 text-gold">
+                            <span class="text-gray-700 font-medium">Paiement Mobile (Wave, Orange Money, etc.)</span>
+                        </label>
+                        <!-- Conteneur pour les sous-options, caché par défaut -->
+                        <div id="mobile-payment-options" class="hidden p-4 border-t bg-gray-50 space-y-2">
+                            ${mobilePaymentOptionsHTML}
+                        </div>
+                    </div>
+                `;
+
+                // Ajouter les écouteurs d'événements pour afficher/cacher les sous-options
+                const mobilePaymentGroupRadio = document.getElementById('mobile-payment-group');
+                const mobilePaymentOptionsDiv = document.getElementById('mobile-payment-options');
+
+                codRadio.addEventListener('change', () => {
+                    if (codRadio.checked) mobilePaymentOptionsDiv.classList.add('hidden');
+                });
+
+                mobilePaymentGroupRadio.addEventListener('change', () => {
+                    if (mobilePaymentGroupRadio.checked) mobilePaymentOptionsDiv.classList.remove('hidden');
+                });
+            } else {
+                paymentMethodsContainer.innerHTML = ''; // Pas d'options de paiement mobile à afficher
+            }
+
         } else {
             console.error("Impossible de charger les paramètres de paiement:", result.error);
             paymentMethodsContainer.innerHTML = '<p class="text-red-500">Erreur de chargement des méthodes de paiement.</p>';
@@ -1483,7 +1508,7 @@ async function processCheckout(event) {
         phone: form.querySelector('#phone').value,
         notes: form.querySelector('#notes').value,
         address: form.querySelector('#delivery-address').value,
-        location: form.querySelector('#delivery-location').value, // NOUVEAU: Assurez-vous que la valeur est correcte
+        location: form.querySelector('#delivery-location').value,
         deliveryMethod: form.querySelector('#delivery-method').value,
         paymentMethod: form.querySelector('input[name="payment-method"]:checked').value
     };
@@ -1562,7 +1587,7 @@ async function processCheckout(event) {
             adresseLivraison: `${customerData.address}, ${customerData.location}`,
             total: total,
             moyenPaiement: paymentNote, // NOUVEAU: Ajout des infos client pour Paydunya
-            paymentProvider: customerData.paymentMethod, // NOUVEAU: Pour l'agrégateur ABMCY
+            paymentProvider: finalPaymentProvider, // CORRECTION: Utiliser le fournisseur final
             customer: { // NOUVEAU: Ajout des infos client pour Paydunya/ABMCY Aggregator
                 name: clientName,
                 email: customerData.email,
@@ -1586,7 +1611,8 @@ async function processCheckout(event) {
             statusDiv.className = 'mt-4 text-center font-semibold text-green-600';
             saveCart([]); // Vider le panier après la commande
 
-            if (customerData.paymentMethod === 'paydunya' || ['wave', 'orange_money', 'yaas'].includes(customerData.paymentMethod)) {
+            // CORRECTION: La redirection se fait si ce n'est pas un paiement à la livraison
+            if (action !== 'enregistrerCommandeEtNotifier') {
                 statusDiv.textContent = `Facture créée. Redirection vers la page de paiement...`;
                 localStorage.removeItem('abmcyUserOrders'); // Invalider le cache des commandes
                 // Rediriger l'utilisateur vers l'URL de paiement de l'agrégateur

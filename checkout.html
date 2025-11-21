@@ -89,9 +89,15 @@
                     <!-- Méthode de paiement -->
                     <div id="payment-method-section">
                         <h2 class="text-lg font-semibold mb-3">Méthode de paiement</h2>
-                        <div id="payment-methods-container" class="space-y-3">
+                        <div class="space-y-3">
+                            <!-- Option Paiement à la livraison (statique) -->
+                            <label for="cod" class="flex items-center space-x-3 p-4 border rounded-lg cursor-pointer hover:bg-gray-50">
+                                <input type="radio" id="cod" name="payment-method" value="cod" class="form-radio h-4 w-4 text-gold" checked>
+                                <span class="text-gray-700 font-medium">Paiement à la livraison</span>
+                            </label>
+
                             <!-- Les options de paiement seront chargées ici par JavaScript -->
-                            <p class="text-gray-500">Chargement des méthodes de paiement...</p>
+                            <div id="payment-methods-container"></div>
                         </div>
                     </div>
 
