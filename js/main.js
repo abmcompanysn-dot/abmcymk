@@ -19,7 +19,12 @@ const CATEGORIES_PER_LOAD = 3;
 
 const DELIVERY_OPTIONS = {
     "Point de retrait": { "Retrait en magasin": { "Gratuit": 0 } },
-    "Dakar": { "Dakar - Plateau": { "Standard": 1500, "ABMCY Express": 2500 }, "Rufisque": { "Standard": 3000 } },
+    "Dakar": {
+        "Dakar - Plateau": { "Standard": 1500, "ABMCY Express": 2500 },
+        "Rufisque": { "Standard": 3000 },
+        "L'ENSETP": { "Standard": 500 },
+        "LESP": { "Standard": 500 }
+    },
     "Thiès": { "Thiès Ville": { "Standard": 3500 } }
 };
 
@@ -1507,7 +1512,7 @@ async function processCheckout(event) {
         if (error.message.includes("Failed to fetch") || error.message.includes("NetworkError")) {
             userFriendlyMessage = "Impossible de contacter nos serveurs. Veuillez vérifier votre connexion internet ou réessayer plus tard.";
         } else if (error.message.includes("Aucun service de paiement mobile n'est actif.")) {
-            userFriendlyMessage = "Le service de paiement en ligne est temporairement indisponible. Veuillez choisir le paiement à la livraison ou réessayer plus tard.";
+            userFriendlyMessage = "Le paiement en ligne est momentanément indisponible. Vous pouvez choisir le 'Paiement à la livraison' pour finaliser votre commande.";
         } else if (error.message.includes("Erreur Paydunya") || error.message.includes("Erreur PawaPay")) {
             userFriendlyMessage = `Le service de paiement a rencontré un problème : ${error.message}. Veuillez réessayer ou choisir une autre méthode.`;
         }
