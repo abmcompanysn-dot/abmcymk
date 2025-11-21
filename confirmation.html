@@ -26,7 +26,6 @@
             
             <div id="order-details" class="text-left bg-gray-50 p-4 rounded-md mb-8">
                 <h2 class="font-semibold mb-2">Récapitulatif :</h2>
-                <p class="text-sm text-gray-700">Numéro de commande : <span id="order-id" class="font-mono">Chargement...</span></p>
                 <p class="text-sm text-gray-700">Numéro de commande : <span id="order-id" class="font-mono font-semibold">Chargement...</span></p>
                 <p class="text-sm text-gray-700">Un email de confirmation vous sera envoyé prochainement.</p>
             </div>
@@ -42,21 +41,6 @@
         </div>
     </main>
 
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const params = new URLSearchParams(window.location.search);
-            const orderId = params.get('orderId');
-            const orderIdElement = document.getElementById('order-id');
-    <!-- Le script principal gère maintenant l'initialisation de cette page -->
     <script src="js/main.js"></script>
-
-            if (orderId && orderIdElement) {
-                orderIdElement.textContent = `#${orderId}`;
-            } else if (orderIdElement) {
-                orderIdElement.textContent = 'Non disponible';
-            }
-        });
-    </script>
-
 </body>
 </html>

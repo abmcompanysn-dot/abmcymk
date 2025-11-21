@@ -11,6 +11,7 @@ const CONFIG = {
     DEFAULT_PRODUCT_IMAGE: "logo/l.svg",
 };
 
+
 // Variables globales pour le chargement progressif de la page d'accueil
 let categoryDirectory = []; // Stocke la liste des catégories et leurs URLs
 let allLoadedProducts = []; // Stocke tous les produits déjà chargés
@@ -1250,13 +1251,6 @@ function initializeCheckoutPage() {
     // Ajouter l'écouteur pour la soumission du formulaire
     form.addEventListener('submit', processCheckout);
 }
-/**
- * NOUVEAU: Initialise la page de paiement.
- */
-function initializeCheckoutPage() {
-    const form = document.getElementById('checkout-form');
-    if (!form) return;
-
 /**
  * NOUVEAU: Remplit les sélecteurs de livraison sur la page de paiement.
  */
@@ -2879,4 +2873,4 @@ function createOrderTrackingHTML(order) {
             </div>
         </div>
     `;
-}
+}   
