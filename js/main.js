@@ -1582,7 +1582,7 @@ async function processCheckout(event) {
             adresseLivraison: `${customerData.address}, ${customerData.location}`,
             total: total,
             moyenPaiement: paymentNote, // NOUVEAU: Ajout des infos client pour Paydunya
-            paymentProvider: finalPaymentProvider, // CORRECTION: Utiliser le fournisseur final
+            paymentProvider: customerData.paymentMethod, // CORRECTION: Utiliser le fournisseur final
             customer: { // NOUVEAU: Ajout des infos client pour Paydunya/ABMCY Aggregator
                 name: clientName,
                 email: customerData.email,
