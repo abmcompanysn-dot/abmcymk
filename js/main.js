@@ -2873,4 +2873,4 @@ function createOrderTrackingHTML(order) {
             </div>
         </div>
     `;
-}   
+}
