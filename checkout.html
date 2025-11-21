@@ -89,23 +89,9 @@
                     <!-- Méthode de paiement -->
                     <div id="payment-method-section">
                         <h2 class="text-lg font-semibold mb-3">Méthode de paiement</h2>
-                        <div class="space-y-3 p-4 border rounded-md bg-gray-50">
-                            <label for="mobile-money" id="mobile-money-label" class="block p-3 border rounded-md bg-white cursor-pointer">
-                                <input type="radio" id="mobile-money" name="payment-method" value="mobile-money" class="h-4 w-4 text-gold focus:ring-gold border-gray-300" checked>
-                                <span class="ml-3 font-semibold">Payer par Mobile Money</span>
-                                <div class="mt-3 flex items-center justify-center space-x-4">
-                                    <img src="https://momo.mtn.com/wp-content/uploads/sites/15/2022/07/Group-360.png?w=360" alt="MTN Mobile Money" class="h-6">
-                                    <img src="https://www.wave.com/img/nav-logo.png" alt="Wave" class="h-5">
-                                    <img src="https://www.orange.sn/sites/default/files/images/orange_logo.svg" alt="Orange Money" class="h-6">
-                                    <img src="https://pawapay.io/wp-content/uploads/2023/08/logo-blue.svg" alt="PawaPay" class="h-5">
-                                </div>
-                            </label>
-                            <label for="cod" class="flex items-center p-3 border rounded-md bg-white cursor-pointer">
-                                <input type="radio" id="cod" name="payment-method" value="cod" class="h-4 w-4 text-gold focus:ring-gold border-gray-300">
-                                <span class="ml-3 font-semibold">Paiement à la livraison</span>
-                                <svg class="w-6 h-6 ml-auto text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
-                            </label>
-                            <p class="text-xs text-gray-500 text-center">Vous serez redirigé vers une page sécurisée pour payer par Mobile Money ou Carte Bancaire.</p>
+                        <div id="payment-methods-container" class="space-y-3">
+                            <!-- Les options de paiement seront chargées ici par JavaScript -->
+                            <p class="text-gray-500">Chargement des méthodes de paiement...</p>
                         </div>
                     </div>
 

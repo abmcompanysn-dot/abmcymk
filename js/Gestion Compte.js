@@ -17,6 +17,7 @@ const SHEET_NAMES = {
     ORDERS: "Commandes",
     LOGS: "Logs",
     CONFIG: "Config",
+    ABMCY_Admin: "ABMCY_Admin", // NOUVEAU: Pour la page de confirmation manuelle
     // NOUVEAU: Ajout des feuilles des autres modules
     LIVRAISONS: "Livraisons",
     NOTIFICATIONS: "Notifications"
@@ -55,6 +56,12 @@ function doGet(e) {
     if (action === 'showAdminDashboard') {
       // Note: Idéalement, ajoutez une vérification ici pour s'assurer que seul un admin peut voir cette page.
       return HtmlService.createHtmlOutputFromFile('admin_dashboard')
+          .setTitle('Tableau de Bord Admin - ABMCY MARKET')
+          .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+    }
+    // NOUVEAU: Action pour servir la page de confirmation manuelle ABMCY
+    if (action === 'showAbmcyAdmin') {
+      return HtmlService.createHtmlOutputFromFile('abmcy_admin')
           .setTitle('Tableau de Bord Admin - ABMCY MARKET')
           .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
     }
@@ -97,6 +104,17 @@ function doPost(e) {
             return createJsonResponse({ success: false, error: 'Action non spécifiée.' }, origin);
         }
 
+        // NOUVEAU: Protection par mot de passe pour les actions admin de l'agrégateur
+        const adminActions = ['getPendingAbmcyPayments', 'manuallyConfirmAbmcyPayment', 'manuallyExpireAbmcyPayment'];
+        if (adminActions.includes(action)) {
+            const abmcyAdminSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.ABMCY_Admin);
+            const storedPassword = abmcyAdminSheet.getRange("B2").getValue();
+            if (request.password !== storedPassword) {
+                logAction('ABMCY_ADMIN_AUTH_FAIL', { action: action });
+                return createJsonResponse({ success: false, unauthorized: true, error: 'Mot de passe incorrect.' }, origin);
+            }
+        }
+
         // Routeur pour les actions POST
         switch (action) {
             case 'creerCompteClient':
@@ -135,6 +153,12 @@ function doPost(e) {
                 return createAbmcyAggregatorInvoice(data, origin);
             case 'getAbmcyPaymentStatus': // NOUVEAU: Pour le suivi de statut des paiements ABMCY
                 return getAbmcyPaymentStatus(data, origin);
+            case 'getPendingAbmcyPayments': // NOUVEAU: Pour la page admin de confirmation manuelle
+                return getPendingAbmcyPayments(origin);
+            case 'manuallyConfirmAbmcyPayment': // NOUVEAU: Pour la confirmation manuelle
+                return manuallyConfirmAbmcyPayment(data, origin);
+            case 'manuallyExpireAbmcyPayment': // NOUVEAU: Pour l'expiration manuelle
+                return manuallyExpireAbmcyPayment(data, origin);
             case 'enregistrerCommandeEtNotifier': // Pour le paiement à la livraison (COD)
                 const orderResult = enregistrerCommande(data, origin);
                 const orderData = JSON.parse(orderResult.getContent());
@@ -785,6 +809,7 @@ function getPaymentSettings(data, origin) {
             PAYDUNYA_TOKEN: config.PAYDUNYA_TOKEN,
             PAYDUNYA_PUBLIC_KEY: config.PAYDUNYA_PUBLIC_KEY,
             ABMCY_AGGREGATOR_ACTIVE: String(config.ABMCY_AGGREGATOR_ACTIVE).toLowerCase() === 'true', // NOUVEAU
+            ABMCY_PAYMENT_METHODS: config.ABMCY_PAYMENT_METHODS || {} // NOUVEAU: Renvoyer l'objet des méthodes de paiement
         };
         return createJsonResponse({ success: true, data: settings }, origin);
     } catch (error) {
@@ -1316,6 +1341,8 @@ function onOpen() {
       .addItem('🚀 Initialiser le projet (Feuilles & Config)', 'setupProject')
       .addSeparator()
       .addItem('⏰ Configurer le déclencheur d\'expiration des paiements ABMCY', 'createAbmcyPaymentExpirationTrigger') // NOUVEAU
+      .addSeparator() // NOUVEAU
+      .addItem('🔑 Ouvrir la Confirmation Manuelle ABMCY', 'openAbmcyAdminInSidebar') // NOUVEAU
       .addItem('🔑 Ouvrir le Tableau de Bord Admin', 'openAdminDashboardInSidebar') // NOUVEAU
       .addToUi();
 }
@@ -1382,6 +1409,7 @@ function getConfig() {
  * Initialise les feuilles de calcul nécessaires pour ce module.
  */
 function setupProject() {
+  // CORRECTION: Utilisation de 'ss' et 'ui' pour plus de clarté
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const ui = SpreadsheetApp.getUi();
 
@@ -1400,6 +1428,7 @@ function setupProject() {
     if (!sheet) {
       sheet = ss.insertSheet(sheetName);
       sheet.appendRow(headers);
+      // CORRECTION: Appliquer le style uniquement si des en-têtes existent
       sheet.setFrozenRows(1);
       sheet.getRange("A1:Z1").setFontWeight("bold");
     }
@@ -1407,6 +1436,11 @@ function setupProject() {
 
   // Remplir la configuration par défaut
   const configSheet = ss.getSheetByName(SHEET_NAMES.CONFIG);
+  // CORRECTION: Vérifier que la feuille existe avant de continuer
+  if (!configSheet) {
+    ui.alert("Erreur critique : La feuille 'Config' n'a pas pu être créée ou trouvée.");
+    return;
+  }
   const configData = configSheet.getDataRange().getValues();
   const configMap = new Map(configData.map(row => [row[0], row[1]]));
 
@@ -1452,6 +1486,11 @@ function setupProject() {
 
   // NOUVEAU: Remplir la feuille ABMCY_Admin
   const abmcyAdminSheet = ss.getSheetByName(SHEET_NAMES.ABMCY_Admin);
+  // CORRECTION: Vérifier que la feuille existe avant de continuer
+  if (!abmcyAdminSheet) {
+    ui.alert("Erreur critique : La feuille 'ABMCY_Admin' n'a pas pu être créée ou trouvée.");
+    return;
+  }
   const abmcyAdminData = abmcyAdminSheet.getDataRange().getValues();
   const abmcyAdminMap = new Map(abmcyAdminData.map(row => [row[0], row[1]]));
   if (!abmcyAdminMap.has('AdminPassword')) {
@@ -1540,5 +1579,15 @@ function openAdminDashboardInSidebar() {
   const html = HtmlService.createHtmlOutputFromFile('admin_dashboard')
     .setWidth(500)
     .setTitle('Tableau de Bord Admin');
+  SpreadsheetApp.getUi().showSidebar(html);
+}
+
+/**
+ * NOUVEAU: Ouvre la page de confirmation manuelle dans une barre latérale.
+ */
+function openAbmcyAdminInSidebar() {
+  const html = HtmlService.createHtmlOutputFromFile('abmcy_admin')
+    .setWidth(500)
+    .setTitle('Confirmation Manuelle ABMCY');
   SpreadsheetApp.getUi().showSidebar(html);
 }

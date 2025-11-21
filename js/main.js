@@ -1,6 +1,6 @@
 const CONFIG = {
     // NOUVEAU: URL de l'API CENTRALE qui gère maintenant tout (comptes, commandes, etc.)
-    ACCOUNT_API_URL:"https://script.google.com/macros/s/AKfycbx1N96Dwx4CBck3c-NAQc5nDXsOr4TZKxSSJjQMFCKKyvmdI1mrnNwEqw_SB85aC24_ag/exec",
+    ACCOUNT_API_URL:"https://script.google.com/macros/s/AKfycbyQgFxtTcAPMQhMWj_zbwfwDho-7AWzwop8QKn0qTjKhspKv9klwZmZvjsZlstv1Kyzog/exec",
     // Les URL spécifiques pour commandes, livraisons et notifications sont maintenant obsolètes
     // car tout est géré par l'API centrale (ACCOUNT_API_URL).
     
@@ -21,7 +21,7 @@ const CATEGORIES_PER_LOAD = 3;
 const DELIVERY_OPTIONS = {
     "Point de retrait": { "Retrait en magasin": { "Gratuit": 0 } },
     "Dakar": {
-        "Dakar - Plateau": { "Standard": 1500, "ABMCY Express": 2500 },
+        "Dakar - Plateau": { "Standard": 1500 },
         "Rufisque": { "Standard": 3000 },
         "L'ENSETP": { "Standard": 500 },
         "LESP": { "Standard": 500 }
@@ -1232,7 +1232,7 @@ function initializeCheckoutPage() {
     // Pré-remplir les infos si l'utilisateur est connecté
     const user = JSON.parse(localStorage.getItem('abmcyUser'));
     if (user) {
-        form.querySelector('#firstname').value = user.Nom.split(' ')[0] || '';
+        form.querySelector('#firstname').value = user.Nom ? user.Nom.split(' ')[0] : '';
         form.querySelector('#lastname').value = user.Nom.split(' ').slice(1).join(' ') || '';
         form.querySelector('#email').value = user.Email || '';
         form.querySelector('#phone').value = user.Telephone || '';
@@ -1242,7 +1242,7 @@ function initializeCheckoutPage() {
     // Charger les options de livraison
     populateDeliverySelectorsCheckout();
 
-    loadPaymentMethods(); // NOUVEAU: Charger les méthodes de paiement dynamiquement
+    loadPaymentMethods(); // Charger les méthodes de paiement dynamiquement
     // Afficher les articles du résumé
     renderCheckoutSummaryItems();
 
