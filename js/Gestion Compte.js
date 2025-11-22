@@ -27,7 +27,8 @@ const SHEET_NAMES = {
 const ALLOWED_ORIGINS = {
     "https://abmcymarket.vercel.app": true,
     "http://127.0.0.1:5500": true,
-    "https://abmcymarket.abmcy.com": true // NOUVEAU: Ajout du nouveau domaine pour corriger l'erreur CORS.
+    "https://abmcymarket.abmcy.com": true, // NOUVEAU: Ajout du nouveau domaine pour corriger l'erreur CORS.
+    "null": true // Autoriser pour les tests locaux ou les redirections depuis des applications
 };
 
 // --- POINTS D'ENTRÉE DE L'API WEB (doGet, doPost, doOptions) ---
@@ -389,7 +390,7 @@ function createPaydunyaInvoice(data, origin) {
             },
             "actions": {
                 "cancel_url": "https://abmcymarket.abmcy.com/checkout.html",
-                "return_url": `https://abmcymarket.abmcy.com/payment-cofirmation.html?orderId=${idCommande}`,
+                "return_url": `https://abmcymarket.abmcy.com/confirmation.html?orderId=${idCommande}`,
                 "callback_url": ScriptApp.getService().getUrl() + "?action=paydunya-webhook"
             },
             "custom_data": {

@@ -90,16 +90,20 @@
                     <div id="payment-method-section">
                         <h2 class="text-lg font-semibold mb-3">Méthode de paiement</h2>
                         <div class="space-y-3">
-                            <!-- NOUVEAU: L'option "Paiement à la livraison" est temporairement masquée en la mettant en commentaire -->
-                            <!-- 
-                            <label for="cod" class="flex items-center space-x-3 p-4 border rounded-lg cursor-pointer hover:bg-gray-50">
-                                <input type="radio" id="cod" name="payment-method" value="cod" class="form-radio h-4 w-4 text-gold" checked>
-                                <span class="text-gray-700 font-medium">Paiement à la livraison</span>
-                            </label>
-                            -->
-                            
-                            <!-- Les options de paiement seront chargées ici par JavaScript -->
-                            <div id="payment-methods-container"></div>
+                            <!-- NOUVEAU: Structure permanente pour le paiement mobile -->
+                            <div class="border rounded-lg">
+                                <label for="mobile-payment-group" class="flex items-center space-x-3 p-4 cursor-pointer">
+                                    <input type="radio" id="mobile-payment-group" name="payment-method" value="mobile-payment-group" class="form-radio h-4 w-4 text-gold" checked>
+                                    <span class="text-gray-700 font-medium">Paiement Mobile (Wave, Orange Money, etc.)</span>
+                                </label>
+                                <!-- Le contenu de cette div sera rempli dynamiquement par main.js -->
+                                <div id="mobile-payment-options" class="p-4 border-t bg-gray-50 space-y-3">
+                                    <!-- Squelette de chargement -->
+                                    <div class="animate-pulse flex space-x-4"><div class="rounded-full bg-gray-200 h-6 w-6"></div><div class="flex-1 space-y-3 py-1"><div class="h-2 bg-gray-200 rounded"></div></div></div>
+                                </div>
+                            </div>
+
+                            <!-- L'option de paiement à la livraison sera ajoutée ici si nécessaire -->
                         </div>
                     </div>
 

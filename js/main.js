@@ -1260,9 +1260,9 @@ async function initializeCheckoutPage() {
  * Met à jour l'interface utilisateur en conséquence.
  */
 async function loadPaymentMethods() {
-    const paymentMethodsContainer = document.getElementById('payment-methods-container');
-    // const codRadio = document.getElementById('cod'); // N'est plus nécessaire car l'option est masquée
-    if (!paymentMethodsContainer) return;
+    // NOUVEAU: Cible le conteneur spécifique pour les options de paiement mobile.
+    const mobilePaymentOptionsContainer = document.getElementById('mobile-payment-options');
+    if (!mobilePaymentOptionsContainer) return;
 
     try {
         const settingsResponse = await fetch(CONFIG.ACCOUNT_API_URL, {
@@ -1270,64 +1270,72 @@ async function loadPaymentMethods() {
             headers: { 'Content-Type': 'text/plain' },
             body: JSON.stringify({ action: 'getPaymentSettings' })
         });
+
+        if (!settingsResponse.ok) {
+            throw new Error(`Erreur réseau: ${settingsResponse.statusText}`);
+        }
+
         const result = await settingsResponse.json();
 
-        if (result.success && result.data) {
-            const settings = result.data;
-            let mobilePaymentOptionsHTML = '';
-            let hasMobilePayment = false;
+        if (!result.success || !result.data) {
+            console.error("Impossible de charger les paramètres de paiement:", result.error);
+            mobilePaymentOptionsContainer.innerHTML = '<p class="text-red-500 text-sm">Erreur de chargement des méthodes de paiement.</p>';
+            return;
+        }
 
-            // Construire les sous-options pour Paydunya
-            if (settings.PAYDUNYA_ACTIVE) {
-                hasMobilePayment = true;
-                mobilePaymentOptionsHTML += `
-                    <label for="paydunya" class="flex items-center space-x-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-100">
-                        <input type="radio" id="paydunya" name="mobile-payment-provider" value="paydunya" class="form-radio h-4 w-4 text-gold">
-                        <img src="https://paydunya.com/assets/img/logo-paydunya.png" alt="Paydunya" class="h-6">
+        const settings = result.data;
+        let optionsHTML = '';
+        let firstOptionValue = '';
+
+        // Règle 1: Si l'agrégateur ABMCY est actif, on affiche ses options.
+        if (settings.ABMCY_AGGREGATOR_ACTIVE && settings.ABMCY_PAYMENT_METHODS && Object.keys(settings.ABMCY_PAYMENT_METHODS).length > 0) {
+            optionsHTML = Object.entries(settings.ABMCY_PAYMENT_METHODS).map(([key, provider]) => {
+                if (!firstOptionValue) firstOptionValue = key; // Garder la première option pour la cocher par défaut
+                return `
+                    <label for="${key}" class="flex items-center space-x-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-100 has-[:checked]:bg-gold/10 has-[:checked]:border-gold">
+                        <input type="radio" id="${key}" name="payment-provider" value="${key}" class="form-radio h-4 w-4 text-gold focus:ring-gold">
+                        <img src="${provider.logo}" alt="${provider.name}" class="h-6">
+                        <span class="text-sm font-medium">${provider.name}</span>
                     </label>
                 `;
-            }
+            }).join('');
+        
+        // Règle 2: Sinon, si Paydunya est actif, on affiche Paydunya.
+        } else if (settings.PAYDUNYA_ACTIVE) {
+            firstOptionValue = 'paydunya';
+            optionsHTML = `
+                <label for="paydunya" class="flex items-center space-x-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-100 has-[:checked]:bg-gold/10 has-[:checked]:border-gold">
+                    <input type="radio" id="paydunya" name="payment-provider" value="paydunya" class="form-radio h-4 w-4 text-gold focus:ring-gold">
+                    <img src="https://paydunya.com/assets/img/logo-paydunya.png" alt="Paydunya" class="h-6">
+                    <span class="text-sm font-medium">Paiement sécurisé via Paydunya</span>
+                </label>
+            `;
 
-            // Construire les sous-options pour l'agrégateur ABMCY
-            if (settings.ABMCY_AGGREGATOR_ACTIVE && settings.ABMCY_PAYMENT_METHODS) {
-                for (const providerKey in settings.ABMCY_PAYMENT_METHODS) {
-                    hasMobilePayment = true;
-                    const provider = settings.ABMCY_PAYMENT_METHODS[providerKey];
-                    mobilePaymentOptionsHTML += `
-                        <label for="${providerKey}" class="flex items-center space-x-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-100">
-                            <input type="radio" id="${providerKey}" name="mobile-payment-provider" value="${providerKey}" class="form-radio h-4 w-4 text-gold">
-                            <img src="${provider.logo}" alt="${provider.name}" class="h-6">
-                        </label>
-                    `;
-                }
-            }
-
-            // Si au moins une option de paiement mobile est active, on affiche le bloc principal
-            if (hasMobilePayment) {
-                paymentMethodsContainer.innerHTML = `
-                    <div class="border rounded-lg mt-3">
-                        <label for="mobile-payment-group" class="flex items-center space-x-3 p-4 cursor-default">
-                            <!-- CORRECTION: Ajout de 'checked' pour que ce soit l'option par défaut -->
-                            <input type="radio" id="mobile-payment-group" name="payment-method" value="mobile-payment-group" class="form-radio h-4 w-4 text-gold" checked>
-                            <span class="text-gray-700 font-medium">Paiement Mobile (Wave, Orange Money, etc.)</span>
-                        </label>
-                        <!-- CORRECTION: La classe 'hidden' est retirée pour que les options soient visibles immédiatement -->
-                        <div id="mobile-payment-options" class="p-4 border-t bg-gray-50 space-y-2">
-                            ${mobilePaymentOptionsHTML}
-                        </div>
-                    </div>
-                `;
-            } else {
-                paymentMethodsContainer.innerHTML = ''; // Pas d'options de paiement mobile à afficher
-            }
-
+        // Règle 3: Si rien n'est actif, on affiche un message.
         } else {
-            console.error("Impossible de charger les paramètres de paiement:", result.error);
-            paymentMethodsContainer.innerHTML = '<p class="text-red-500">Erreur de chargement des méthodes de paiement.</p>';
+            optionsHTML = `
+                <div class="text-center text-sm text-gray-500 p-4 bg-gray-100 rounded-md">
+                    <p>Le paiement en ligne est actuellement indisponible.</p>
+                    <p class="font-semibold">Le paiement à la livraison sera sélectionné.</p>
+                </div>
+            `;
+            // On pourrait forcer la sélection du paiement à la livraison ici si cette option existait.
         }
+
+        // Injecter le HTML généré dans le conteneur
+        mobilePaymentOptionsContainer.innerHTML = optionsHTML;
+
+        // Cocher la première option disponible par défaut pour une meilleure expérience utilisateur
+        if (firstOptionValue) {
+            const firstRadio = document.getElementById(firstOptionValue);
+            if (firstRadio) {
+                firstRadio.checked = true;
+            }
+        }
+
     } catch (error) {
         console.error("Erreur lors de la récupération des paramètres de paiement:", error);
-        paymentMethodsContainer.innerHTML = '<p class="text-red-500">Erreur de communication avec le serveur pour les méthodes de paiement.</p>';
+        mobilePaymentOptionsContainer.innerHTML = '<p class="text-red-500 text-sm">Erreur de communication avec le serveur pour les méthodes de paiement.</p>';
     }
 }
 
@@ -1494,6 +1502,7 @@ async function processCheckout(event) {
     }
     // 1. Récupérer les données du formulaire
     const selectedPaymentMethodElement = form.querySelector('input[name="payment-method"]:checked');
+    const selectedPaymentProviderElement = form.querySelector('input[name="payment-provider"]:checked'); // NOUVEAU
     const customerData = {
         firstname: form.querySelector('#firstname').value,
         lastname: form.querySelector('#lastname').value,
@@ -1505,7 +1514,8 @@ async function processCheckout(event) {
         deliveryMethod: form.querySelector('#delivery-method').value,
         // CORRECTION: Vérifier si une méthode de paiement est bien sélectionnée avant d'accéder à sa valeur.
         // S'il n'y en a pas (par ex. si l'API a échoué), on utilise 'cod' (Cash on Delivery) par défaut.
-        paymentMethod: selectedPaymentMethodElement ? selectedPaymentMethodElement.value : 'cod'
+        paymentMethod: selectedPaymentMethodElement ? selectedPaymentMethodElement.value : 'cod',
+        paymentProvider: selectedPaymentProviderElement ? selectedPaymentProviderElement.value : null // NOUVEAU
     };
 
     // 2. Récupérer les données du panier depuis le localStorage
@@ -1544,14 +1554,13 @@ async function processCheckout(event) {
     let action;
     let paymentNote;
 
-    if (customerData.paymentMethod === 'paydunya' && paymentSettings.PAYDUNYA_ACTIVE) {
+    if (customerData.paymentProvider === 'paydunya' && paymentSettings.PAYDUNYA_ACTIVE) {
         action = 'createPaydunyaInvoice';
         paymentNote = 'Paydunya';
-    } else if (['wave', 'orange_money', 'yaas'].includes(customerData.paymentMethod) && paymentSettings.ABMCY_AGGREGATOR_ACTIVE) {
+    } else if (customerData.paymentProvider && ['wave', 'orange_money', 'yaas'].includes(customerData.paymentProvider) && paymentSettings.ABMCY_AGGREGATOR_ACTIVE) {
         action = 'createAbmcyAggregatorInvoice'; // NOUVEAU: Action pour l'agrégateur ABMCY
-        paymentNote = customerData.paymentMethod;
-    }
-    else { // 'cod' ou si les agrégateurs sont désactivés
+        paymentNote = customerData.paymentProvider;
+    } else { // 'cod' ou si les agrégateurs sont désactivés
         action = 'enregistrerCommandeEtNotifier'; // Paiement à la livraison
         paymentNote = 'Paiement à la livraison';
         // Si un agrégateur était sélectionné mais est inactif, on force le COD
@@ -1582,7 +1591,7 @@ async function processCheckout(event) {
             adresseLivraison: `${customerData.address}, ${customerData.location}`,
             total: total,
             moyenPaiement: paymentNote, // NOUVEAU: Ajout des infos client pour Paydunya
-            paymentProvider: customerData.paymentMethod, // CORRECTION: Utiliser le fournisseur final
+            paymentProvider: customerData.paymentProvider, // CORRECTION: Utiliser le fournisseur final
             customer: { // NOUVEAU: Ajout des infos client pour Paydunya/ABMCY Aggregator
                 name: clientName,
                 email: customerData.email,
