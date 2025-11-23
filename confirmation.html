@@ -19,17 +19,17 @@
     <main class="w-full max-w-lg mx-auto px-4 py-12">
         <div class="bg-white p-8 rounded-lg shadow-lg text-center">
             <!-- NOUVEAU: Conteneur pour l'icône dynamique -->
-            
-            <!-- NOUVEAU: Section pour le compte à rebours dt le polling -->
-            <div id="payment-countdown" class="hidden text-center p-4 mb-8 bg-yellow-50 border border-yellow"main-title" class="text-3xl font-bold text-gray-800 mb-4">Merci pour votre commande !</h1>
+            <h1 id="main-title" class="text-3xl font-bold text-gray-800 mb-4">Merci pour votre commande !</h1>
             <p id="main-message" class="text-gray-600 mb-6">Nous avons bien reçu votre commande et nous la préparons pour l'expédition.</p>
             
-            <div i
-
-            <!-- NOUVEAU: Section pour le compte à rebours dt le polling -->
-            <div id="payment-countdown" class="hidden text-center p-4 mb-8 bg-yellow-50 border border-yellow="order-details" class="text-left bg-gray-50 p-4 rounded-md mb-8">
+            <div id="order-details" class="text-left bg-gray-50 p-4 rounded-md mb-8">
                 <!-- Le contenu sera injecté par JS -->
                 <p class="text-center text-gray-500">Chargement des détails...</p>
+            </div>
+
+            <!-- NOUVEAU: Conteneur pour les messages d'erreur -->
+            <div id="error-message" class="hidden text-center p-4 mb-8 bg-red-50 border border-red-200 rounded-lg">
+                <!-- Les messages d'erreur seront injectés ici -->
             </div>
 
             <!-- NOUVEAU: Section pour le compte à rebours et le polling -->

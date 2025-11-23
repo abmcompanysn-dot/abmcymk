@@ -1,6 +1,6 @@
 const CONFIG = {
     // NOUVEAU: URL de l'API CENTRALE qui gère maintenant tout (comptes, commandes, etc.)
-    ACCOUNT_API_URL:"https://script.google.com/macros/s/AKfycbxFbCDgH3uHcVDbBYgnwuu4H2IY-8vZsMyekhVQlgKLlOGc42mbUjfiokb2e_7FpcFMfA/exec",
+    ACCOUNT_API_URL:"https://script.google.com/macros/s/AKfycbzHfQ6orCm7SdHesyd7JzUvKWreLK6zsfRCMAnSHoHWkFSoPANEN6ktl4C44xUJ19_n2Q/exec",
     // Les URL spécifiques pour commandes, livraisons et notifications sont maintenant obsolètes
     // car tout est géré par l'API centrale (ACCOUNT_API_URL).
     
@@ -2799,9 +2799,11 @@ async function initializeConfirmationPage() {
     const orderId = params.get('orderId');
     const orderIdElement = document.getElementById('order-id');
     const orderDetailsContainer = document.getElementById('order-details');
-    const countdownContainer = document.getElementById('payment-countdown'); // NOUVEAU
+    const countdownContainer = document.getElementById('payment-countdown');
+    const errorMessageContainer = document.getElementById('error-message');
     
-    if (!orderId || !orderIdElement || !orderDetailsContainer) {
+    if (!orderId || !orderIdElement || !orderDetailsContainer || !errorMessageContainer) {
+        if (errorMessageContainer) errorMessageContainer.innerHTML = '<p class="text-red-600 font-bold">Erreur: Impossible d\'initialiser la page de confirmation.</p>';
         if (orderIdElement) orderIdElement.textContent = 'Non disponible';
         return;
     }
@@ -2820,16 +2822,16 @@ async function initializeConfirmationPage() {
         const response = await fetch(CONFIG.ACCOUNT_API_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'text/plain' },
-            body: JSON.stringify({ action: 'getAbmcyPaymentStatus', data: { orderId: orderId } }) // NOUVEAU: Utiliser la fonction de statut spécifique
+            body: JSON.stringify({ action: 'getOrderById', data: { orderId: orderId } }) // OPTIMISATION: Utilisation de la fonction unifiée
         });
         const result = await response.json();
 
         // Cacher le message de chargement
         const loadingMessage = document.getElementById('loading-details');
         if (loadingMessage) loadingMessage.remove();
-
-        if (result.success && result.order) { // NOUVEAU: 'result.order' au lieu de 'result.data'
-            const order = result.order;
+        
+        if (result.success && result.data) {
+            const order = result.data;
             // Injecter les détails de la commande dans la page (sans le statut pour l'instant)
             orderDetailsContainer.innerHTML = `
                 <h2 class="font-semibold mb-2">Récapitulatif :</h2>
@@ -2882,12 +2884,12 @@ async function initializeConfirmationPage() {
                     const pollResponse = await fetch(CONFIG.ACCOUNT_API_URL, {
                         method: 'POST',
                         headers: { 'Content-Type': 'text/plain' },
-                        body: JSON.stringify({ action: 'getAbmcyPaymentStatus', data: { orderId: orderId } })
+                        body: JSON.stringify({ action: 'getOrderById', data: { orderId: orderId } }) // OPTIMISATION
                     });
                     const pollResult = await pollResponse.json();
 
-                    if (pollResult.success && pollResult.order.Statut !== document.getElementById('current-order-status').textContent) {
-                        const newStatus = pollResult.order.Statut;
+                    if (pollResult.success && pollResult.data.Statut !== document.getElementById('current-order-status').textContent) {
+                        const newStatus = pollResult.data.Statut;
                         document.getElementById('current-order-status').textContent = newStatus;
                         if (newStatus === 'Confirmée' || newStatus.startsWith('Payée')) {
                             clearInterval(countdownInterval);
@@ -2898,8 +2900,14 @@ async function initializeConfirmationPage() {
                 }, 30000); // Toutes les 30 secondes
             }
         } else {
-            // En cas d'erreur, afficher un message simple
-            orderDetailsContainer.innerHTML += '<p class="text-sm text-red-500">Impossible de charger les détails.</p>';
+            // AMÉLIORATION: Afficher un message d'erreur clair si la commande n'est pas trouvée
+            document.getElementById('main-title').textContent = 'Commande Introuvable';
+            document.getElementById('main-message').textContent = 'Nous n\'avons pas pu trouver les détails pour cette commande. Veuillez vérifier le numéro de commande ou contacter le support client.';
+            orderDetailsContainer.classList.add('hidden');
+            if (countdownContainer) countdownContainer.classList.add('hidden');
+            errorMessageContainer.innerHTML = `<p class="text-red-600 font-bold">${result.error || 'Une erreur inconnue est survenue.'}</p>`;
+            errorMessageContainer.classList.remove('hidden');
+
         }
     } catch (error) {
         const loadingMessage = document.getElementById('loading-details');

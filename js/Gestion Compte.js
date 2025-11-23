@@ -152,11 +152,8 @@ function doPost(e) {
                 return createPaydunyaInvoice(data, origin);
             // NOUVEAU: Action pour le paiement à la livraison
             case 'createAbmcyAggregatorInvoice': // NOUVEAU: Action pour le nouvel agrégateur ABMCY
-                return createAbmcyAggregatorInvoice(data, origin);
-            case 'getAbmcyPaymentStatus': // NOUVEAU: Pour le suivi de statut des paiements ABMCY
-                return createAbmcyAggregatorInvoice(data, origin);
-            case 'getAbmcyPaymentStatus': // NOUVEAU: Pour le suivi de statut des paiements ABMCY
-                return getAbmcyPaymentStatus(data, origin);
+                return createAbmcyAggregatorInvoice(data, origin); 
+            // L'action 'getAbmcyPaymentStatus' est maintenant fusionnée dans 'getOrderById' pour éviter la redondance.
             case 'getPendingAbmcyPayments': // NOUVEAU: Pour la page admin de confirmation manuelle
                 return getPendingAbmcyPayments(origin);
             case 'logAbmcyPaymentAttempt': // NOUVEAU: Pour enregistrer les infos de l'expéditeur
@@ -1102,7 +1099,7 @@ function getOrderById(data, origin) {
         const orderRow = allOrders.find(row => row[idCommandeIndex] === data.orderId);
 
         if (!orderRow) {
-            return createJsonResponse({ success: false, error: "Commande non trouvée." }, origin);
+            return createJsonResponse({ success: false, error: "Commande non trouvée. Veuillez vérifier le numéro de commande." }, origin);
         }
 
         const orderObject = headers.reduce((obj, header, index) => {
