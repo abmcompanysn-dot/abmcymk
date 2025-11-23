@@ -1,6 +1,6 @@
 const CONFIG = {
     // NOUVEAU: URL de l'API CENTRALE qui gère maintenant tout (comptes, commandes, etc.)
-    ACCOUNT_API_URL:"https://script.google.com/macros/s/AKfycbxFbCDgH3uHcVDbBYgnwuu4H2IY-8vZsMyekhVQlgKLlOGc42mbUjfiokb2e_7FpcFMfA/exec",
+    ACCOUNT_API_URL:"https://script.google.com/macros/s/AKfycbx0akI9OiYoqZ1NxQIZqpu7e4AlXrLirqHSPMZBo2sbxFAECxNgiByXifw4d1ZeNhEBrw/exec",
     // Les URL spécifiques pour commandes, livraisons et notifications sont maintenant obsolètes
     // car tout est géré par l'API centrale (ACCOUNT_API_URL).
     
@@ -518,12 +518,7 @@ function renderPromoProductsInCart(catalog) {
     if (!container) return;
 
     // Afficher un squelette de chargement
-    const skeletonCard = `
-        <div class="bg-white rounded-lg shadow overflow-hidden animate-pulse">
-            <div class="bg-gray-200 h-40"></div>
-            <div class="p-3 space-y-2"><div class="bg-gray-200 h-4 rounded"></div><div class="bg-gray-200 h-6 w-1/2 rounded"></div></div>
-        </div>`;
-    container.innerHTML = Array(4).fill(skeletonCard).join('');
+    container.innerHTML = Array(4).fill(getSkeletonCardHTML()).join('');
 
     try {
         const allProducts = catalog.data.products || [];
@@ -680,12 +675,7 @@ function initializeCategoryPage() {
     nameDisplay.textContent = categoryName || "Catégorie";
 
     // Afficher le squelette de chargement
-    const skeletonCard = `
-        <div class="bg-white rounded-lg shadow overflow-hidden animate-pulse">
-            <div class="bg-gray-200 h-40"></div>
-            <div class="p-3 space-y-2"><div class="bg-gray-200 h-4 rounded"></div><div class="bg-gray-200 h-6 w-1/2 rounded"></div></div>
-        </div>`;
-    resultsContainer.innerHTML = Array(8).fill(skeletonCard).join('');
+    resultsContainer.innerHTML = Array(8).fill(getSkeletonCardHTML()).join('');
 }
 
 /**
@@ -1198,12 +1188,7 @@ function renderSimilarProducts(currentProduct, allProducts, container) {
     if (!container) return;
 
     // Afficher le squelette de chargement
-    const skeletonCard = `
-        <div class="bg-white rounded-lg shadow overflow-hidden animate-pulse">
-            <div class="bg-gray-200 h-40"></div>
-            <div class="p-3 space-y-2"><div class="bg-gray-200 h-4 rounded"></div><div class="bg-gray-200 h-6 w-1/2 rounded"></div></div>
-        </div>`;
-    container.innerHTML = Array(4).fill(skeletonCard).join('');
+    container.innerHTML = Array(4).fill(getSkeletonCardHTML()).join('');
 
     // Filtrer pour trouver des produits de la même catégorie, en excluant le produit actuel
     const similar = allProducts.filter(p => 
@@ -1551,24 +1536,25 @@ async function processCheckout(event) {
     const total = subtotal + shippingCost;
 
     // 5. Préparer l'objet de la commande pour le backend en fonction du mode de paiement
+    // AMÉLIORATION: Logique de sélection de l'action de paiement clarifiée.
     let action;
     let paymentNote;
-
-    if (customerData.paymentProvider === 'paydunya' && paymentSettings.PAYDUNYA_ACTIVE) {
-        action = 'createPaydunyaInvoice';
-        paymentNote = 'Paydunya';
-    } else if (customerData.paymentProvider && ['wave', 'orange_money', 'yaas'].includes(customerData.paymentProvider) && paymentSettings.ABMCY_AGGREGATOR_ACTIVE) {
+    
+    // Priorité 1: Agrégateur ABMCY (Wave, Orange Money, etc.)
+    if (customerData.paymentProvider && ['wave', 'orange_money', 'yaas'].includes(customerData.paymentProvider) && paymentSettings.ABMCY_AGGREGATOR_ACTIVE) {
         action = 'createAbmcyAggregatorInvoice'; // NOUVEAU: Action pour l'agrégateur ABMCY
         paymentNote = customerData.paymentProvider;
-    } else { // 'cod' ou si les agrégateurs sont désactivés
+    // Priorité 2: Paydunya
+    } else if (customerData.paymentProvider === 'paydunya' && paymentSettings.PAYDUNYA_ACTIVE) {
+        action = 'createPaydunyaInvoice';
+        paymentNote = 'Paydunya';
+    // Priorité 3 (par défaut): Paiement à la livraison (COD)
+    } else {
         action = 'enregistrerCommandeEtNotifier'; // Paiement à la livraison
         paymentNote = 'Paiement à la livraison';
-        // Si un agrégateur était sélectionné mais est inactif, on force le COD
-        if (customerData.paymentMethod !== 'cod') {
-            statusDiv.textContent = "Le mode de paiement sélectionné est actuellement indisponible. La commande sera enregistrée en 'Paiement à la livraison'.";
-            statusDiv.className = 'mt-4 text-center font-semibold text-orange-600';
-            customerData.paymentMethod = 'cod'; // Mettre à jour pour la logique suivante
-            // On ne redirige pas ici, on continue avec l'enregistrement COD.
+        // Si un paiement en ligne était sélectionné mais est inactif, on informe l'utilisateur.
+        if (customerData.paymentProvider) {
+             showToast("Le mode de paiement en ligne choisi est indisponible. La commande sera passée en 'Paiement à la livraison'.", true);
         }
     }
 
@@ -1636,20 +1622,20 @@ async function processCheckout(event) {
         let userFriendlyMessage;
 
         // NOUVEAU: Logique améliorée pour gérer l'indisponibilité du paiement en ligne
-        if (error.message.includes("Aucun service de paiement mobile n'est actif.")) {
-            userFriendlyMessage = "Le paiement en ligne est indisponible. Nous avons sélectionné 'Paiement à la livraison' pour vous. Veuillez valider à nouveau.";
+        if (action !== 'enregistrerCommandeEtNotifier' && error.message.includes("indisponible")) {
+            userFriendlyMessage = "Le paiement en ligne est indisponible. La commande a été automatiquement basculée en 'Paiement à la livraison'. Veuillez valider à nouveau.";
             
             // Sélectionner automatiquement le paiement à la livraison
             const codRadio = document.getElementById('cod');
-            if (codRadio) {
-                codRadio.checked = true;
-            }
+            if (codRadio) codRadio.checked = true;
             
             // Cacher le choix du paiement mobile pour éviter la confusion
             const mobileMoneyLabel = document.getElementById('mobile-money-label');
-            if (mobileMoneyLabel) {
-                mobileMoneyLabel.style.display = 'none';
-            }
+            if (mobileMoneyLabel) mobileMoneyLabel.style.display = 'none';
+
+            // Réactiver le bouton pour que l'utilisateur puisse re-valider en COD
+            submitButton.disabled = false;
+            submitButton.textContent = 'Valider en Paiement à la livraison';
         } else {
             userFriendlyMessage = `Erreur: ${error.message}. Veuillez réessayer ou contacter le support.`;
         }
@@ -1657,8 +1643,10 @@ async function processCheckout(event) {
         // statusDiv.textContent = `Erreur lors de la commande: ${error.message}`; // Pour le débogage, on pourrait laisser le message technique ici
         statusDiv.textContent = userFriendlyMessage;
         statusDiv.className = 'mt-4 text-center font-semibold text-red-600';
-        submitButton.disabled = false;
-        submitButton.textContent = 'Valider la commande'; // Restaurer le texte original du bouton
+        if (!submitButton.disabled) { // Ne pas réactiver si on a déjà géré le cas COD
+            submitButton.disabled = false;
+            submitButton.textContent = 'Valider la commande';
+        }
     }
 }
 
@@ -1873,6 +1861,18 @@ async function getCatalogAndRefreshInBackground() {
         // Si pas de cache, on fait un premier chargement bloquant.
         return await getFullCatalog();
     }
+}
+
+/**
+ * NOUVEAU: Génère le HTML pour une carte de chargement "squelette".
+ * @returns {string} Le code HTML de la carte squelette.
+ */
+function getSkeletonCardHTML() {
+    return `
+    <div class="bg-white rounded-lg shadow overflow-hidden animate-pulse">
+        <div class="bg-gray-200 h-40"></div>
+        <div class="p-3 space-y-2"><div class="bg-gray-200 h-4 rounded"></div><div class="bg-gray-200 h-6 w-1/2 rounded"></div></div>
+    </div>`;
 }
 
 /**

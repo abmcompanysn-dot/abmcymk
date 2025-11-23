@@ -18,6 +18,7 @@ const SHEET_NAMES = {
     LOGS: "Logs",
     CONFIG: "Config",
     ABMCY_Admin: "ABMCY_Admin", // NOUVEAU: Pour la page de confirmation manuelle
+    ABMCY_AGGREGATOR_HISTORY: "ABMCY_Aggregator_History", // NOUVEAU: Pour l'historique des tentatives de paiement
     // NOUVEAU: Ajout des feuilles des autres modules
     LIVRAISONS: "Livraisons",
     NOTIFICATIONS: "Notifications"
@@ -158,6 +159,8 @@ function doPost(e) {
                 return getAbmcyPaymentStatus(data, origin);
             case 'getPendingAbmcyPayments': // NOUVEAU: Pour la page admin de confirmation manuelle
                 return getPendingAbmcyPayments(origin);
+            case 'logAbmcyPaymentAttempt': // NOUVEAU: Pour enregistrer les infos de l'expéditeur
+                return logAbmcyPaymentAttempt(data, origin);
             case 'manuallyConfirmAbmcyPayment': // NOUVEAU: Pour la confirmation manuelle
                 return manuallyConfirmAbmcyPayment(data, origin);
             case 'manuallyExpireAbmcyPayment': // NOUVEAU: Pour l'expiration manuelle
@@ -508,11 +511,11 @@ function createAbmcyAggregatorInvoice(data, origin) {
 
         // 2. NOUVEAU: Construire l'URL de redirection vers notre page intermédiaire abmcymarket.html
         // On passe les informations nécessaires en paramètres d'URL.
-        const aggregatorPageUrl = "https://abmcymarket.abmcy.com/abmcy_aggregator.html"; // URL de votre nouvelle page
-        const paymentUrl = `${aggregatorPageUrl}?orderId=${idCommande}&total=${data.total}&ref=${transactionReference}&provider=${selectedProvider}`;
+        const aggregatorPageUrl = "https://abmcymarket.abmcy.com/abmcy_aggregator.html";
+        const paymentUrl = `${aggregatorPageUrl}?orderId=${idCommande}&total=${data.total}&ref=${transactionReference}&provider=${selectedProvider}&baseUrl=${encodeURIComponent(providerConfig.baseUrl)}`;
 
         // L'ancienne logique de remplacement est maintenant gérée par la page abmcymarket.html elle-même.
-
+        
         // NOUVEAU: Envoyer l'email de "Paiement en attente" au client avec l'URL de la page d'instructions
         const emailData = { customerEmail: data.customer.email, orderId: idCommande, total: data.total, paymentUrl: paymentUrl, paymentProvider: providerConfig.name };
         sendAbmcyStatusEmail(emailData, 'pending');
@@ -1418,9 +1421,10 @@ function setupProject() {
 
   const sheetsToCreate = {
     [SHEET_NAMES.USERS]: ["IDClient", "Nom", "Email", "PasswordHash", "Salt", "Telephone", "Adresse", "DateInscription", "Statut", "Role"],
-    [SHEET_NAMES.ORDERS]: ["IDCommande", "IDClient", "DetailsProduits", "MontantTotal", "Statut", "Date", "EtapeConfirmee", "EtapePreparation", "EtapeExpediee", "EtapeLivree", "AdresseLivraison", "MoyenPaiement", "Notes", "TransactionReference", "InitiationTimestamp"], // NOUVEAU: Ajout de colonnes
+    [SHEET_NAMES.ORDERS]: ["IDCommande", "IDClient", "DetailsProduits", "MontantTotal", "Statut", "Date", "EtapeConfirmee", "EtapePreparation", "EtapeExpediee", "EtapeLivree", "AdresseLivraison", "MoyenPaiement", "Notes", "TransactionReference", "InitiationTimestamp", "NomExpediteur", "NumeroExpediteur"], // NOUVEAU: Ajout de colonnes
     [SHEET_NAMES.LOGS]: ["Timestamp", "Source", "Action", "Détails"],
     [SHEET_NAMES.CONFIG]: ["Clé", "Valeur"],
+    [SHEET_NAMES.ABMCY_AGGREGATOR_HISTORY]: ["Timestamp", "IDCommande", "Montant", "MoyenPaiement", "TransactionReference", "NomExpediteur", "NumeroExpediteur", "StatutLog", "NotesAdmin"], // NOUVEAU
     [SHEET_NAMES.ABMCY_Admin]: ["Clé", "Valeur"], // NOUVEAU
     [SHEET_NAMES.LIVRAISONS]: ["IDLivraison", "IDCommande", "IDClient", "Adresse", "Statut", "DateMiseAJour", "Transporteur"],
     [SHEET_NAMES.NOTIFICATIONS]: ["IDNotification", "IDCommande", "Type", "Message", "Statut", "Date"],
@@ -1510,6 +1514,14 @@ function setupProject() {
   if (ordersHeaders.indexOf("InitiationTimestamp") === -1) {
       ordersSheet.insertColumnAfter(ordersHeaders.length + 1); // +1 car on vient d'ajouter une colonne
       ordersSheet.getRange(1, ordersHeaders.length + 2).setValue("InitiationTimestamp");
+  }
+  if (ordersHeaders.indexOf("NomExpediteur") === -1) {
+      ordersSheet.insertColumnAfter(ordersSheet.getLastColumn());
+      ordersSheet.getRange(1, ordersSheet.getLastColumn()).setValue("NomExpediteur");
+  }
+  if (ordersHeaders.indexOf("NumeroExpediteur") === -1) {
+      ordersSheet.insertColumnAfter(ordersSheet.getLastColumn());
+      ordersSheet.getRange(1, ordersSheet.getLastColumn()).setValue("NumeroExpediteur");
   }
   
   CacheService.getScriptCache().remove('script_config'); // Vider le cache pour prendre en compte les changements

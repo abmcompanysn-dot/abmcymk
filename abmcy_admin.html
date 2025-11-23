@@ -132,6 +132,10 @@
                             <span class="font-semibold">${tx.MoyenPaiement}</span>
                         </p>
                         <p class="text-xs text-gray-500">Le ${new Date(tx.Date).toLocaleString('fr-FR')}</p>
+                        <!-- NOUVEAU: Affichage des infos de l'expéditeur -->
+                        <div class="mt-2 text-xs bg-blue-50 p-2 rounded border border-blue-200">
+                            <p><strong>Expéditeur:</strong> ${tx.NomExpediteur || 'N/A'} - <strong>Tél:</strong> ${tx.NumeroExpediteur || 'N/A'}</p>
+                        </div>
                     </div>
                     <div class="flex space-x-2 mt-4 md:mt-0">
                         <button onclick="confirmPayment('${tx.IDCommande}')" class="font-bold py-2 px-4 rounded transition duration-300 ease-in-out bg-green-500 text-white hover:bg-green-600">Confirmer</button>
