@@ -512,8 +512,12 @@ function createAbmcyAggregatorInvoice(data, origin) {
         // 2. NOUVEAU: Construire l'URL de redirection vers notre page intermédiaire abmcymarket.html
         // On passe les informations nécessaires en paramètres d'URL.
         const aggregatorPageUrl = "https://abmcymarket.abmcy.com/abmcy_aggregator.html";
-        const paymentUrl = `${aggregatorPageUrl}?orderId=${idCommande}&total=${data.total}&ref=${transactionReference}&provider=${selectedProvider}&baseUrl=${encodeURIComponent(providerConfig.baseUrl)}`;
 
+        // AMÉLIORATION: Nettoyer l'URL de base pour ne garder que la partie avant les paramètres.
+        // Cela évite de passer des placeholders comme {amount} à la page de l'agrégateur.
+        const cleanBaseUrl = providerConfig.baseUrl.split('?')[0];
+        const paymentUrl = `${aggregatorPageUrl}?orderId=${idCommande}&total=${data.total}&ref=${transactionReference}&provider=${selectedProvider}&baseUrl=${encodeURIComponent(cleanBaseUrl)}`;
+        
         // L'ancienne logique de remplacement est maintenant gérée par la page abmcymarket.html elle-même.
         
         // NOUVEAU: Envoyer l'email de "Paiement en attente" au client avec l'URL de la page d'instructions

@@ -105,11 +105,15 @@
                     const result = await response.json();
                     if (!result.success) throw new Error(result.error || 'Erreur serveur.');
                     
-                    // 2. Si l'enregistrement est réussi, rediriger vers Wave
-                    formStatus.textContent = 'Redirection vers Wave...';
+                    // 2. Si l'enregistrement est réussi, ouvrir Wave et rediriger vers la page de confirmation
+                    formStatus.textContent = 'Ouverture de la page de paiement et redirection...';
                     formStatus.className = 'text-sm font-semibold text-green-600';
+                    
                     const finalWaveUrl = `${baseUrl}?amount=${total}&ref=${transactionReference}&order_id=${orderId}`;
-                    window.open(finalWaveUrl, '_blank'); // Ouvre dans un nouvel onglet
+                    window.open(finalWaveUrl, '_blank'); // Ouvre la page de paiement Wave dans un nouvel onglet
+
+                    // Redirige la page actuelle vers la page de confirmation pour attendre le résultat du paiement
+                    window.location.href = `confirmation.html?orderId=${orderId}`;
 
                 } catch (error) {
                     formStatus.textContent = `Erreur: ${error.message}. Impossible de continuer.`;

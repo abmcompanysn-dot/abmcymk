@@ -1,6 +1,6 @@
 const CONFIG = {
     // NOUVEAU: URL de l'API CENTRALE qui gère maintenant tout (comptes, commandes, etc.)
-    ACCOUNT_API_URL:"https://script.google.com/macros/s/AKfycbx0akI9OiYoqZ1NxQIZqpu7e4AlXrLirqHSPMZBo2sbxFAECxNgiByXifw4d1ZeNhEBrw/exec",
+    ACCOUNT_API_URL:"https://script.google.com/macros/s/AKfycbxFbCDgH3uHcVDbBYgnwuu4H2IY-8vZsMyekhVQlgKLlOGc42mbUjfiokb2e_7FpcFMfA/exec",
     // Les URL spécifiques pour commandes, livraisons et notifications sont maintenant obsolètes
     // car tout est géré par l'API centrale (ACCOUNT_API_URL).
     
@@ -2800,7 +2800,7 @@ async function initializeConfirmationPage() {
     const orderIdElement = document.getElementById('order-id');
     const orderDetailsContainer = document.getElementById('order-details');
     const countdownContainer = document.getElementById('payment-countdown'); // NOUVEAU
-
+    
     if (!orderId || !orderIdElement || !orderDetailsContainer) {
         if (orderIdElement) orderIdElement.textContent = 'Non disponible';
         return;
@@ -2810,7 +2810,10 @@ async function initializeConfirmationPage() {
     orderIdElement.textContent = `#${orderId}`;
 
     // Afficher un message de chargement
-    orderDetailsContainer.innerHTML += '<p id="loading-details" class="text-sm text-gray-500 mt-2">Chargement des détails de la commande...</p>';
+    orderDetailsContainer.innerHTML = `
+        <div id="loading-details" class="text-center p-4">
+            <div class="loader mx-auto"></div><p class="text-sm text-gray-500 mt-2">Récupération des informations de la commande...</p>
+        </div>`;
 
     try {
         // Appeler l'API pour obtenir les détails de la commande
@@ -2827,15 +2830,14 @@ async function initializeConfirmationPage() {
 
         if (result.success && result.order) { // NOUVEAU: 'result.order' au lieu de 'result.data'
             const order = result.order;
-            // Injecter les détails de la commande dans la page
+            // Injecter les détails de la commande dans la page (sans le statut pour l'instant)
             orderDetailsContainer.innerHTML = `
                 <h2 class="font-semibold mb-2">Récapitulatif :</h2>
                 <div class="space-y-1 text-sm">
                     <p><strong>Numéro de commande :</strong> <span class="font-mono">#${order.IDCommande}</span></p>
                     <p><strong>Montant total :</strong> <span class="font-semibold">${Number(order.MontantTotal).toLocaleString('fr-FR')} F CFA</span></p>
-                    <p><strong>Produits :</strong> ${order.DetailsProduits || 'Non disponible'}</p>
                     <p><strong>Adresse de livraison :</strong> ${order.AdresseLivraison}</p>
-                    <p><strong>Statut actuel :</strong> <span id="current-order-status" class="font-semibold">${order.Statut}</span></p>
+                    <!-- Le statut sera géré par le compte à rebours et le polling -->
                 </div>
                 <p class="text-xs text-gray-500 mt-3">Un email de confirmation vous a été envoyé.</p>
             `;
@@ -2845,16 +2847,19 @@ async function initializeConfirmationPage() {
                 countdownContainer.classList.remove('hidden');
                 const initiationTime = new Date(order.InitiationTimestamp).getTime();
                 const EXPIRATION_TIME_MS = 25 * 60 * 1000; // 25 minutes
-                const endTime = initiationTime + EXPIRATION_TIME_MS;
+                const endTime = initiationTime + EXPIRATION_TIME_MS; 
+
+                const statusDisplay = document.getElementById('current-order-status'); // L'élément qui affichera le statut
 
                 const updateCountdown = () => {
                     const now = new Date().getTime();
                     const timeLeft = endTime - now;
 
                     if (timeLeft <= 0) {
-                        clearInterval(countdownInterval);
-                        countdownContainer.innerHTML = '<p class="text-red-600 font-bold">Délai de paiement expiré.</p>';
-                        document.getElementById('current-order-status').textContent = 'Expiré (Délai dépassé)';
+                        clearInterval(countdownInterval); // Arrêter le compte à rebours
+                        // Ne pas arrêter le polling, car le paiement peut arriver en retard
+                        countdownContainer.innerHTML = '<p class="text-red-600 font-bold">Le délai de paiement est expiré. Si vous avez payé, veuillez contacter le support.</p>';
+                        if (statusDisplay.textContent.startsWith("En attente")) statusDisplay.textContent = 'Expiré (Délai dépassé)';
                         return;
                     }
 
@@ -2862,10 +2867,12 @@ async function initializeConfirmationPage() {
                     const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
 
                     countdownContainer.innerHTML = `
-                        <p class="text-sm text-gray-700">Veuillez effectuer votre paiement dans les :</p>
+                        <p class="text-sm text-gray-700">En attente de la confirmation de votre paiement...</p>
                         <p class="text-2xl font-bold text-gold">${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}</p>
+                        <p class="text-xs text-gray-500 mt-2">Vous pouvez fermer cette page, le statut de votre commande sera mis à jour automatiquement.</p>
                     `;
                 };
+                orderDetailsContainer.innerHTML += `<p class="mt-4"><strong>Statut actuel :</strong> <span id="current-order-status" class="font-semibold">${order.Statut}</span></p>`;
 
                 const countdownInterval = setInterval(updateCountdown, 1000);
                 updateCountdown(); // Appel initial
@@ -2879,12 +2886,13 @@ async function initializeConfirmationPage() {
                     });
                     const pollResult = await pollResponse.json();
 
-                    if (pollResult.success && pollResult.status !== order.Statut) {
-                        document.getElementById('current-order-status').textContent = pollResult.status;
-                        if (pollResult.status === 'Confirmée' || pollResult.status.startsWith('Payée')) {
+                    if (pollResult.success && pollResult.order.Statut !== document.getElementById('current-order-status').textContent) {
+                        const newStatus = pollResult.order.Statut;
+                        document.getElementById('current-order-status').textContent = newStatus;
+                        if (newStatus === 'Confirmée' || newStatus.startsWith('Payée')) {
                             clearInterval(countdownInterval);
                             clearInterval(pollingInterval);
-                            countdownContainer.innerHTML = '<p class="text-green-600 font-bold">Paiement confirmé !</p>';
+                            countdownContainer.innerHTML = '<p class="text-2xl font-bold text-green-600">Paiement confirmé avec succès !</p>';
                         }
                     }
                 }, 30000); // Toutes les 30 secondes
