@@ -153,6 +153,8 @@ function doPost(e) {
             case 'createAbmcyAggregatorInvoice': // NOUVEAU: Action pour le nouvel agrégateur ABMCY
                 return createAbmcyAggregatorInvoice(data, origin);
             case 'getAbmcyPaymentStatus': // NOUVEAU: Pour le suivi de statut des paiements ABMCY
+                return createAbmcyAggregatorInvoice(data, origin);
+            case 'getAbmcyPaymentStatus': // NOUVEAU: Pour le suivi de statut des paiements ABMCY
                 return getAbmcyPaymentStatus(data, origin);
             case 'getPendingAbmcyPayments': // NOUVEAU: Pour la page admin de confirmation manuelle
                 return getPendingAbmcyPayments(origin);
@@ -507,11 +509,11 @@ function createAbmcyAggregatorInvoice(data, origin) {
         // 2. NOUVEAU: Construire l'URL de redirection vers notre page intermédiaire abmcymarket.html
         // On passe les informations nécessaires en paramètres d'URL.
         const aggregatorPageUrl = "https://abmcymarket.abmcy.com/abmcy_aggregator.html"; // URL de votre nouvelle page
-        const paymentUrl = `${aggregatorPageUrl}?orderId=${idCommande}&total=${data.total}&ref=${transactionReference}`;
+        const paymentUrl = `${aggregatorPageUrl}?orderId=${idCommande}&total=${data.total}&ref=${transactionReference}&provider=${selectedProvider}`;
 
         // L'ancienne logique de remplacement est maintenant gérée par la page abmcymarket.html elle-même.
 
-        // NOUVEAU: Envoyer l'email de "Paiement en attente" au client
+        // NOUVEAU: Envoyer l'email de "Paiement en attente" au client avec l'URL de la page d'instructions
         const emailData = { customerEmail: data.customer.email, orderId: idCommande, total: data.total, paymentUrl: paymentUrl, paymentProvider: providerConfig.name };
         sendAbmcyStatusEmail(emailData, 'pending');
 

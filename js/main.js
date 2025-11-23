@@ -1,6 +1,6 @@
 const CONFIG = {
     // NOUVEAU: URL de l'API CENTRALE qui gère maintenant tout (comptes, commandes, etc.)
-    ACCOUNT_API_URL:"https://script.google.com/macros/s/AKfycbx1N96Dwx4CBck3c-NAQc5nDXsOr4TZKxSSJjQMFCKKyvmdI1mrnNwEqw_SB85aC24_ag/exec",
+    ACCOUNT_API_URL:"https://script.google.com/macros/s/AKfycbxFbCDgH3uHcVDbBYgnwuu4H2IY-8vZsMyekhVQlgKLlOGc42mbUjfiokb2e_7FpcFMfA/exec",
     // Les URL spécifiques pour commandes, livraisons et notifications sont maintenant obsolètes
     // car tout est géré par l'API centrale (ACCOUNT_API_URL).
     
@@ -2596,17 +2596,24 @@ async function loadRecentOrdersForAccount(clientId) {
  * @param {HTMLElement} container - L'élément où injecter le HTML.
  */
 function renderOrders(orders, container) {
+    // NOUVEAU: Ajout d'une icône et d'un titre plus clairs
+    const titleHTML = `
+        <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+            <svg class="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
+            Mes commandes récentes
+        </h2>`;
+
     if (orders.length === 0) {
-        container.innerHTML = '<h4 class="text-lg font-semibold mb-4">Mes commandes récentes</h4><p class="text-gray-500">Vous n\'avez passé aucune commande pour le moment.</p>';
+        container.innerHTML = titleHTML + '<p class="text-gray-500">Vous n\'avez passé aucune commande pour le moment.</p>';
         return;
     }
 
     const getStatusBadge = (status) => {
         switch (status) {
-            case 'Livrée': return `<span class="px-2 py-1 text-xs font-semibold rounded-full bg-green-200 text-green-800">${status}</span>`;
-            case 'Expédiée': case 'En cours de livraison': return `<span class="px-2 py-1 text-xs font-semibold rounded-full bg-blue-200 text-blue-800">${status}</span>`;
-            case 'Annulée': return `<span class="px-2 py-1 text-xs font-semibold rounded-full bg-red-200 text-red-800">${status}</span>`;
-            default: return `<span class="px-2 py-1 text-xs font-semibold rounded-full bg-yellow-200 text-yellow-800">${status}</span>`;
+            case 'Livrée': case 'Payée et confirmée': return `<span class="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">${status}</span>`;
+            case 'Expédiée': case 'En cours de livraison': case 'Confirmée': return `<span class="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">${status}</span>`;
+            case 'Annulée': case 'Expiré (Paiement ABMCY)': return `<span class="px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">${status}</span>`;
+            default: return `<span class="px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">${status}</span>`;
         }
     };
 
@@ -2620,19 +2627,22 @@ function renderOrders(orders, container) {
                     </tr>
                 </thead>
                 <tbody>
-                    ${orders.map(order => `
-                        <tr class="border-b">
-                            <td class="p-3 font-medium"><a href="suivi-commande.html?orderId=${order.IDCommande}" class="text-blue-600 hover:underline">#${order.IDCommande}</a></td>
-                            <td class="p-3">${new Date(order.Date).toLocaleDateString('fr-FR')}</td>
+                    ${orders.slice(0, 5).map(order => `
+                        <tr class="border-b hover:bg-gray-50">
+                            <td class="p-3 font-medium">
+                                <a href="suivi-commande.html?orderId=${order.IDCommande}" class="text-blue-600 hover:underline">#${order.IDCommande}</a>
+                            </td>
+                            <td class="p-3 text-gray-600">${new Date(order.Date).toLocaleDateString('fr-FR')}</td>
                             <td class="p-3">${getStatusBadge(order.Statut)}</td>
-                            <td class="p-3 text-right font-semibold">${Number(order.MontantTotal).toLocaleString('fr-FR')} F CFA</td>
+                            <td class="p-3 text-right font-semibold text-gray-800">${Number(order.MontantTotal).toLocaleString('fr-FR')} F CFA</td>
                         </tr>
                     `).join('')}
                 </tbody>
             </table>
         </div>
+        ${orders.length > 5 ? '<a href="suivi-commande.html" class="block text-center mt-4 text-sm font-semibold text-blue-600 hover:underline">Voir toutes mes commandes</a>' : ''}
     `;
-    container.innerHTML = ordersHTML;
+    container.innerHTML = titleHTML + ordersHTML;
 }
 
 /**
@@ -2642,35 +2652,41 @@ async function loadFavoriteProducts() {
     const container = document.getElementById('favorite-products-section');
     if (!container) return;
 
+    // NOUVEAU: Ajout d'un titre avec icône
+    const titleHTML = `
+        <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+            <svg class="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 016.364 0L12 7.636l1.318-1.318a4.5 4.5 0 116.364 6.364L12 20.364l-7.682-7.682a4.5 4.5 0 010-6.364z"></path></svg>
+            Mes produits favoris
+        </h2>`;
+
     const favoriteIds = getFavorites();
     if (favoriteIds.length === 0) {
-        container.innerHTML = '<h2 class="text-xl font-bold text-gray-800 mb-4">Mes produits favoris</h2><p class="text-gray-500">Vous n\'avez aucun produit en favori pour le moment.</p>';
+        container.innerHTML = titleHTML + '<p class="text-gray-500">Vous n\'avez aucun produit en favori pour le moment.</p>';
         return;
     }
 
-    container.innerHTML = '<h2 class="text-xl font-bold text-gray-800 mb-4">Mes produits favoris</h2><div class="loader mx-auto"></div>';
+    container.innerHTML = titleHTML + '<div class="loader mx-auto"></div>';
 
     try {
         const catalog = await getCatalogAndRefreshInBackground();
         const allProducts = catalog.data.products || [];
 
         const favoriteProducts = allProducts.filter(p => favoriteIds.includes(p.IDProduit));
-
+        
         if (favoriteProducts.length === 0) {
-            container.innerHTML = '<h2 class="text-xl font-bold text-gray-800 mb-4">Mes produits favoris</h2><p class="text-gray-500">Certains de vos favoris ne sont plus disponibles.</p>';
+            container.innerHTML = titleHTML + '<p class="text-gray-500">Certains de vos favoris ne sont plus disponibles.</p>';
             return;
         }
 
-        // Utiliser un conteneur de défilement horizontal pour les favoris
+        // NOUVEAU: Utiliser un conteneur de défilement horizontal
         const productsHTML = favoriteProducts.map(p => `
-            <div class="flex-shrink-0 w-2/3 sm:w-1/2 md:w-1/3 lg:w-1/4 p-2">
+            <div class="flex-shrink-0 w-48 md:w-56 p-2">
                 ${renderProductCard(p)}
             </div>
         `).join('');
 
-        container.innerHTML = `
-            <h2 class="text-xl font-bold text-gray-800 mb-4">Mes produits favoris</h2>
-            <div class="horizontal-scroll-container flex overflow-x-auto -mx-2">
+        container.innerHTML = titleHTML + `
+            <div class="horizontal-scroll-container flex overflow-x-auto -mx-2 pb-4">
                 ${productsHTML}
             </div>
         `;
