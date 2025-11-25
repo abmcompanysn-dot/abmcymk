@@ -95,6 +95,10 @@ async function initializeApp() {
     if (window.location.pathname.endsWith('confirmation.html')) {
         initializeConfirmationPage();
     }
+    // NOUVEAU: Initialiser la page FAQ
+    if (window.location.pathname.endsWith('faq.html')) {
+        initializeFaqPage();
+    }
 
     if (document.getElementById('countdown')) {
         startCountdown(); // Le compte à rebours est indépendant.
@@ -356,14 +360,15 @@ function addToCart(event, productId, name, price, imageUrl) {
  * @param {boolean} isError Si true, affiche une notification d'erreur.
  */
 function showToast(message, isError = false) {
-    // CORRECTION: Le conteneur est maintenant fixe en bas à droite dans le HTML.
-    const toastContainer = document.getElementById('toast-container'); 
+    const toastContainer = document.getElementById('toast-container');
     if (!toastContainer) return;
 
     const toast = document.createElement('div');
-    
+    const title = isError ? 'Erreur' : 'Succès';
+    const titleColor = isError ? 'text-red-800' : 'text-green-800';
+
     // NOUVEAU: Icônes pour un feedback visuel immédiat.
-    const icon = isError 
+    const icon = isError
         ? `<svg class="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>`
         : `<svg class="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>`;
 
@@ -374,7 +379,8 @@ function showToast(message, isError = false) {
                 ${icon}
             </div>
             <div class="ml-3">
-                <p class="text-sm font-medium text-gray-900">${message}</p>
+                <p class="text-sm font-bold ${titleColor}">${title}</p>
+                <p class="text-sm text-gray-700">${message}</p>
             </div>
         </div>
     `;
@@ -1164,6 +1170,31 @@ function createVariantSelector(label, options) {
 }
 
 /**
+ * NOUVEAU: Initialise la logique de la page FAQ (accordéon).
+ */
+function initializeFaqPage() {
+    const faqContainer = document.getElementById('faq-container');
+    if (!faqContainer) return;
+
+    const questions = faqContainer.querySelectorAll('.faq-question');
+
+    questions.forEach(question => {
+        question.addEventListener('click', () => {
+            const answer = question.nextElementSibling;
+            const icon = question.querySelector('svg');
+
+            if (answer.style.maxHeight) {
+                answer.style.maxHeight = null;
+                icon.classList.remove('rotate-180');
+            } else {
+                answer.style.maxHeight = answer.scrollHeight + "px";
+                icon.classList.add('rotate-180');
+            }
+        });
+    });
+}
+
+/**
  * NOUVEAU: Gère la sélection visuelle d'un bouton de variante.
  * @param {HTMLElement} selectedButton Le bouton qui a été cliqué.
  * @param {string} groupName Le nom du groupe de variantes.
@@ -1240,6 +1271,19 @@ async function initializeCheckoutPage() {
     // Ajouter l'écouteur pour la soumission du formulaire
     form.addEventListener('submit', processCheckout);
 }
+
+/**
+ * NOUVEAU: Modifie le libellé du paiement à la livraison pour être plus spécifique.
+ * Cette fonction est appelée depuis initializeCheckoutPage.
+ */
+function updateCodLabel() {
+    // On cible le label qui est associé à l'input radio avec l'id 'cod'
+    const codLabel = document.querySelector('label[for="cod"]');
+    if (codLabel) {
+        codLabel.innerHTML = codLabel.innerHTML.replace('Paiement à la livraison', 'Paiement après discussion avec un agent ABMCY');
+    }
+}
+
 /**
  * NOUVEAU: Charge les méthodes de paiement (Paydunya, ABMCY Aggregator) depuis l'API centrale.
  * Met à jour l'interface utilisateur en conséquence.
@@ -1583,7 +1627,10 @@ async function processCheckout(event) {
                 email: customerData.email,
                 phone: customerData.phone
             },
-            notes: `Client: ${clientName}, Tél: ${customerData.phone}. ${customerData.notes || ''}`.trim()
+            // AMÉLIORATION: Enrichir les notes pour l'admin avec toutes les infos client.
+            notes: `Client: ${clientName} | Email: ${customerData.email} | Tél: ${customerData.phone}.
+---
+Note du client: ${customerData.notes || 'Aucune'}`.trim()
         }
     };
 
@@ -1940,14 +1987,14 @@ async function shareProduct(event, productId) {
         return;
     }
 
-    // NOUVEAU : Personnalisation du message de partage avec le prix.
+    // AMÉLIORATION : Personnalisation du message de partage avec le nom et le prix.
     const priceText = `${product.PrixActuel.toLocaleString('fr-FR')} F CFA`;
     const shareData = {
         title: `À découvrir sur ABMCY MARKET : ${product.Nom}`,
-        text: `Wow, regarde cette offre pour "${product.Nom}" à seulement ${priceText} sur ABMCY MARKET ! Ça pourrait t'intéresser.\n\n${productUrl}`,
+        text: `Salut ! J'ai trouvé "${product.Nom}" à ${priceText} sur ABMCY MARKET. Ça pourrait t'intéresser !`,
         url: productUrl,
     };
-
+    
     // CORRECTION: On ne partage plus le fichier image directement pour garantir
     // que le texte et le lien soient toujours partagés. Les applications modernes
     // généreront un aperçu riche (avec l'image) à partir de l'URL fournie.
@@ -1957,7 +2004,7 @@ async function shareProduct(event, productId) {
             console.log("Produit partagé avec succès via l API de partage");
         } else {
             // Solution de secours pour les navigateurs qui ne supportent pas l'API de partage
-            navigator.clipboard.writeText(productUrl);
+            navigator.clipboard.writeText(shareData.text + '\n' + shareData.url);
             showToast('Lien du produit copié !');
         }
     } catch (err) {
