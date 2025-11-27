@@ -154,6 +154,48 @@
                     </div>
                 </section>
 
+                <!-- NOUVEAU: Carte Sécurité et Changement de mot de passe -->
+                <section class="bg-white p-6 rounded-lg shadow-md">
+                    <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                        <svg class="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                        Sécurité
+                    </h2>
+                    <form id="change-password-form" class="space-y-4">
+                        <div>
+                            <label for="current-password" class="block text-sm font-medium text-gray-700">Mot de passe actuel</label>
+                            <input type="password" id="current-password" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-gold focus:border-gold">
+                        </div>
+                        <div>
+                            <label for="new-password" class="block text-sm font-medium text-gray-700">Nouveau mot de passe</label>
+                            <input type="password" id="new-password" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-gold focus:border-gold">
+                        </div>
+                        <!-- NOUVEAU: Indice sur les exigences du mot de passe -->
+                        <p class="text-xs text-gray-500 -mt-2">Doit contenir 8+ caractères, avec majuscule, minuscule, chiffre et symbole.</p>
+                        <div>
+                            <label for="confirm-new-password" class="block text-sm font-medium text-gray-700">Confirmer le nouveau mot de passe</label>
+                            <input type="password" id="confirm-new-password" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-gold focus:border-gold">
+                        </div>
+                        <button type="submit" class="w-full bg-gray-800 text-white font-bold py-2 px-4 rounded-lg hover:bg-black transition">
+                            Changer le mot de passe
+                        </button>
+                    </form>
+                    <div id="change-password-status" class="mt-4 text-center font-semibold text-sm"></div>
+                </section>
+
+                <!-- NOUVEAU: Carte Mes Adresses -->
+                <section class="bg-white p-6 rounded-lg shadow-md">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-lg font-bold text-gray-800 flex items-center gap-2">
+                            <svg class="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                            Mes adresses
+                        </h2>
+                        <button id="open-add-address-modal-btn" class="text-sm text-blue-600 hover:underline font-semibold">Ajouter</button>
+                    </div>
+                    <div id="address-list-container" class="space-y-3">
+                        <!-- Le contenu sera injecté par JS -->
+                    </div>
+                </section>
+
                 <!-- NOUVEAU: Carte "Actions Rapides" -->
                 <section class="bg-white p-6 rounded-lg shadow-md">
                     <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
@@ -216,6 +258,31 @@
         </div>
     </div>
 
+    <!-- NOUVEAU: Fenêtre modale pour ajouter/modifier une adresse -->
+    <div id="address-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden">
+        <div class="bg-white rounded-lg shadow-xl p-8 w-full max-w-md m-4">
+            <div class="flex justify-between items-center mb-6">
+                <h2 id="address-modal-title" class="text-2xl font-bold text-gray-800">Ajouter une adresse</h2>
+                <button id="close-address-modal-btn" class="text-gray-500 hover:text-gray-800">&times;</button>
+            </div>
+            <form id="address-form" class="space-y-4">
+                <input type="hidden" id="address-id">
+                <div>
+                    <label for="address-label" class="block text-sm font-medium text-gray-700">Nom de l'adresse (ex: Maison, Bureau)</label>
+                    <input type="text" id="address-label" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-gold focus:border-gold" required>
+                </div>
+                <div>
+                    <label for="address-details" class="block text-sm font-medium text-gray-700">Adresse complète</label>
+                    <textarea id="address-details" rows="3" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-gold focus:border-gold" required></textarea>
+                </div>
+                <div id="address-status" class="text-center font-semibold"></div>
+                <div class="flex justify-end gap-4 pt-4">
+                    <button type="button" id="cancel-address-btn" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300">Annuler</button>
+                    <button type="submit" class="px-4 py-2 bg-black text-white font-bold rounded-lg hover:bg-gray-800">Enregistrer</button>
+                </div>
+            </form>
+        </div>
+    </div>
 
     <!-- Le footer a été retiré car il est déjà présent dans les autres pages. Si cette page est autonome, il faudrait le remettre. -->
 

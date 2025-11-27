@@ -95,7 +95,18 @@
                 </div>
                 <div>
                     <label for="login-password" class="block text-sm font-medium text-gray-700">Mot de passe</label>
-                    <input type="password" id="login-password" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-gold focus:border-gold" required>
+                    <!-- NOUVEAU: Conteneur relatif pour l'icône oeil -->
+                    <div class="relative">
+                        <input type="password" id="login-password" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-gold focus:border-gold pr-10" required>
+                        <button type="button" id="toggle-login-password" class="absolute inset-y-0 right-0 px-3 flex items-center text-gray-500">
+                            <svg id="eye-login-open" class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                            <svg id="eye-login-closed" class="h-5 w-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.542-7 1.274-4.057 5.064-7 9.542-7 .847 0 1.67.127 2.458.36M15 12a3 3 0 11-6 0 3 3 0 016 0zm6 0c0 2.953-1.8 5.44-4.288 6.5M3 3l18 18"></path></svg>
+                        </button>
+                    </div>
+                </div>
+                <!-- NOUVEAU: Lien mot de passe oublié -->
+                <div class="text-right text-sm">
+                    <a href="reset-password.html" class="font-medium text-blue-600 hover:text-blue-500">Mot de passe oublié ?</a>
                 </div>
                 <button type="submit" class="w-full bg-black text-white font-bold py-3 px-4 rounded-lg hover:bg-gray-800 transition">Se connecter</button>
             </form>
@@ -120,11 +131,25 @@
                 </div>
                 <div>
                     <label for="register-password" class="block text-sm font-medium text-gray-700">Mot de passe</label>
-                    <input type="password" id="register-password" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-gold focus:border-gold" required>
+                    <div class="relative">
+                        <input type="password" id="register-password" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-gold focus:border-gold pr-10" required>
+                        <button type="button" id="toggle-register-password" class="absolute inset-y-0 right-0 px-3 flex items-center text-gray-500">
+                            <svg id="eye-register-open" class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                            <svg id="eye-register-closed" class="h-5 w-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.542-7 1.274-4.057 5.064-7 9.542-7 .847 0 1.67.127 2.458.36M15 12a3 3 0 11-6 0 3 3 0 016 0zm6 0c0 2.953-1.8 5.44-4.288 6.5M3 3l18 18"></path></svg>
+                        </button>
+                    </div>
+                    <!-- NOUVEAU: Indice sur les exigences du mot de passe -->
+                    <p class="text-xs text-gray-500 mt-1">8+ caractères, avec majuscule, minuscule, chiffre et symbole.</p>
                 </div>
                 <div>
                     <label for="register-password-confirm" class="block text-sm font-medium text-gray-700">Confirmer le mot de passe</label>
-                    <input type="password" id="register-password-confirm" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-gold focus:border-gold" required>
+                    <div class="relative">
+                        <input type="password" id="register-password-confirm" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-gold focus:border-gold pr-10" required>
+                        <button type="button" id="toggle-confirm-password" class="absolute inset-y-0 right-0 px-3 flex items-center text-gray-500">
+                            <svg id="eye-confirm-open" class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                            <svg id="eye-confirm-closed" class="h-5 w-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.542-7 1.274-4.057 5.064-7 9.542-7 .847 0 1.67.127 2.458.36M15 12a3 3 0 11-6 0 3 3 0 016 0zm6 0c0 2.953-1.8 5.44-4.288 6.5M3 3l18 18"></path></svg>
+                        </button>
+                    </div>
                 </div>
                 <button type="submit" class="w-full bg-black text-white font-bold py-3 px-4 rounded-lg hover:bg-gray-800 transition">S'inscrire</button>
             </form>

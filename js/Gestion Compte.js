@@ -17,6 +17,7 @@ const SHEET_NAMES = {
     ORDERS: "Commandes",
     LOGS: "Logs",
     CONFIG: "Config",
+    ADDRESSES: "Adresses", // NOUVEAU: Feuille pour les adresses
     ABMCY_Admin: "ABMCY_Admin", // NOUVEAU: Pour la page de confirmation manuelle
     ABMCY_AGGREGATOR_HISTORY: "ABMCY_Aggregator_History", // NOUVEAU: Pour l'historique des tentatives de paiement
     // NOUVEAU: Ajout des feuilles des autres modules
@@ -125,10 +126,25 @@ function doPost(e) {
                 return connecterClient(data, origin);
             case 'getOrderById': // NOUVEAU
                 return getOrderById(data, origin);
+            case 'changePassword': // NOUVEAU: Pour un utilisateur connecté
+                return changePassword(data, origin);
+            case 'requestPasswordReset': // NOUVEAU: Pour un mot de passe oublié
+                return requestPasswordReset(data, origin);
+            case 'resetPassword': // NOUVEAU: Pour finaliser la réinitialisation
+                return resetPassword(data, origin);
             case 'getAllUsers': // NOUVEAU: Pour le panneau admin
                 return getAllUsers(data, origin);
             case 'updateUserProfile': // NOUVEAU: Pour modifier le profil
                 return updateUserProfile(data, origin);
+            // NOUVEAU: Actions pour la gestion des adresses
+            case 'getUserAddresses':
+                return getUserAddresses(data, origin);
+            case 'addUserAddress':
+                return addUserAddress(data, origin);
+            case 'setDefaultAddress': // NOUVEAU
+                return setDefaultAddress(data, origin);
+            case 'deleteUserAddress':
+                return deleteUserAddress(data, origin);
             // NOUVEAU: Actions pour le panneau d'administration des paiements
             case 'getPaymentSettings':
                 return getPaymentSettings(data, origin);
@@ -217,6 +233,11 @@ function doOptions(e) {
  */
 function creerCompteClient(data, origin) {
     try {
+        // NOUVEAU: Validation du mot de passe
+        if (!validatePassword(data.motDePasse)) {
+            throw new Error("Le mot de passe ne respecte pas les critères de sécurité (8+ caractères, 1 majuscule, 1 minuscule, 1 chiffre, 1 symbole).");
+        }
+
         const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.USERS);
         const usersData = sheet.getRange(2, 1, sheet.getLastRow(), 3).getValues();
         const emailExists = usersData.some(row => row[1] === data.email);
@@ -301,6 +322,166 @@ function connecterClient(data, origin) {
 }
 
 /**
+ * NOUVEAU: Permet à un utilisateur connecté de changer son mot de passe.
+ * @param {object} data - Contient { clientId, currentPassword, newPassword }.
+ * @param {string} origin - L'origine de la requête.
+ * @returns {GoogleAppsScript.Content.TextOutput} Réponse JSON.
+ */
+function changePassword(data, origin) {
+    try {
+        if (!data.clientId || !data.currentPassword || !data.newPassword) {
+            throw new Error("Données incomplètes pour le changement de mot de passe.");
+        }
+
+        // NOUVEAU: Validation du nouveau mot de passe
+        if (!validatePassword(data.newPassword)) {
+            throw new Error("Le nouveau mot de passe ne respecte pas les critères de sécurité.");
+        }
+
+        const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.USERS);
+        const allUsers = sheet.getDataRange().getValues();
+        const headers = allUsers.shift() || [];
+        
+        const idClientIndex = headers.indexOf("IDClient");
+        const hashIndex = headers.indexOf("PasswordHash");
+        const saltIndex = headers.indexOf("Salt");
+
+        const userRowIndex = allUsers.findIndex(row => row[idClientIndex] === data.clientId);
+
+        if (userRowIndex === -1) {
+            return createJsonResponse({ success: false, error: "Utilisateur non trouvé." }, origin);
+        }
+
+        const userRow = allUsers[userRowIndex];
+        const storedHash = userRow[hashIndex];
+        const salt = userRow[saltIndex];
+
+        // Vérifier si le mot de passe actuel est correct
+        const currentPasswordHash = hashPassword(data.currentPassword, salt).passwordHash;
+        if (currentPasswordHash !== storedHash) {
+            return createJsonResponse({ success: false, error: "Le mot de passe actuel est incorrect." }, origin);
+        }
+
+        // Hacher et sauvegarder le nouveau mot de passe
+        const { passwordHash: newPasswordHash, salt: newSalt } = hashPassword(data.newPassword);
+        const rowToUpdate = userRowIndex + 2; // +1 pour l'index 0, +1 pour la ligne d'en-tête
+
+        sheet.getRange(rowToUpdate, hashIndex + 1).setValue(newPasswordHash);
+        sheet.getRange(rowToUpdate, saltIndex + 1).setValue(newSalt);
+
+        logAction('changePassword', { clientId: data.clientId });
+        return createJsonResponse({ success: true, message: "Mot de passe mis à jour avec succès." }, origin);
+
+    } catch (error) {
+        logError(JSON.stringify({ action: 'changePassword', data: { clientId: data.clientId } }), error);
+        return createJsonResponse({ success: false, error: error.message }, origin);
+    }
+}
+
+/**
+ * NOUVEAU: Gère une demande de réinitialisation de mot de passe.
+ * @param {object} data - Contient { email }.
+ * @param {string} origin - L'origine de la requête.
+ * @returns {GoogleAppsScript.Content.TextOutput} Réponse JSON.
+ */
+function requestPasswordReset(data, origin) {
+    try {
+        const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.USERS);
+        const allUsers = sheet.getDataRange().getValues();
+        const headers = allUsers.shift() || [];
+        const emailIndex = headers.indexOf("Email");
+        const tokenIndex = headers.indexOf("ResetToken");
+        const expiryIndex = headers.indexOf("ResetTokenExpiry");
+
+        const userRowIndex = allUsers.findIndex(row => row[emailIndex] === data.email);
+
+        if (userRowIndex !== -1) {
+            const resetToken = Utilities.getUuid();
+            const expiryDate = new Date(new Date().getTime() + 30 * 60 * 1000); // Valide 30 minutes
+
+            const rowToUpdate = userRowIndex + 2;
+            sheet.getRange(rowToUpdate, tokenIndex + 1).setValue(resetToken);
+            sheet.getRange(rowToUpdate, expiryIndex + 1).setValue(expiryDate);
+
+            // Envoyer l'email de réinitialisation
+            const resetUrl = `https://abmcymarket.abmcy.com/reset-password.html?token=${resetToken}`;
+            const subject = "Réinitialisation de votre mot de passe ABMCY MARKET";
+            const body = `
+                <p>Bonjour,</p>
+                <p>Vous avez demandé à réinitialiser votre mot de passe. Cliquez sur le lien ci-dessous pour continuer. Ce lien expirera dans 30 minutes.</p>
+                <p><a href="${resetUrl}" style="font-weight:bold;">Réinitialiser mon mot de passe</a></p>
+                <p>Si vous n'êtes pas à l'origine de cette demande, veuillez ignorer cet email.</p>
+                <p>L'équipe ABMCY MARKET</p>
+            `;
+            MailApp.sendEmail(data.email, subject, "", { htmlBody: body });
+            logAction('requestPasswordReset', { email: data.email });
+        }
+        // Note de sécurité : On retourne toujours un message de succès, même si l'email n'existe pas,
+        // pour ne pas révéler quels emails sont enregistrés dans le système.
+        return createJsonResponse({ success: true, message: "Si un compte est associé à cet email, un lien de réinitialisation a été envoyé." }, origin);
+
+    } catch (error) {
+        logError(JSON.stringify({ action: 'requestPasswordReset', data }), error);
+        return createJsonResponse({ success: false, error: error.message }, origin);
+    }
+}
+
+/**
+ * NOUVEAU: Réinitialise le mot de passe en utilisant un jeton.
+ * @param {object} data - Contient { token, newPassword }.
+ * @param {string} origin - L'origine de la requête.
+ * @returns {GoogleAppsScript.Content.TextOutput} Réponse JSON.
+ */
+function resetPassword(data, origin) {
+    try {
+        if (!data.token || !data.newPassword) {
+            throw new Error("Jeton ou nouveau mot de passe manquant.");
+        }
+
+        // NOUVEAU: Validation du nouveau mot de passe
+        if (!validatePassword(data.newPassword)) {
+            throw new Error("Le nouveau mot de passe ne respecte pas les critères de sécurité.");
+        }
+
+        const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.USERS);
+        const allUsers = sheet.getDataRange().getValues();
+        const headers = allUsers.shift() || [];
+        const tokenIndex = headers.indexOf("ResetToken");
+        const expiryIndex = headers.indexOf("ResetTokenExpiry");
+        const hashIndex = headers.indexOf("PasswordHash");
+        const saltIndex = headers.indexOf("Salt");
+
+        const userRowIndex = allUsers.findIndex(row => row[tokenIndex] === data.token);
+
+        if (userRowIndex === -1) {
+            return createJsonResponse({ success: false, error: "Jeton invalide ou expiré." }, origin);
+        }
+
+        const expiryDate = new Date(allUsers[userRowIndex][expiryIndex]);
+        if (expiryDate < new Date()) {
+            return createJsonResponse({ success: false, error: "Jeton invalide ou expiré." }, origin);
+        }
+
+        // Mettre à jour le mot de passe
+        const { passwordHash, salt } = hashPassword(data.newPassword);
+        const rowToUpdate = userRowIndex + 2;
+        sheet.getRange(rowToUpdate, hashIndex + 1).setValue(passwordHash);
+        sheet.getRange(rowToUpdate, saltIndex + 1).setValue(salt);
+
+        // Invalider le jeton
+        sheet.getRange(rowToUpdate, tokenIndex + 1).setValue('');
+        sheet.getRange(rowToUpdate, expiryIndex + 1).setValue('');
+
+        logAction('resetPasswordSuccess', { token: data.token });
+        return createJsonResponse({ success: true, message: "Votre mot de passe a été réinitialisé avec succès." }, origin);
+
+    } catch (error) {
+        logError(JSON.stringify({ action: 'resetPassword', data: { token: data.token } }), error);
+        return createJsonResponse({ success: false, error: error.message }, origin);
+    }
+}
+
+/**
  * NOUVEAU: Enregistre une nouvelle commande. Fusionné depuis Gestion Commandes.
  * @param {object} data - Les données de la commande.
  * @param {string} origin - L'origine de la requête.
@@ -315,6 +496,18 @@ function enregistrerCommande(data, origin) {
         const produitsDetails = data.produits.map(p => `${p.name} (x${p.quantity})`).join(', ');
 
         // NOUVEAU: Statut initial et étapes de suivi
+        // NOUVEAU: Calcul de la date de livraison estimée
+        const delais = data.produits.map(p => p.delaiLivraison || 10); // Utilise le délai envoyé, ou 10 jours par défaut
+        const maxDelai = Math.max(...delais);
+        const dateCommande = new Date();
+        const dateLivraisonEstimee = new Date(dateCommande);
+        dateLivraisonEstimee.setDate(dateCommande.getDate() + maxDelai);
+        
+        // Formatter la date pour la feuille de calcul
+        const formattedDateLivraison = Utilities.formatDate(dateLivraisonEstimee, Session.getScriptTimeZone(), "yyyy-MM-dd");
+
+
+        // NOUVEAU: Statut initial et étapes de suivi
         const statutInitial = 'Confirmée'; // Le statut global
         const etapeConfirmee = true; // La première étape est toujours vraie
         const etapePreparation = false;
@@ -324,7 +517,7 @@ function enregistrerCommande(data, origin) {
         sheet.appendRow([
             idCommande, data.idClient, produitsDetails,
             data.total, statutInitial, new Date(), etapeConfirmee, etapePreparation, etapeExpediee, etapeLivree,
-            data.adresseLivraison, data.moyenPaiement,
+            data.adresseLivraison, data.moyenPaiement, // NOUVEAU: Ajout de la date de livraison estimée
             data.notes || ''
         ]);
 
@@ -335,7 +528,8 @@ function enregistrerCommande(data, origin) {
             id: idCommande, 
             total: data.total, 
             clientId: data.idClient,
-            customerEmail: data.customer.email // NOUVEAU: Retourner l'email du client
+            customerEmail: data.customer.email, // NOUVEAU: Retourner l'email du client
+            dateLivraisonEstimee: formattedDateLivraison // NOUVEAU: Retourner la date calculée
         }, origin);
     } catch (error) {
         logError(JSON.stringify({ action: 'enregistrerCommande', data }), error);
@@ -666,7 +860,21 @@ function sendOrderConfirmationEmail(orderData, originalData, type) {
             `;
         } else { // 'cod' ou autre
             adminSubject = `Nouvelle commande #${orderData.id} (Paiement à la livraison)`;
-            adminBodyHTML = `<p>Une nouvelle commande a été passée en paiement à la livraison.</p><p><strong>ID Commande:</strong> ${orderData.id}</p><p><strong>Client:</strong> ${orderData.clientId}</p><p><strong>Total:</strong> ${orderData.total} F CFA</p><p><strong>Détails:</strong> ${JSON.stringify(originalData.produits, null, 2)}</p>`;
+            // NOUVEAU: Email admin beaucoup plus détaillé
+            const productDetailsHTML = originalData.produits.map(p => `<li>${p.name} (x${p.quantity}) - ${p.price.toLocaleString('fr-FR')} F CFA</li>`).join('');
+            adminBodyHTML = `
+                <h2>Nouvelle commande #${orderData.id}</h2>
+                <p><strong>Client :</strong> ${originalData.customer.name} (${originalData.customer.email}, Tél: ${originalData.customer.phone})</p>
+                <p><strong>Montant Total :</strong> <strong style="color: #D4AF37;">${orderData.total.toLocaleString('fr-FR')} F CFA</strong></p>
+                <p><strong>Moyen de paiement :</strong> ${originalData.moyenPaiement}</p>
+                <p><strong>Adresse de livraison :</strong> ${originalData.adresseLivraison}</p>
+                <p><strong>Date de livraison estimée :</strong> ${new Date(orderData.dateLivraisonEstimee).toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                <hr>
+                <h3>Détails des produits :</h3>
+                <ul>${productDetailsHTML}</ul>
+                <hr>
+                <p><strong>Note du client :</strong> ${originalData.notes || 'Aucune'}</p>
+            `;
         }
         MailApp.sendEmail(ADMIN_EMAIL, adminSubject, "", { htmlBody: adminBodyHTML });
         logAction('sendAdminConfirmationEmail', { orderId: orderData.id, type: type });
@@ -679,7 +887,7 @@ function sendOrderConfirmationEmail(orderData, originalData, type) {
                 <h2>Bonjour,</h2>
                 <p>Merci pour votre commande sur ABMCY MARKET !</p>
                 <p>Nous avons bien reçu votre commande <strong>#${orderData.id}</strong> et nous la préparons pour l'expédition.</p>
-                <h3>Récapitulatif de votre commande :</h3>
+                <p><strong>Date de livraison estimée :</strong> ${new Date(orderData.dateLivraisonEstimee).toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p><h3>Récapitulatif de votre commande :</h3>
                 <ul>${productDetailsHTML}</ul>
                 <p><strong>Total : ${orderData.total.toLocaleString('fr-FR')} F CFA</strong></p>
                 <p>Vous pouvez suivre l'avancement de votre commande à tout moment ici : <a href="https://abmcymarket.abmcy.com/suivi-commande.html?orderId=${orderData.id}">Suivre ma commande</a></p>
@@ -1196,6 +1404,150 @@ function updateUserAddress(data, origin) {
     }
 }
 /**
+ * NOUVEAU: Récupère les adresses d'un utilisateur.
+ * @param {object} data - Contient { clientId }.
+ * @param {string} origin - L'origine de la requête.
+ * @returns {GoogleAppsScript.Content.TextOutput} Réponse JSON.
+ */
+function getUserAddresses(data, origin) {
+    try {
+        const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.ADDRESSES);
+        if (!sheet) throw new Error("La feuille 'Adresses' est introuvable.");
+
+        const allAddresses = sheet.getDataRange().getValues();
+        const headers = allAddresses.shift() || [];
+        const idClientIndex = headers.indexOf("IDClient");
+
+        const userAddressesData = allAddresses.filter(row => row[idClientIndex] === data.clientId);
+
+        const userAddresses = userAddressesData.map(row => {
+            return headers.reduce((obj, header, index) => {
+                obj[header] = row[index];
+                return obj;
+            }, {});
+        });
+
+        return createJsonResponse({ success: true, data: userAddresses }, origin);
+    } catch (error) {
+        logError(JSON.stringify({ action: 'getUserAddresses', data }), error);
+        return createJsonResponse({ success: false, error: error.message }, origin);
+    }
+}
+
+/**
+ * NOUVEAU: Ajoute une nouvelle adresse pour un utilisateur.
+ * @param {object} data - Contient { IDClient, Label, Details }.
+ * @param {string} origin - L'origine de la requête.
+ * @returns {GoogleAppsScript.Content.TextOutput} Réponse JSON.
+ */
+function addUserAddress(data, origin) {
+    try {
+        const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.ADDRESSES);
+        if (!sheet) throw new Error("La feuille 'Adresses' est introuvable.");
+
+        const idAdresse = "ADR-" + new Date().getTime();
+        sheet.appendRow([idAdresse, data.IDClient, data.Label, data.Details]);
+
+        logAction('addUserAddress', { clientId: data.IDClient, addressId: idAdresse });
+        return createJsonResponse({ success: true, id: idAdresse }, origin);
+    } catch (error) {
+        logError(JSON.stringify({ action: 'addUserAddress', data }), error);
+        return createJsonResponse({ success: false, error: error.message }, origin);
+    }
+}
+
+/**
+ * NOUVEAU: Met à jour une adresse existante.
+ * @param {object} data - Contient { IDAdresse, Label, Details }.
+ * @param {string} origin - L'origine de la requête.
+ * @returns {GoogleAppsScript.Content.TextOutput} Réponse JSON.
+ */
+function updateUserAddress(data, origin) { // Cette fonction existait mais était pour le profil, on la spécialise pour les adresses multiples
+    try {
+        const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.ADDRESSES);
+        const allData = sheet.getDataRange().getValues();
+        const headers = allData.shift() || [];
+        const idIndex = headers.indexOf("IDAdresse");
+        const labelIndex = headers.indexOf("Label");
+        const detailsIndex = headers.indexOf("Details");
+
+        const rowIndex = allData.findIndex(row => row[idIndex] === data.IDAdresse);
+        if (rowIndex === -1) return createJsonResponse({ success: false, error: "Adresse non trouvée." }, origin);
+
+        sheet.getRange(rowIndex + 2, labelIndex + 1).setValue(data.Label);
+        sheet.getRange(rowIndex + 2, detailsIndex + 1).setValue(data.Details);
+
+        logAction('updateUserAddress', { addressId: data.IDAdresse });
+        return createJsonResponse({ success: true, id: data.IDAdresse }, origin);
+    } catch (error) {
+        logError(JSON.stringify({ action: 'updateUserAddress', data }), error);
+        return createJsonResponse({ success: false, error: error.message }, origin);
+    }
+}
+
+/**
+ * NOUVEAU: Supprime une adresse.
+ * @param {object} data - Contient { IDAdresse }.
+ * @param {string} origin - L'origine de la requête.
+ * @returns {GoogleAppsScript.Content.TextOutput} Réponse JSON.
+ */
+function deleteUserAddress(data, origin) {
+    try {
+        const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.ADDRESSES);
+        const allData = sheet.getDataRange().getValues();
+        const idIndex = allData[0].indexOf("IDAdresse");
+        const rowIndex = allData.findIndex(row => row[idIndex] === data.IDAdresse);
+        if (rowIndex === -1) return createJsonResponse({ success: false, error: "Adresse non trouvée." }, origin);
+        sheet.deleteRow(rowIndex + 1);
+        return createJsonResponse({ success: true, id: data.IDAdresse }, origin);
+    } catch (error) {
+        return createJsonResponse({ success: false, error: error.message }, origin);
+    }
+}
+/**
+ * NOUVEAU: Définit une adresse comme étant celle par défaut pour un client.
+ * @param {object} data - Contient { clientId, addressId }.
+ * @param {string} origin - L'origine de la requête.
+ * @returns {GoogleAppsScript.Content.TextOutput} Réponse JSON.
+ */
+function setDefaultAddress(data, origin) {
+    try {
+        if (!data.clientId || !data.addressId) {
+            throw new Error("ID client ou ID d'adresse manquant.");
+        }
+
+        const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.ADDRESSES);
+        const allData = sheet.getDataRange().getValues();
+        const headers = allData[0];
+        const idClientIndex = headers.indexOf("IDClient");
+        const idAdresseIndex = headers.indexOf("IDAdresse");
+        const isDefaultIndex = headers.indexOf("IsDefault");
+
+        if (isDefaultIndex === -1) {
+            throw new Error("La colonne 'IsDefault' est introuvable dans la feuille 'Adresses'.");
+        }
+
+        // Parcourir toutes les lignes pour mettre à jour les adresses de ce client
+        for (let i = 1; i < allData.length; i++) {
+            const row = allData[i];
+            if (row[idClientIndex] === data.clientId) {
+                // Si c'est l'adresse à définir par défaut, mettre TRUE. Sinon, mettre FALSE.
+                const isTargetAddress = (row[idAdresseIndex] === data.addressId);
+                sheet.getRange(i + 1, isDefaultIndex + 1).setValue(isTargetAddress);
+            }
+        }
+
+        logAction('setDefaultAddress', { clientId: data.clientId, addressId: data.addressId });
+        return createJsonResponse({ success: true, message: "Adresse par défaut mise à jour." }, origin);
+
+    } catch (error) {
+        logError(JSON.stringify({ action: 'setDefaultAddress', data }), error);
+        return createJsonResponse({ success: false, error: error.message }, origin);
+    }
+}
+
+
+/**
  * Enregistre un événement envoyé par le client dans la feuille de logs.
  * @param {object} data - L'objet log envoyé par le client.
  * @param {string} origin - L'origine de la requête.
@@ -1340,6 +1692,20 @@ function getCorrectionSuggestion(error, context) {
 }
 
 /**
+ * NOUVEAU: Valide la force d'un mot de passe.
+ * @param {string} password - Le mot de passe à valider.
+ * @returns {boolean} True si le mot de passe est valide.
+ */
+function validatePassword(password) {
+    if (!password || password.length < 8) return false;
+    const hasUpperCase = /[A-Z]/.test(password);
+    const hasLowerCase = /[a-z]/.test(password);
+    const hasNumber = /\d/.test(password);
+    const hasSymbol = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+    return hasUpperCase && hasLowerCase && hasNumber && hasSymbol;
+}
+
+/**
  * Crée un menu personnalisé à l'ouverture de la feuille de calcul.
  */
 function onOpen() {
@@ -1425,6 +1791,7 @@ function setupProject() {
     [SHEET_NAMES.ORDERS]: ["IDCommande", "IDClient", "DetailsProduits", "MontantTotal", "Statut", "Date", "EtapeConfirmee", "EtapePreparation", "EtapeExpediee", "EtapeLivree", "AdresseLivraison", "MoyenPaiement", "Notes", "TransactionReference", "InitiationTimestamp", "NomExpediteur", "NumeroExpediteur"], // NOUVEAU: Ajout de colonnes
     [SHEET_NAMES.LOGS]: ["Timestamp", "Source", "Action", "Détails"],
     [SHEET_NAMES.CONFIG]: ["Clé", "Valeur"],
+    [SHEET_NAMES.ADDRESSES]: ["IDAdresse", "IDClient", "Label", "Details", "IsDefault"], // NOUVEAU
     [SHEET_NAMES.ABMCY_AGGREGATOR_HISTORY]: ["Timestamp", "IDCommande", "Montant", "MoyenPaiement", "TransactionReference", "NomExpediteur", "NumeroExpediteur", "StatutLog", "NotesAdmin"], // NOUVEAU
     [SHEET_NAMES.ABMCY_Admin]: ["Clé", "Valeur"], // NOUVEAU
     [SHEET_NAMES.LIVRAISONS]: ["IDLivraison", "IDCommande", "IDClient", "Adresse", "Statut", "DateMiseAJour", "Transporteur"],
