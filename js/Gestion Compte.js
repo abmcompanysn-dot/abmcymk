@@ -110,13 +110,19 @@ function doPost(e) {
         // NOUVEAU: Protection par mot de passe pour les actions admin de l'agrégateur
         const adminActions = ['getPendingAbmcyPayments', 'manuallyConfirmAbmcyPayment', 'manuallyExpireAbmcyPayment'];
         if (adminActions.includes(action)) {
+            // CORRECTION: Recherche dynamique du mot de passe au lieu d'une cellule fixe.
             const abmcyAdminSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.ABMCY_Admin);
-            const storedPassword = abmcyAdminSheet.getRange("B2").getValue();
-            if (request.password !== storedPassword) {
+            const adminData = abmcyAdminSheet.getDataRange().getValues();
+            const passwordRow = adminData.find(row => row[0] === 'AdminPassword');
+            const storedPassword = passwordRow ? passwordRow[1] : null;
+
+            if (!storedPassword || request.password !== storedPassword) {
                 logAction('ABMCY_ADMIN_AUTH_FAIL', { action: action });
                 return createJsonResponse({ success: false, unauthorized: true, error: 'Mot de passe incorrect.' }, origin);
             }
         }
+
+
 
         // Routeur pour les actions POST
         switch (action) {
@@ -397,7 +403,6 @@ function requestPasswordReset(data, origin) {
 
         if (userRowIndex !== -1) {
             const resetToken = Utilities.getUuid();
-            const expiryDate = new Date(new Date().getTime() + 30 * 60 * 1000); // Valide 30 minutes
 
             const rowToUpdate = userRowIndex + 2;
             sheet.getRange(rowToUpdate, tokenIndex + 1).setValue(resetToken);
@@ -408,7 +413,7 @@ function requestPasswordReset(data, origin) {
             const subject = "Réinitialisation de votre mot de passe ABMCY MARKET";
             const body = `
                 <p>Bonjour,</p>
-                <p>Vous avez demandé à réinitialiser votre mot de passe. Cliquez sur le lien ci-dessous pour continuer. Ce lien expirera dans 30 minutes.</p>
+                <p>Vous avez demandé à réinitialiser votre mot de passe. Cliquez sur le lien ci-dessous pour continuer. Ce lien expirera dans 5 minutes.</p>
                 <p><a href="${resetUrl}" style="font-weight:bold;">Réinitialiser mon mot de passe</a></p>
                 <p>Si vous n'êtes pas à l'origine de cette demande, veuillez ignorer cet email.</p>
                 <p>L'équipe ABMCY MARKET</p>
@@ -1787,7 +1792,7 @@ function setupProject() {
   const ui = SpreadsheetApp.getUi();
 
   const sheetsToCreate = {
-    [SHEET_NAMES.USERS]: ["IDClient", "Nom", "Email", "PasswordHash", "Salt", "Telephone", "Adresse", "DateInscription", "Statut", "Role"],
+    [SHEET_NAMES.USERS]: ["IDClient", "Nom", "Email", "PasswordHash", "Salt", "Telephone", "Adresse", "DateInscription", "Statut", "Role", "ResetToken", "ResetTokenExpiry"], // CORRECTION: Ajout des colonnes pour la réinitialisation
     [SHEET_NAMES.ORDERS]: ["IDCommande", "IDClient", "DetailsProduits", "MontantTotal", "Statut", "Date", "EtapeConfirmee", "EtapePreparation", "EtapeExpediee", "EtapeLivree", "AdresseLivraison", "MoyenPaiement", "Notes", "TransactionReference", "InitiationTimestamp", "NomExpediteur", "NumeroExpediteur"], // NOUVEAU: Ajout de colonnes
     [SHEET_NAMES.LOGS]: ["Timestamp", "Source", "Action", "Détails"],
     [SHEET_NAMES.CONFIG]: ["Clé", "Valeur"],
@@ -1832,23 +1837,13 @@ function setupProject() {
     'PAYDUNYA_PRIVATE_KEY': 'live_private_3CzZajIPeFrcWxNOvDxyTuan3dm',
     'PAYDUNYA_PUBLIC_KEY': 'live_public_TgcjrnTM5MmbDajbWjZQJdFjuro',
     'PAYDUNYA_TOKEN': 'QSUiqdHl3U7iaXsnoT69',
-    'PAYDUNYA_ACTIVE': 'true',
-    'ABMCY_AGGREGATOR_ACTIVE': 'false', // NOUVEAU: Par défaut désactivé
-    'ABMCY_PAYMENT_METHODS': JSON.stringify({ // NOUVEAU: Exemple de configuration
+    'PAYDUNYA_ACTIVE': 'false', // Désactivé pour prioriser l'agrégateur ABMCY
+    'ABMCY_AGGREGATOR_ACTIVE': 'true', // CORRECTION: Activé par défaut comme demandé
+    'ABMCY_PAYMENT_METHODS': JSON.stringify({ // CORRECTION: Uniquement Wave est conservé
         "wave": {
             "name": "Wave Money",
             "logo": "https://i.postimg.cc/yY022b72/wave-logo.png",
             "baseUrl": "https://pay.wave.com/m/M_sn_J3jR9Wg9ilPF/c/sn/?amount={amount}&ref={reference}&order_id={order_id}"
-        },
-        "orange_money": {
-            "name": "Orange Money",
-            "logo": "https://i.postimg.cc/W341922c/orange-money-logo.png",
-            "baseUrl": "https://example.com/orange-money-pay?amount={amount}&ref={reference}&phone={customer_phone}&order_id={order_id}" // REMPLACER PAR URL RÉELLE
-        },
-        "yaas": {
-            "name": "Yaas",
-            "logo": "https://i.postimg.cc/Qx011b72/yaas-logo.png",
-            "baseUrl": "https://example.com/yaas-pay?amount={amount}&ref={reference}&email={customer_email}&order_id={order_id}" // REMPLACER PAR URL RÉELLE
         }
     })
   };
@@ -1869,28 +1864,27 @@ function setupProject() {
   const abmcyAdminData = abmcyAdminSheet.getDataRange().getValues();
   const abmcyAdminMap = new Map(abmcyAdminData.map(row => [row[0], row[1]]));
   if (!abmcyAdminMap.has('AdminPassword')) {
-      abmcyAdminSheet.appendRow(['AdminPassword', 'abmcy2024']); // Mot de passe par défaut
+      // CORRECTION: Écrire directement dans A2:B2 pour éviter les problèmes avec appendRow
+      abmcyAdminSheet.getRange("A2:B2").setValues([['AdminPassword', 'abmcy2024']]); // Mot de passe par défaut
   }
 
   // NOUVEAU: S'assurer que les colonnes 'TransactionReference' et 'InitiationTimestamp' existent dans la feuille 'Commandes'
   const ordersSheet = ss.getSheetByName(SHEET_NAMES.ORDERS);
-  const ordersHeaders = ordersSheet.getRange(1, 1, 1, ordersSheet.getLastColumn()).getValues()[0];
-  if (ordersHeaders.indexOf("TransactionReference") === -1) {
-      ordersSheet.insertColumnAfter(ordersHeaders.length);
-      ordersSheet.getRange(1, ordersHeaders.length + 1).setValue("TransactionReference");
+  let ordersHeaders = ordersSheet.getRange(1, 1, 1, ordersSheet.getLastColumn()).getValues()[0];
+
+  const addColumnIfNotExists = (columnName) => {
+    if (ordersHeaders.indexOf(columnName) === -1) {
+      const lastColumn = ordersSheet.getLastColumn();
+      ordersSheet.getRange(1, lastColumn + 1).setValue(columnName);
+      // Mettre à jour la liste des en-têtes pour la prochaine vérification
+      ordersHeaders = ordersSheet.getRange(1, 1, 1, ordersSheet.getLastColumn()).getValues()[0];
+    }
   }
-  if (ordersHeaders.indexOf("InitiationTimestamp") === -1) {
-      ordersSheet.insertColumnAfter(ordersHeaders.length + 1); // +1 car on vient d'ajouter une colonne
-      ordersSheet.getRange(1, ordersHeaders.length + 2).setValue("InitiationTimestamp");
-  }
-  if (ordersHeaders.indexOf("NomExpediteur") === -1) {
-      ordersSheet.insertColumnAfter(ordersSheet.getLastColumn());
-      ordersSheet.getRange(1, ordersSheet.getLastColumn()).setValue("NomExpediteur");
-  }
-  if (ordersHeaders.indexOf("NumeroExpediteur") === -1) {
-      ordersSheet.insertColumnAfter(ordersSheet.getLastColumn());
-      ordersSheet.getRange(1, ordersSheet.getLastColumn()).setValue("NumeroExpediteur");
-  }
+
+  addColumnIfNotExists("TransactionReference");
+  addColumnIfNotExists("InitiationTimestamp");
+  addColumnIfNotExists("NomExpediteur");
+  addColumnIfNotExists("NumeroExpediteur");
   
   CacheService.getScriptCache().remove('script_config'); // Vider le cache pour prendre en compte les changements
   ui.alert("Projet Central initialisé avec succès ! Tous les onglets sont prêts.");
