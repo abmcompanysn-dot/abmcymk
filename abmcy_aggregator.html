@@ -59,13 +59,16 @@
         // L'URL de l'API centrale qui gère les logs et les mises à jour de commandes
         const ACCOUNT_API_URL = "https://script.google.com/macros/s/AKfycbxFbCDgH3uHcVDbBYgnwuu4H2IY-8vZsMyekhVQlgKLlOGc42mbUjfiokb2e_7FpcFMfA/exec";
 
+        // NOUVEAU: L'URL de base de Wave est maintenant directement dans ce fichier.
+        const WAVE_BASE_URL = "https://pay.wave.com/m/M_sn_J3jR9Wg9ilPF/c/sn/";
+
         document.addEventListener('DOMContentLoaded', () => {
             const params = new URLSearchParams(window.location.search);
             const orderId = params.get('orderId');
             const total = params.get('total');
             const transactionReference = params.get('ref');
-            const baseUrl = decodeURIComponent(params.get('baseUrl') || '');
-            const provider = params.get('provider');
+            // const baseUrl = decodeURIComponent(params.get('baseUrl') || ''); // N'est plus nécessaire
+            const provider = params.get('provider'); // On le garde pour vérifier que c'est bien Wave
 
             const orderTotalEl = document.getElementById('order-total');
             const orderIdEl = document.getElementById('order-id');
@@ -73,7 +76,7 @@
             const payButton = document.getElementById('pay-button');
             const formStatus = document.getElementById('form-status');
 
-            if (!orderId || !total || !transactionReference || !baseUrl || provider !== 'wave') {
+            if (!orderId || !total || !transactionReference || provider !== 'wave') {
                 waveForm.innerHTML = '<p class="text-red-500 font-semibold">Erreur: Les informations de paiement sont invalides ou manquantes. Veuillez retourner au panier et réessayer.</p>';
                 orderTotalEl.textContent = 'Erreur';
                 return;
@@ -109,7 +112,7 @@
                     formStatus.textContent = 'Ouverture de la page de paiement et redirection...';
                     formStatus.className = 'text-sm font-semibold text-green-600';
                     
-                    const finalWaveUrl = `${baseUrl}?amount=${total}&ref=${transactionReference}&order_id=${orderId}`;
+                    const finalWaveUrl = `${WAVE_BASE_URL}?amount=${total}&ref=${transactionReference}&order_id=${orderId}`;
                     window.open(finalWaveUrl, '_blank'); // Ouvre la page de paiement Wave dans un nouvel onglet
 
                     // Redirige la page actuelle vers la page de confirmation pour attendre le résultat du paiement

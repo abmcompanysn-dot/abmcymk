@@ -96,12 +96,18 @@
                                     <input type="radio" id="mobile-payment-group" name="payment-method" value="mobile-payment-group" class="form-radio h-4 w-4 text-gold" checked>
                                     <span class="text-gray-700 font-medium">Paiement Mobile (Wave, Orange Money, etc.)</span>
                                 </label>
-                                <!-- Le contenu de cette div sera rempli dynamiquement par main.js -->
+                                <!-- NOUVEAU: Les options de l'agrégateur sont maintenant directement ici -->
                                 <div id="mobile-payment-options" class="p-4 border-t bg-gray-50 space-y-3">
-                                    <!-- Squelette de chargement -->
-                                    <div class="animate-pulse flex space-x-4"><div class="rounded-full bg-gray-200 h-6 w-6"></div><div class="flex-1 space-y-3 py-1"><div class="h-2 bg-gray-200 rounded"></div></div></div>
+                                    <!-- Option Wave (seul agrégateur actif pour l'instant) -->
+                                    <label for="wave" class="flex items-center space-x-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-100 has-[:checked]:bg-gold/10 has-[:checked]:border-gold">
+                                        <input type="radio" id="wave" name="payment-provider" value="wave" class="form-radio h-4 w-4 text-gold focus:ring-gold" checked>
+                                        <img src="https://i.postimg.cc/yY022b72/wave-logo.png" alt="Wave" class="h-6">
+                                        <span class="text-sm font-medium">Wave Money</span>
+                                    </label>
+                                    <!-- Les autres options de l'agrégateur (Orange Money, etc.) pourraient être ajoutées ici -->
                                 </div>
                             </div>
+                            <!-- La logique pour Paydunya est maintenant complètement retirée du HTML -->
 
                             <!-- NOUVEAU: Option de paiement via un agent -->
                             <div class="border rounded-lg">

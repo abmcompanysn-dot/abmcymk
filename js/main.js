@@ -1590,22 +1590,19 @@ async function processCheckout(event) {
     let action;
     let paymentNote;
     
-    // Priorité 1: Agrégateur ABMCY (Wave, Orange Money, etc.)
-    if (customerData.paymentProvider && ['wave', 'orange_money', 'yaas'].includes(customerData.paymentProvider) && paymentSettings.ABMCY_AGGREGATOR_ACTIVE) {
+    // NOUVEAU: Logique simplifiée. Si le paiement mobile est sélectionné, on utilise l'agrégateur ABMCY.
+    if (customerData.paymentMethod === 'mobile-payment-group' && customerData.paymentProvider) {
         action = 'createAbmcyAggregatorInvoice'; // NOUVEAU: Action pour l'agrégateur ABMCY
         paymentNote = customerData.paymentProvider;
-    // Priorité 2: Paydunya
-    } else if (customerData.paymentProvider === 'paydunya' && paymentSettings.PAYDUNYA_ACTIVE) {
-        action = 'createPaydunyaInvoice';
-        paymentNote = 'Paydunya';
-    // Priorité 3 (par défaut): Paiement à la livraison (COD)
+    // Sinon, c'est le paiement à la livraison (COD).
     } else {
         action = 'enregistrerCommandeEtNotifier'; // Paiement à la livraison
         paymentNote = 'Paiement à la livraison';
-        // Si un paiement en ligne était sélectionné mais est inactif, on informe l'utilisateur.
-        if (customerData.paymentProvider) {
-             showToast("Le mode de paiement en ligne choisi est indisponible. La commande sera passée en 'Paiement à la livraison'.", true);
-        }
+        // // Ancien code pour Paydunya, conservé en commentaire pour référence
+        // if (customerData.paymentProvider === 'paydunya' && paymentSettings.PAYDUNYA_ACTIVE) {
+        //     action = 'createPaydunyaInvoice';
+        //     paymentNote = 'Paydunya';
+        // }
     }
 
     const orderPayload = {

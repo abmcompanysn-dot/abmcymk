@@ -1855,18 +1855,18 @@ function setupProject() {
     'delivery_options': JSON.stringify({
       "Point de retrait": { "Retrait en magasin": { "Gratuit": 0 } },
       "Dakar": {"Dakar - Plateau":{"Standard":1500,"ABMCY Express":2500},"Rufisque":{"Standard":3000}},"Thiès":{"Thiès Ville":{"Standard":3500}}
-    }),
-    'PAYDUNYA_MASTER_KEY': 'ZosA6n35-Tyd6-KhH9-TaPR-7ZOFqyBxfjvz',
-    'PAYDUNYA_PRIVATE_KEY': 'live_private_3CzZajIPeFrcWxNOvDxyTuan3dm',
-    'PAYDUNYA_PUBLIC_KEY': 'live_public_TgcjrnTM5MmbDajbWjZQJdFjuro',
-    'PAYDUNYA_TOKEN': 'QSUiqdHl3U7iaXsnoT69',
-    'PAYDUNYA_ACTIVE': 'false', // Désactivé pour prioriser l'agrégateur ABMCY
-    'ABMCY_AGGREGATOR_ACTIVE': 'true', // CORRECTION: Activé par défaut comme demandé
+    }), // NOUVEAU: Paydunya est maintenant commenté et désactivé
+    // 'PAYDUNYA_MASTER_KEY': 'VOTRE_MASTER_KEY',
+    // 'PAYDUNYA_PRIVATE_KEY': 'VOTRE_PRIVATE_KEY_TEST_OU_LIVE',
+    // 'PAYDUNYA_PUBLIC_KEY': 'VOTRE_PUBLIC_KEY_TEST_OU_LIVE',
+    // 'PAYDUNYA_TOKEN': 'VOTRE_TOKEN_TEST_OU_LIVE',
+    'PAYDUNYA_ACTIVE': 'false',
+    // NOUVEAU: L'agrégateur ABMCY est le seul actif par défaut
+    'ABMCY_AGGREGATOR_ACTIVE': 'true',
     'ABMCY_PAYMENT_METHODS': JSON.stringify({ // CORRECTION: Uniquement Wave est conservé
         "wave": {
             "name": "Wave Money",
-            "logo": "https://i.postimg.cc/yY022b72/wave-logo.png",
-            "baseUrl": "https://pay.wave.com/m/M_sn_J3jR9Wg9ilPF/c/sn/?amount={amount}&ref={reference}&order_id={order_id}"
+            "logo": "https://i.postimg.cc/yY022b72/wave-logo.png"
         }
     })
   };
