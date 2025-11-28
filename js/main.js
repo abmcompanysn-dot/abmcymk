@@ -1,6 +1,6 @@
 const CONFIG = {
     // NOUVEAU: URL de l'API CENTRALE qui gère maintenant tout (comptes, commandes, etc.)
-    ACCOUNT_API_URL:"https://script.google.com/macros/s/AKfycbxJIYYMJF9s3Khl8SwLLN1SdvzYw9ADCvCwENXPSTWJ2k9iG4NMJpyTqzRjWjUm05vU9g/exec",
+    ACCOUNT_API_URL:"https://script.google.com/macros/s/AKfycbxN7JP1shH-6Xx0xTfVhLegw2NaoJRg6WwdpzzrxPVHABoDW6RE0gTRcr2reg9HzIcoOw/exec",
     // Les URL spécifiques pour commandes, livraisons et notifications sont maintenant obsolètes
     // car tout est géré par l'API centrale (ACCOUNT_API_URL).
     
@@ -1358,6 +1358,7 @@ async function loadPaymentMethods() {
         <label for="wave" class="flex items-center space-x-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-100 has-[:checked]:bg-gold/10 has-[:checked]:border-gold">
             <input type="radio" id="wave" name="payment-provider" value="wave" class="form-radio h-4 w-4 text-gold focus:ring-gold" checked>
             <img src="https://www.wave.com/static/media/Logo.8a8f13c6.svg" alt="Wave" class="h-6">
+            <img src="https://www.wave.com/img/nav-logo.png" alt="Wave" class="h-6">
             <span class="text-sm font-medium">Wave</span>
         </label>
         <!--
@@ -1605,12 +1606,12 @@ async function processCheckout(event) {
             const initiationPayload = {
                 action: 'initiateAbmcyPayment',
                 data: {
-                    IDCommande: result.id,
-                    Montant: total,
-                    MoyenPaiement: customerData.paymentProvider,
-                    NomExpediteur: clientName,
-                    NumeroExpediteur: customerData.phone,
-                    EmailClient: customerData.email, // Ajout de l'email pour la notification
+                    IDCommande: result.id, // ID de la commande fraîchement créée
+                    Montant: total, // Montant total de la commande
+                    MoyenPaiement: customerData.paymentProvider, // Ex: 'wave'
+                    NomExpediteur: user ? user.Nom : clientName, // Utilise le nom du compte si connecté, sinon celui du formulaire
+                    NumeroExpediteur: user ? user.Telephone : customerData.phone, // Utilise le téléphone du compte si connecté
+                    EmailClient: user ? user.Email : customerData.email, // Utilise l'email du compte si connecté
                     StatutLog: 'En attente',
                     TransactionReference: '', // Laisser vide, sera rempli manuellement ou par l'API de paiement
                     NotesAdmin: 'Initiation de paiement automatique.'
