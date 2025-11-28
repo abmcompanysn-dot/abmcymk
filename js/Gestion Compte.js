@@ -1812,14 +1812,28 @@ function setupProject() {
     [SHEET_NAMES.NOTIFICATIONS]: ["IDNotification", "IDCommande", "Type", "Message", "Statut", "Date"],
   };
 
+  // NOUVEAU: Fonction utilitaire pour ajouter des colonnes si elles n'existent pas
+  const addColumnsIfNotExists = (sheet, requiredHeaders) => {
+    if (!sheet) return;
+    const currentHeaders = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+    const headersToAdd = requiredHeaders.filter(h => !currentHeaders.includes(h));
+    
+    if (headersToAdd.length > 0) {
+      const lastColumn = sheet.getLastColumn();
+      sheet.getRange(1, lastColumn + 1, 1, headersToAdd.length).setValues([headersToAdd]);
+    }
+  };
+
   Object.entries(sheetsToCreate).forEach(([sheetName, headers]) => {
     let sheet = ss.getSheetByName(sheetName);
     if (!sheet) {
       sheet = ss.insertSheet(sheetName);
       sheet.appendRow(headers);
-      // CORRECTION: Appliquer le style uniquement si des en-têtes existent
       sheet.setFrozenRows(1);
       sheet.getRange("A1:Z1").setFontWeight("bold");
+    } else {
+      // NOUVEAU: Si la feuille existe, on vérifie et on ajoute les colonnes manquantes.
+      addColumnsIfNotExists(sheet, headers);
     }
   });
 
@@ -1877,24 +1891,6 @@ function setupProject() {
       abmcyAdminSheet.getRange("A2:B2").setValues([['AdminPassword', 'abmcy2024']]); // Mot de passe par défaut
   }
 
-  // NOUVEAU: S'assurer que les colonnes 'TransactionReference' et 'InitiationTimestamp' existent dans la feuille 'Commandes'
-  const ordersSheet = ss.getSheetByName(SHEET_NAMES.ORDERS);
-  let ordersHeaders = ordersSheet.getRange(1, 1, 1, ordersSheet.getLastColumn()).getValues()[0];
-
-  const addColumnIfNotExists = (columnName) => {
-    if (ordersHeaders.indexOf(columnName) === -1) {
-      const lastColumn = ordersSheet.getLastColumn();
-      ordersSheet.getRange(1, lastColumn + 1).setValue(columnName);
-      // Mettre à jour la liste des en-têtes pour la prochaine vérification
-      ordersHeaders = ordersSheet.getRange(1, 1, 1, ordersSheet.getLastColumn()).getValues()[0];
-    }
-  }
-
-  addColumnIfNotExists("TransactionReference");
-  addColumnIfNotExists("InitiationTimestamp");
-  addColumnIfNotExists("NomExpediteur");
-  addColumnIfNotExists("NumeroExpediteur");
-  
   CacheService.getScriptCache().remove('script_config'); // Vider le cache pour prendre en compte les changements
   ui.alert("Projet Central initialisé avec succès ! Tous les onglets sont prêts.");
 }
