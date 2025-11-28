@@ -1355,83 +1355,30 @@ function updateCodLabel() {
  * Met à jour l'interface utilisateur en conséquence.
  */
 async function loadPaymentMethods() {
-    // NOUVEAU: Cible le conteneur spécifique pour les options de paiement mobile.
     const mobilePaymentOptionsContainer = document.getElementById('mobile-payment-options');
     if (!mobilePaymentOptionsContainer) return;
 
-    try {
-        const settingsResponse = await fetch(CONFIG.ACCOUNT_API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'text/plain' },
-            body: JSON.stringify({ action: 'getPaymentSettings' })
-        });
+    // SIMPLIFICATION: Les options de paiement sont maintenant statiques et toujours affichées.
+    // Plus besoin d'appeler l'API pour les récupérer.
+    const optionsHTML = `
+        <label for="wave" class="flex items-center space-x-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-100 has-[:checked]:bg-gold/10 has-[:checked]:border-gold">
+            <input type="radio" id="wave" name="payment-provider" value="wave" class="form-radio h-4 w-4 text-gold focus:ring-gold" checked>
+            <img src="https://www.wave.com/static/media/Logo.8a8f13c6.svg" alt="Wave" class="h-6">
+            <span class="text-sm font-medium">Wave</span>
+        </label>
+        <label for="orange-money" class="flex items-center space-x-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-100 has-[:checked]:bg-gold/10 has-[:checked]:border-gold">
+            <input type="radio" id="orange-money" name="payment-provider" value="orange-money" class="form-radio h-4 w-4 text-gold focus:ring-gold">
+            <img src="https://www.orange-sonatel.com/wp-content/uploads/2022/09/Orange-Money-logo.jpg" alt="Orange Money" class="h-6">
+            <span class="text-sm font-medium">Orange Money</span>
+        </label>
+        <label for="free-money" class="flex items-center space-x-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-100 has-[:checked]:bg-gold/10 has-[:checked]:border-gold">
+            <input type="radio" id="free-money" name="payment-provider" value="free-money" class="form-radio h-4 w-4 text-gold focus:ring-gold">
+            <img src="https://www.freemoney.sn/wp-content/uploads/2023/03/Free-Money-Logo-01.png" alt="Free Money" class="h-6">
+            <span class="text-sm font-medium">Free Money</span>
+        </label>
+    `;
 
-        if (!settingsResponse.ok) {
-            throw new Error(`Erreur réseau: ${settingsResponse.statusText}`);
-        }
-
-        const result = await settingsResponse.json();
-
-        if (!result.success || !result.data) {
-            console.error("Impossible de charger les paramètres de paiement:", result.error);
-            mobilePaymentOptionsContainer.innerHTML = '<p class="text-red-500 text-sm">Erreur de chargement des méthodes de paiement.</p>';
-            return;
-        }
-
-        const settings = result.data;
-        let optionsHTML = '';
-        let firstOptionValue = '';
-
-        // Règle 1: Si l'agrégateur ABMCY est actif, on affiche ses options.
-        if (settings.ABMCY_AGGREGATOR_ACTIVE && settings.ABMCY_PAYMENT_METHODS && Object.keys(settings.ABMCY_PAYMENT_METHODS).length > 0) {
-            optionsHTML = Object.entries(settings.ABMCY_PAYMENT_METHODS).map(([key, provider]) => {
-                if (!firstOptionValue) firstOptionValue = key; // Garder la première option pour la cocher par défaut
-                return `
-                    <label for="${key}" class="flex items-center space-x-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-100 has-[:checked]:bg-gold/10 has-[:checked]:border-gold">
-                        <input type="radio" id="${key}" name="payment-provider" value="${key}" class="form-radio h-4 w-4 text-gold focus:ring-gold">
-                        <img src="${provider.logo}" alt="${provider.name}" class="h-6">
-                        <span class="text-sm font-medium">${provider.name}</span>
-                    </label>
-                `;
-            }).join('');
-        
-        // Règle 2: Sinon, si Paydunya est actif, on affiche Paydunya.
-        } else if (settings.PAYDUNYA_ACTIVE) {
-            firstOptionValue = 'paydunya';
-            optionsHTML = `
-                <label for="paydunya" class="flex items-center space-x-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-100 has-[:checked]:bg-gold/10 has-[:checked]:border-gold">
-                    <input type="radio" id="paydunya" name="payment-provider" value="paydunya" class="form-radio h-4 w-4 text-gold focus:ring-gold">
-                    <img src="https://paydunya.com/assets/img/logo-paydunya.png" alt="Paydunya" class="h-6">
-                    <span class="text-sm font-medium">Paiement sécurisé via Paydunya</span>
-                </label>
-            `;
-
-        // Règle 3: Si rien n'est actif, on affiche un message.
-        } else {
-            optionsHTML = `
-                <div class="text-center text-sm text-gray-500 p-4 bg-gray-100 rounded-md">
-                    <p>Le paiement en ligne est actuellement indisponible.</p>
-                    <p class="font-semibold">Le paiement à la livraison sera sélectionné.</p>
-                </div>
-            `;
-            // On pourrait forcer la sélection du paiement à la livraison ici si cette option existait.
-        }
-
-        // Injecter le HTML généré dans le conteneur
-        mobilePaymentOptionsContainer.innerHTML = optionsHTML;
-
-        // Cocher la première option disponible par défaut pour une meilleure expérience utilisateur
-        if (firstOptionValue) {
-            const firstRadio = document.getElementById(firstOptionValue);
-            if (firstRadio) {
-                firstRadio.checked = true;
-            }
-        }
-
-    } catch (error) {
-        console.error("Erreur lors de la récupération des paramètres de paiement:", error);
-        mobilePaymentOptionsContainer.innerHTML = '<p class="text-red-500 text-sm">Erreur de communication avec le serveur pour les méthodes de paiement.</p>';
-    }
+    mobilePaymentOptionsContainer.innerHTML = optionsHTML;
 }
 
 /**
@@ -1639,96 +1586,62 @@ async function processCheckout(event) {
     const total = subtotal + shippingCost;
 
     // 5. Préparer l'objet de la commande pour le backend en fonction du mode de paiement
-    // AMÉLIORATION: Logique de sélection de l'action de paiement clarifiée.
-    let action;
-    let paymentNote;
-    
-    // NOUVEAU: Logique de paiement améliorée pour intégrer la modale
-    if (customerData.paymentMethod === 'mobile-payment-group' && customerData.paymentProvider) {
-        // --- CAS 1: Paiement Mobile ---
-        // On n'envoie pas tout de suite. On ouvre la modale.
-        statusDiv.textContent = 'Veuillez finaliser le paiement...';
-        statusDiv.className = 'mt-4 text-center font-semibold text-gray-600';
-        
-        // Afficher le total dans la modale
-        document.getElementById('modal-order-total').textContent = `${total.toLocaleString('fr-FR')} F CFA`;
-        
-        // Afficher la modale
-        aggregatorModal.classList.remove('hidden');
+    // NOUVELLE LOGIQUE POUR WAVE
+    if (customerData.paymentMethod === 'mobile-payment-group' && customerData.paymentProvider === 'wave') {
+        const action = 'enregistrerCommandeEtNotifier';
+        const paymentNote = `Paiement via ${customerData.paymentProvider} (en attente de confirmation manuelle)`;
+        const orderPayload = createOrderPayload(action, customerData, cart, total, clientId, clientName);
+        orderPayload.data.moyenPaiement = paymentNote;
 
-        // Gérer l'annulation
-        document.getElementById('cancel-payment-btn').onclick = () => {
-            aggregatorModal.classList.add('hidden');
-            submitButton.disabled = false;
-            submitButton.textContent = 'Valider la commande';
-            statusDiv.textContent = '';
-        };
+        try {
+            // On envoie la commande mais on n'attend pas la réponse pour rediriger.
+            // On utilise fetch sans await pour un envoi "fire and forget".
+            fetch(CONFIG.ACCOUNT_API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain' },
+                body: JSON.stringify(orderPayload),
+                keepalive: true // Important pour que la requête se termine même si on quitte la page
+            });
 
-        // Gérer la soumission de la modale
-        document.getElementById('modal-wave-form').onsubmit = async (e) => {
-            e.preventDefault();
-            const modalPayButton = document.getElementById('modal-pay-button');
-            const modalStatus = document.getElementById('modal-form-status');
+            // Vider le panier et invalider le cache localement
+            saveCart([]);
+            localStorage.removeItem('abmcyUserOrders');
 
-            modalPayButton.disabled = true;
-            modalPayButton.textContent = 'Traitement...';
-            modalStatus.textContent = 'Création de la commande...';
-            modalStatus.className = 'text-sm font-semibold text-gray-600';
+            // Rediriger immédiatement vers la page de l'agrégateur avec les infos nécessaires
+            const aggregatorUrl = `abmcy-aggregator.html?amount=${total}&provider=wave`;
+            window.location.href = aggregatorUrl;
 
-            // Maintenant on peut construire le payload et l'envoyer au backend
-            const orderPayload = createOrderPayload('createAbmcyAggregatorInvoice', customerData, cart, total, clientId, clientName);
-            
-            // Ajouter les infos de l'expéditeur de la modale
-            orderPayload.data.senderName = document.getElementById('modal-sender-name').value;
-            orderPayload.data.senderPhone = document.getElementById('modal-sender-phone').value;
-
-            try {
-                const result = await sendOrderToBackend(orderPayload);
-                if (result && result.payment_url) {
-                    // Si succès, on ouvre Wave et on redirige vers la confirmation
-                    modalStatus.textContent = 'La page de paiement Wave s\'ouvre...';
-                    modalStatus.className = 'text-sm font-semibold text-green-600';
-                    window.open(result.payment_url, '_blank'); // Ouvre Wave dans un nouvel onglet
-                    
-                    // Redirection vers la page de confirmation
-                    setTimeout(() => {
-                        window.location.href = `confirmation.html?orderId=${result.orderId}`;
-                    }, 2000); // Court délai pour que l'utilisateur voie le message
-                } else {
-                    throw new Error("La réponse du serveur ne contient pas d'URL de paiement.");
-                }
-
-            } catch (error) {
-                handleCheckoutError(error, modalStatus, modalPayButton, 'Payer');
-            }
-        };
-        return; // Arrêter l'exécution de processCheckout ici, car on attend l'interaction avec la modale.
+        } catch (error) {
+            // Cette erreur ne devrait se produire que si la construction de la requête échoue, pas l'envoi.
+            handleCheckoutError(error, statusDiv, submitButton, 'Valider la commande');
+        }
 
     } else {
-        // --- CAS 2: Paiement à la livraison ---
-        action = 'enregistrerCommandeEtNotifier'; // Paiement à la livraison
-        paymentNote = 'Paiement à la livraison';
-        // // Ancien code pour Paydunya, conservé en commentaire pour référence
-        // if (customerData.paymentProvider === 'paydunya' && paymentSettings.PAYDUNYA_ACTIVE) {
-        //     action = 'createPaydunyaInvoice';
-        //     paymentNote = 'Paydunya';
-        // }
-    }
+        // --- LOGIQUE EXISTANTE POUR LES AUTRES PAIEMENTS (Paiement à la livraison, Orange Money, etc.) ---
+        let action;
+        let paymentNote;
 
-    const orderPayload = createOrderPayload(action, customerData, cart, total, clientId, clientName);
+        if (customerData.paymentMethod === 'mobile-payment-group' && customerData.paymentProvider) {
+            action = 'enregistrerCommandeEtNotifier';
+            paymentNote = `Paiement via ${customerData.paymentProvider} (en attente de confirmation manuelle)`;
+        } else {
+            action = 'enregistrerCommandeEtNotifier';
+            paymentNote = 'Paiement à la livraison';
+        }
 
-    // 6. Envoyer la commande à l'API centrale
-    try {
-        const result = await sendOrderToBackend(orderPayload);
-        statusDiv.className = 'mt-4 text-center font-semibold text-green-600';
-        statusDiv.textContent = `Commande #${result.id} enregistrée avec succès ! Vous allez être redirigé.`;
-        saveCart([]); // Vider le panier
-        localStorage.removeItem('abmcyUserOrders'); // Invalider le cache
-        setTimeout(() => {
-            window.location.href = `confirmation.html?orderId=${result.id}`;
-        }, 3000);
-    } catch (error) {
-        handleCheckoutError(error, statusDiv, submitButton, 'Valider la commande');
+        const orderPayload = createOrderPayload(action, customerData, cart, total, clientId, clientName);
+        orderPayload.data.moyenPaiement = paymentNote;
+
+        try {
+            const result = await sendOrderToBackend(orderPayload);
+            statusDiv.className = 'mt-4 text-center font-semibold text-green-600';
+            statusDiv.textContent = `Commande #${result.id} enregistrée avec succès ! Vous allez être redirigé.`;
+            setTimeout(() => {
+                window.location.href = `confirmation.html?orderId=${result.id}`;
+            }, 3000);
+        } catch (error) {
+            handleCheckoutError(error, statusDiv, submitButton, 'Valider la commande');
+        }
     }
 }
 
