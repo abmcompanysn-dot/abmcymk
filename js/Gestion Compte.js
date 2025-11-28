@@ -910,6 +910,61 @@ function initiateAbmcyPayment(data, origin) {
 }
 
 /**
+ * NOUVEAU: Enregistre une tentative de paiement dans l'historique de l'agrégateur et envoie un email au client.
+ * @param {object} data - Données de la tentative de paiement.
+ * @param {string} origin - L'origine de la requête.
+ * @returns {GoogleAppsScript.Content.TextOutput} Réponse JSON.
+ */
+function initiateAbmcyPayment(data, origin) {
+    try {
+        const historySheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.ABMCY_AGGREGATOR_HISTORY);
+        if (!historySheet) {
+            throw new Error(`La feuille '${SHEET_NAMES.ABMCY_AGGREGATOR_HISTORY}' est introuvable.`);
+        }
+
+        // Les en-têtes attendus dans la feuille d'historique
+        const headers = ["Timestamp", "IDCommande", "Montant", "MoyenPaiement", "TransactionReference", "NomExpediteur", "NumeroExpediteur", "StatutLog", "NotesAdmin"];
+        
+        // Construire la ligne à partir des données reçues
+        const newRow = headers.map(header => {
+            if (header === "Timestamp") return new Date();
+            return data[header] || ''; // Utiliser la valeur de 'data' ou une chaîne vide si non fournie
+        });
+
+        historySheet.appendRow(newRow);
+
+        // Envoyer l'email de rappel au client
+        if (data.EmailClient) {
+            const subject = `Finalisez le paiement de votre commande #${data.IDCommande}`;
+            // Reconstruire l'URL de la page de l'agrégateur pour l'email
+            const aggregatorUrl = `https://abmcymarket.abmcy.com/abmcy_aggregator.html?orderId=${data.IDCommande}&amount=${data.Montant}&provider=${data.MoyenPaiement}`;
+            const body = `
+                <p>Bonjour ${data.NomExpediteur},</p>
+                <p>Vous avez initié un paiement pour la commande <strong>#${data.IDCommande}</strong> d'un montant de <strong>${data.Montant.toLocaleString('fr-FR')} F CFA</strong>.</p>
+                <p>Si vous n'avez pas encore finalisé la transaction, vous pouvez le faire en cliquant sur le lien ci-dessous :</p>
+                <p><a href="${aggregatorUrl}" style="font-weight:bold;">Finaliser mon paiement</a></p>
+                <p>Ce lien vous redirigera vers la page de paiement sécurisée.</p>
+                <p>L'équipe ABMCY MARKET</p>
+            `;
+            MailApp.sendEmail(data.EmailClient, subject, "", { htmlBody: body });
+        }
+
+        logAction('initiateAbmcyPayment', { 
+            orderId: data.IDCommande, 
+            provider: data.MoyenPaiement,
+            emailSent: !!data.EmailClient 
+        });
+
+        // Comme c'est une requête "fire-and-forget", on renvoie juste un succès.
+        return createJsonResponse({ success: true, message: "Initiation de paiement enregistrée." }, origin);
+
+    } catch (error) {
+        logError(JSON.stringify({ action: 'initiateAbmcyPayment', data }), error);
+        return createJsonResponse({ success: false, error: error.message }, origin);
+    }
+}
+
+/**
  * NOUVEAU: Envoie un email de confirmation de commande à l'admin. Fusionné depuis Gestion Notifications.
  * @param {object} orderResult - Le résultat de la fonction enregistrerCommande.
  * @param {object} originalData - Les données originales de la commande contenant les détails des produits.
