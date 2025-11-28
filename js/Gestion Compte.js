@@ -399,6 +399,12 @@ function requestPasswordReset(data, origin) {
         const tokenIndex = headers.indexOf("ResetToken");
         const expiryIndex = headers.indexOf("ResetTokenExpiry");
 
+        // CORRECTION: Vérifier que les colonnes nécessaires existent bien.
+        if (tokenIndex === -1 || expiryIndex === -1) {
+            logError('requestPasswordReset', new Error("Les colonnes 'ResetToken' ou 'ResetTokenExpiry' sont manquantes dans la feuille Utilisateurs."));
+            throw new Error("Configuration du serveur incorrecte. Veuillez contacter le support.");
+        }
+
         const userRowIndex = allUsers.findIndex(row => row[emailIndex] === data.email);
 
         if (userRowIndex !== -1) {
@@ -406,6 +412,9 @@ function requestPasswordReset(data, origin) {
 
             const rowToUpdate = userRowIndex + 2;
             sheet.getRange(rowToUpdate, tokenIndex + 1).setValue(resetToken);
+            
+            // CORRECTION: La variable 'expiryDate' n'était pas définie. On la définit ici pour 5 minutes.
+            const expiryDate = new Date(new Date().getTime() + 5 * 60 * 1000);
             sheet.getRange(rowToUpdate, expiryIndex + 1).setValue(expiryDate);
 
             // Envoyer l'email de réinitialisation
