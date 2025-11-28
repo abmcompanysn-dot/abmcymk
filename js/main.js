@@ -1593,25 +1593,18 @@ async function processCheckout(event) {
         orderPayload.data.moyenPaiement = paymentNote;
 
         try {
-            // On envoie la commande mais on n'attend pas la réponse pour rediriger.
-            // On utilise fetch sans await pour un envoi "fire and forget".
-            fetch(CONFIG.ACCOUNT_API_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'text/plain' },
-                body: JSON.stringify(orderPayload),
-                keepalive: true // Important pour que la requête se termine même si on quitte la page
-            });
-
-            // Vider le panier et invalider le cache localement
-            saveCart([]);
-            localStorage.removeItem('abmcyUserOrders');
+            // NOUVELLE LOGIQUE: On envoie la commande et on ATTEND la réponse pour avoir l'ID.
+            const result = await sendOrderToBackend(orderPayload);
+            
+            // La fonction sendOrderToBackend vide déjà le panier et le cache en cas de succès.
 
             // Rediriger immédiatement vers la page de l'agrégateur avec les infos nécessaires
-            const aggregatorUrl = `abmcy-aggregator.html?amount=${total}&provider=${customerData.paymentProvider}`;
+            // On ajoute maintenant l'orderId qui a été retourné par le serveur.
+            const aggregatorUrl = `abmcy_aggregator.html?orderId=${result.id}&amount=${total}&provider=${customerData.paymentProvider}`;
             window.location.href = aggregatorUrl;
 
         } catch (error) {
-            // Cette erreur ne devrait se produire que si la construction de la requête échoue, pas l'envoi.
+            // Gérer les erreurs si l'enregistrement de la commande échoue.
             handleCheckoutError(error, statusDiv, submitButton, 'Valider la commande');
         }
 
@@ -1627,9 +1620,7 @@ async function processCheckout(event) {
             const result = await sendOrderToBackend(orderPayload);
             statusDiv.className = 'mt-4 text-center font-semibold text-green-600';
             statusDiv.textContent = `Commande #${result.id} enregistrée avec succès ! Vous allez être redirigé.`;
-            setTimeout(() => {
-                window.location.href = `confirmation.html?orderId=${result.id}`;
-            }, 3000);
+            window.location.href = `confirmation.html?orderId=${result.id}`;
         } catch (error) {
             handleCheckoutError(error, statusDiv, submitButton, 'Valider la commande');
         }
@@ -1699,7 +1690,9 @@ async function sendOrderToBackend(payload) {
         const result = await response.json();
 
         if (result.success) {
-            saveCart([]); // Vider le panier uniquement en cas de succès
+            // Vider le panier uniquement en cas de succès
+            // La redirection se fait après, donc on peut vider le panier ici.
+            saveCart([]); 
             localStorage.removeItem('abmcyUserOrders'); // Invalider le cache
             return result;
         } else {
