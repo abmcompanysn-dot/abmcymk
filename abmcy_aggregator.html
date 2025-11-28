@@ -10,11 +10,13 @@
         :root { --gold-color: #D4AF37; }
         .font-montserrat { font-family: 'Montserrat', sans-serif; }
         .text-gold { color: var(--gold-color); }
+        .bg-gold { background-color: var(--gold-color); }
+        .border-gold { border-color: var(--gold-color); }
     </style>
 </head>
 <body class="bg-gray-100 font-montserrat flex items-center justify-center min-h-screen p-4">
 
-    <main class="w-full max-w-md mx-auto p-4">
+    <main id="payment-container" class="w-full max-w-md mx-auto">
         <div class="bg-white p-8 rounded-lg shadow-lg text-center">
             
             <a href="index.html" class="inline-block mb-6">
@@ -22,111 +24,92 @@
             </a>
 
             <h1 class="text-2xl font-bold text-gray-800 mb-2">Finalisez votre paiement</h1>
-            <p class="text-gray-600 mb-6">Veuillez suivre les instructions ci-dessous.</p>
+            <p class="text-gray-600 mb-6">Veuillez vérifier les informations et cliquer sur le bouton pour payer.</p>
             
+            <!-- Conteneur pour les détails de la commande -->
             <div class="bg-gray-50 p-6 rounded-md mb-8 border">
                 <p class="text-sm text-gray-500">Montant à payer</p>
-                <p id="order-total" class="text-4xl font-bold text-gold my-2">Chargement...</p>
+                <p id="order-amount" class="text-4xl font-bold text-gold my-2">Chargement...</p>
                 <p class="text-xs text-gray-500">Commande N° <span id="order-id" class="font-mono">...</span></p>
             </div>
             
-            <!-- NOUVEAU: Formulaire pour les informations de l'expéditeur -->
-            <form id="wave-form" class="space-y-4 text-left">
-                <div class="flex items-center justify-center mb-4">
-                    <img src="https://www.wave.com/img/nav-logo.png" alt="Wave" class="h-8">
-                </div>
-                <div>
-                    <label for="sender-name" class="block text-sm font-medium text-gray-700">Votre nom complet (expéditeur)</label>
-                    <input type="text" id="sender-name" name="sender-name" required placeholder="Ex: Mariama Diallo" class="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-gold focus:border-gold">
-                </div>
-                <div>
-                    <label for="sender-phone" class="block text-sm font-medium text-gray-700">Votre numéro de téléphone Wave</label>
-                    <input type="tel" id="sender-phone" name="sender-phone" required placeholder="Ex: 771234567" class="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-gold focus:border-gold">
-                </div>
-                <button type="submit" id="pay-button" class="w-full bg-blue-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-600 transition text-lg">
-                    Payer
-                </button>
-            </form>
-            <div id="form-status" class="mt-4 text-sm font-semibold"></div>
+            <!-- Conteneur pour le logo du fournisseur de paiement -->
+            <div id="provider-logo-container" class="flex items-center justify-center mb-6 h-10">
+                <!-- Le logo sera injecté ici -->
+            </div>
+
+            <!-- Bouton de paiement (qui est un lien) -->
+            <a id="pay-button" href="#" class="w-full block bg-blue-600 text-white font-bold py-4 px-4 rounded-lg hover:bg-blue-700 transition text-lg">
+                Payer maintenant
+            </a>
+            
+            <div id="status-message" class="mt-4 text-sm font-semibold"></div>
             
             <div class="mt-8 text-xs text-gray-400">
-                <p>En cliquant sur "Payer", une page de paiement Wave s'ouvrira. Veuillez finaliser le paiement sur cette nouvelle page.</p>
+                <p>En cliquant sur "Payer maintenant", vous serez redirigé vers l'application ou le site sécurisé de notre partenaire pour finaliser la transaction.</p>
             </div>
         </div>
     </main>
 
     <script>
-        // L'URL de l'API centrale qui gère les logs et les mises à jour de commandes
-        const ACCOUNT_API_URL = "https://script.google.com/macros/s/AKfycbxFbCDgH3uHcVDbBYgnwuu4H2IY-8vZsMyekhVQlgKLlOGc42mbUjfiokb2e_7FpcFMfA/exec";
-
-        // NOUVEAU: L'URL de base de Wave est maintenant directement dans ce fichier.
-        const WAVE_BASE_URL = "https://pay.wave.com/m/M_sn_J3jR9Wg9ilPF/c/sn/";
-
         document.addEventListener('DOMContentLoaded', () => {
+            // 1. Récupérer les éléments du DOM
+            const orderAmountEl = document.getElementById('order-amount');
+            const orderIdEl = document.getElementById('order-id');
+            const payButton = document.getElementById('pay-button');
+            const statusMessage = document.getElementById('status-message');
+            const logoContainer = document.getElementById('provider-logo-container');
+            const paymentContainer = document.getElementById('payment-container');
+
+            // 2. Lire les paramètres depuis l'URL
             const params = new URLSearchParams(window.location.search);
             const orderId = params.get('orderId');
-            const total = params.get('total');
-            const transactionReference = params.get('ref');
-            // const baseUrl = decodeURIComponent(params.get('baseUrl') || ''); // N'est plus nécessaire
-            const provider = params.get('provider'); // On le garde pour vérifier que c'est bien Wave
+            const amount = params.get('amount');
+            const provider = params.get('provider');
 
-            const orderTotalEl = document.getElementById('order-total');
-            const orderIdEl = document.getElementById('order-id');
-            const waveForm = document.getElementById('wave-form');
-            const payButton = document.getElementById('pay-button');
-            const formStatus = document.getElementById('form-status');
-
-            if (!orderId || !total || !transactionReference || provider !== 'wave') {
-                waveForm.innerHTML = '<p class="text-red-500 font-semibold">Erreur: Les informations de paiement sont invalides ou manquantes. Veuillez retourner au panier et réessayer.</p>';
-                orderTotalEl.textContent = 'Erreur';
+            // 3. Valider les paramètres
+            if (!orderId || !amount || !provider) {
+                paymentContainer.innerHTML = `
+                    <div class="bg-white p-8 rounded-lg shadow-lg text-center">
+                        <h1 class="text-2xl font-bold text-red-600 mb-4">Erreur</h1>
+                        <p class="text-gray-700">Les informations de paiement sont invalides ou manquantes. Veuillez retourner à la boutique et réessayer.</p>
+                        <a href="index.html" class="mt-6 inline-block bg-gray-800 text-white font-bold py-2 px-4 rounded-lg">Retour à l'accueil</a>
+                    </div>`;
                 return;
             }
 
-            orderTotalEl.textContent = `${Number(total).toLocaleString('fr-FR')} F CFA`;
-            orderIdEl.textContent = orderId;
+            // 4. Afficher les informations sur la page
+            orderAmountEl.textContent = `${Number(amount).toLocaleString('fr-FR')} F CFA`;
+            orderIdEl.textContent = `#${orderId}`;
 
-            waveForm.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                payButton.disabled = true;
-                payButton.textContent = 'Traitement...';
-                formStatus.textContent = 'Préparation du paiement...';
-                formStatus.className = 'text-sm font-semibold text-gray-600';
+            // 5. Configurer le lien de paiement et le logo en fonction du fournisseur
+            let paymentUrl = '#';
+            let logoHtml = '';
 
-                const senderName = document.getElementById('sender-name').value;
-                const senderPhone = document.getElementById('sender-phone').value;
+            switch (provider) {
+                case 'wave':
+                    // URL de paiement spécifique à Wave
+                    paymentUrl = `https://pay.wave.com/m/M_sn_J3jR9Wg9ilPF/c/sn/?amount=${amount}`;
+                    logoHtml = '<img src="https://www.wave.com/static/media/Logo.8a8f13c6.svg" alt="Wave" class="h-8">';
+                    payButton.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+                    payButton.classList.add('bg-blue-500', 'hover:bg-blue-600'); // Couleur de Wave
+                    break;
+                case 'orange-money':
+                    // REMPLACER par la véritable URL de paiement d'Orange Money
+                    paymentUrl = `https://api.orange.com/orange-money-webpay/sn/v1/webpayment?order_id=${orderId}&amount=${amount}`;
+                    logoHtml = '<img src="https://www.orange-sonatel.com/wp-content/uploads/2022/09/Orange-Money-logo.jpg" alt="Orange Money" class="h-8">';
+                    payButton.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+                    payButton.classList.add('bg-orange-500', 'hover:bg-orange-600');
+                    break;
+                // Ajoutez d'autres cas pour 'free-money', etc.
+                default:
+                    statusMessage.textContent = `Fournisseur de paiement "${provider}" non reconnu.`;
+                    payButton.style.display = 'none'; // Cacher le bouton si le fournisseur est inconnu
+            }
 
-                // 1. Enregistrer les informations de l'expéditeur dans le backend
-                try {
-                    const response = await fetch(ACCOUNT_API_URL, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'text/plain' },
-                        body: JSON.stringify({
-                            action: 'logAbmcyPaymentAttempt',
-                            data: { orderId, senderName, senderPhone }
-                        })
-                    });
-                    const result = await response.json();
-                    if (!result.success) throw new Error(result.error || 'Erreur serveur.');
-                    
-                    // 2. Si l'enregistrement est réussi, ouvrir Wave et rediriger vers la page de confirmation
-                    formStatus.textContent = 'La page de paiement Wave s\'ouvre. Vous serez redirigé vers la confirmation dans 5 secondes...';
-                    formStatus.className = 'text-sm font-semibold text-green-600';
-                    
-                    const finalWaveUrl = `${WAVE_BASE_URL}?amount=${total}&ref=${transactionReference}&order_id=${orderId}`;
-                    window.open(finalWaveUrl, '_blank'); // Ouvre la page de paiement Wave dans un nouvel onglet
-
-                    // Redirige la page actuelle vers la page de confirmation après un délai pour que l'utilisateur voie le message.
-                    setTimeout(() => {
-                        window.location.href = `confirmation.html?orderId=${orderId}`;
-                    }, 5000); // Délai de 5 secondes
-
-                } catch (error) {
-                    formStatus.textContent = `Erreur: ${error.message}. Impossible de continuer.`;
-                    formStatus.className = 'text-sm font-semibold text-red-600';
-                    payButton.disabled = false;
-                    payButton.textContent = 'Payer';
-                }
-            });
+            // 6. Mettre à jour le bouton de paiement et le logo
+            payButton.href = paymentUrl;
+            logoContainer.innerHTML = logoHtml;
         });
     </script>
 </body>
