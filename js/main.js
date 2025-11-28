@@ -1598,6 +1598,27 @@ async function processCheckout(event) {
             
             // La fonction sendOrderToBackend vide déjà le panier et le cache en cas de succès.
 
+            // NOUVELLE ÉTAPE: Lancer l'initiation du paiement ABMCY en arrière-plan (fire-and-forget)
+            // Cette action côté serveur doit :
+            // 1. Enregistrer la tentative dans la feuille "ABMCY Historique" avec le statut "En attente".
+            // 2. Envoyer un email (et/ou un WhatsApp) au client avec le lien de paiement.
+            const initiationPayload = {
+                action: 'initiateAbmcyPayment',
+                data: {
+                    IDCommande: result.id,
+                    Montant: total,
+                    MoyenPaiement: customerData.paymentProvider,
+                    NomExpediteur: clientName,
+                    NumeroExpediteur: customerData.phone,
+                    EmailClient: customerData.email, // Ajout de l'email pour la notification
+                    StatutLog: 'En attente',
+                    TransactionReference: '', // Laisser vide, sera rempli manuellement ou par l'API de paiement
+                    NotesAdmin: 'Initiation de paiement automatique.'
+                }
+            };
+            // On envoie la requête sans attendre la réponse pour ne pas bloquer la redirection.
+            fetch(CONFIG.ACCOUNT_API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(initiationPayload), keepalive: true });
+
             // Rediriger immédiatement vers la page de l'agrégateur avec les infos nécessaires
             // On ajoute maintenant l'orderId qui a été retourné par le serveur.
             const aggregatorUrl = `abmcy_aggregator.html?orderId=${result.id}&amount=${total}&provider=${customerData.paymentProvider}`;
