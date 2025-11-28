@@ -1399,13 +1399,10 @@ function populateDeliverySelectorsCheckout() {
 
     locationSelect.innerHTML = locationHTML;
 
-    // NOUVEAU: L'écouteur d'événement est maintenant géré par le script dans checkout.html
-    // qui appelle `window.initializeCheckoutDelivery`. On s'assure que cette fonction est appelée ici.
-    if (window.initializeCheckoutDelivery) {
-        window.initializeCheckoutDelivery(deliveryOptions);
-    }
+    // NOUVEAU: Les écouteurs d'événements sont maintenant gérés directement ici.
+    locationSelect.addEventListener('change', updateDeliveryMethodsCheckout);
     methodSelect.addEventListener('change', updateCheckoutTotal);
-
+ 
     updateDeliveryMethodsCheckout(); // Appel initial
 }
 
@@ -1444,12 +1441,13 @@ function renderCheckoutSummaryItems() {
  * NOUVEAU: Met à jour les méthodes de livraison en fonction de la localité choisie.
  */
 function updateDeliveryMethodsCheckout() {
+    const deliveryOptions = siteConfig.deliveryOptions || {};
+    const locations = deliveryOptions.locations || {};
+    const methods = deliveryOptions.methods || {};
+
     const locationSelect = document.getElementById('delivery-location');
     const methodSelect = document.getElementById('delivery-method');
     const selectedLocation = locationSelect.value;
-
-    // NOUVEAU: Récupérer le sous-total pour la logique de livraison gratuite
-    const subtotal = getCart().reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
     // Si aucune localité n'est choisie, vider et désactiver le sélecteur de méthode.
     if (!selectedLocation) {
@@ -1459,10 +1457,24 @@ function updateDeliveryMethodsCheckout() {
         return;
     }
 
-    // La logique de mise à jour des méthodes de livraison est maintenant gérée par le script
-    // directement dans checkout.html, qui a été ajouté dans une précédente conversation.
-    // Cet appel est conservé pour déclencher la mise à jour du total.
-
+    const locationData = locations[selectedLocation];
+    if (!locationData || !locationData.methods) {
+        methodSelect.innerHTML = '<option value="">-- Aucune méthode disponible --</option>';
+        methodSelect.disabled = true;
+        updateCheckoutTotal();
+        return;
+    }
+    
+    let methodHTML = '';
+    locationData.methods.forEach(methodKey => {
+        const methodData = methods[methodKey];
+        if (methodData) {
+            methodHTML += `<option value="${methodKey}" data-price="${methodData.price}">${methodData.label} (${methodData.price.toLocaleString('fr-FR')} F CFA)</option>`;
+        }
+    });
+    
+    methodSelect.innerHTML = methodHTML;
+    methodSelect.disabled = false;
     updateCheckoutTotal(); // Mettre à jour le total avec la nouvelle méthode/coût
 }
 
