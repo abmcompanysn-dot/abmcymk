@@ -1,6 +1,6 @@
 const CONFIG = {
     // NOUVEAU: URL de l'API CENTRALE qui gère maintenant tout (comptes, commandes, etc.)
-    ACCOUNT_API_URL:"https://script.google.com/macros/s/AKfycbxN7JP1shH-6Xx0xTfVhLegw2NaoJRg6WwdpzzrxPVHABoDW6RE0gTRcr2reg9HzIcoOw/exec",
+    ACCOUNT_API_URL:"https://script.google.com/macros/s/AKfycbxJIYYMJF9s3Khl8SwLLN1SdvzYw9ADCvCwENXPSTWJ2k9iG4NMJpyTqzRjWjUm05vU9g/exec",
     // Les URL spécifiques pour commandes, livraisons et notifications sont maintenant obsolètes
     // car tout est géré par l'API centrale (ACCOUNT_API_URL).
     
@@ -1357,7 +1357,6 @@ async function loadPaymentMethods() {
     const optionsHTML = `
         <label for="wave" class="flex items-center space-x-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-100 has-[:checked]:bg-gold/10 has-[:checked]:border-gold">
             <input type="radio" id="wave" name="payment-provider" value="wave" class="form-radio h-4 w-4 text-gold focus:ring-gold" checked>
-            <img src="https://www.wave.com/static/media/Logo.8a8f13c6.svg" alt="Wave" class="h-6">
             <img src="https://www.wave.com/img/nav-logo.png" alt="Wave" class="h-6">
             <span class="text-sm font-medium">Wave</span>
         </label>
