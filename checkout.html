@@ -161,5 +161,64 @@
 
     <script src="js/main.js"></script>
 
+    <!-- NOUVEAU: Script pour la logique de la page de paiement -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Cette fonction est appelée par main.js une fois que les configurations sont chargées.
+            // Nous la définissons ici pour qu'elle soit disponible.
+            window.initializeCheckoutDelivery = function(deliveryConfig) {
+                const citySelect = document.getElementById('delivery-location');
+                const deliveryMethodSelect = document.getElementById('delivery-method');
+                const deliveryDetails = document.getElementById('delivery-method-details');
+
+                if (!citySelect || !deliveryMethodSelect || !deliveryDetails) return;
+
+                // 1. Remplir le sélecteur de villes/localités
+                citySelect.innerHTML = '<option value="">-- Choisir une localité --</option>';
+                Object.keys(deliveryConfig.locations).forEach(locationKey => {
+                    const option = document.createElement('option');
+                    option.value = locationKey;
+                    option.textContent = deliveryConfig.locations[locationKey].label;
+                    citySelect.appendChild(option);
+                });
+
+                // 2. Initialiser le sélecteur de mode de livraison
+                deliveryMethodSelect.innerHTML = '<option value="">-- D\'abord choisir une localité --</option>';
+                deliveryMethodSelect.disabled = true;
+                deliveryDetails.innerHTML = 'Veuillez choisir une localité pour voir les options.';
+
+                // 3. Ajouter un écouteur d'événement sur le changement de localité
+                citySelect.addEventListener('change', function() {
+                    const selectedLocationKey = this.value;
+                    const locationData = deliveryConfig.locations[selectedLocationKey];
+
+                    // Vider et désactiver le mode de livraison
+                    deliveryMethodSelect.innerHTML = '';
+                    deliveryMethodSelect.disabled = true;
+
+                    if (locationData) {
+                        deliveryMethodSelect.disabled = false;
+                        deliveryMethodSelect.innerHTML = '<option value="">-- Choisir un mode de livraison --</option>';
+                        
+                        locationData.methods.forEach(methodKey => {
+                            const methodData = deliveryConfig.methods[methodKey];
+                            if (methodData) {
+                                const option = document.createElement('option');
+                                option.value = methodKey;
+                                option.textContent = `${methodData.label} (${methodData.price.toLocaleString('fr-FR')} F CFA)`;
+                                option.dataset.price = methodData.price;
+                                deliveryMethodSelect.appendChild(option);
+                            }
+                        });
+                    } else {
+                        deliveryMethodSelect.innerHTML = '<option value="">-- D\'abord choisir une localité --</option>';
+                        deliveryDetails.innerHTML = 'Veuillez choisir une localité pour voir les options.';
+                    }
+                    // Déclencher un événement pour que le script principal mette à jour le total
+                    deliveryMethodSelect.dispatchEvent(new Event('change'));
+                });
+            };
+        });
+    </script>
 </body>
 </html>

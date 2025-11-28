@@ -109,14 +109,16 @@
                     if (!result.success) throw new Error(result.error || 'Erreur serveur.');
                     
                     // 2. Si l'enregistrement est réussi, ouvrir Wave et rediriger vers la page de confirmation
-                    formStatus.textContent = 'Ouverture de la page de paiement et redirection...';
+                    formStatus.textContent = 'La page de paiement Wave s\'ouvre. Vous serez redirigé vers la confirmation dans 5 secondes...';
                     formStatus.className = 'text-sm font-semibold text-green-600';
                     
                     const finalWaveUrl = `${WAVE_BASE_URL}?amount=${total}&ref=${transactionReference}&order_id=${orderId}`;
                     window.open(finalWaveUrl, '_blank'); // Ouvre la page de paiement Wave dans un nouvel onglet
 
-                    // Redirige la page actuelle vers la page de confirmation pour attendre le résultat du paiement
-                    window.location.href = `confirmation.html?orderId=${orderId}`;
+                    // Redirige la page actuelle vers la page de confirmation après un délai pour que l'utilisateur voie le message.
+                    setTimeout(() => {
+                        window.location.href = `confirmation.html?orderId=${orderId}`;
+                    }, 5000); // Délai de 5 secondes
 
                 } catch (error) {
                     formStatus.textContent = `Erreur: ${error.message}. Impossible de continuer.`;

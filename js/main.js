@@ -1,6 +1,6 @@
 const CONFIG = {
     // NOUVEAU: URL de l'API CENTRALE qui gère maintenant tout (comptes, commandes, etc.)
-    ACCOUNT_API_URL:"https://script.google.com/macros/s/AKfycbwWHo2dBEX26fDn962S9rORVhXkCuPxADTXj3J_Fj7_v74eoEDWWAVPMlSXhBq54GeTyg/exec",
+    ACCOUNT_API_URL:"https://script.google.com/macros/s/AKfycby4qxZkYma2oNVVM3BdGeEAd84fDmHbw1Stw6AhKda8cgRI_eZeX5UyuKIACueKZXuzEw/exec",
     // Les URL spécifiques pour commandes, livraisons et notifications sont maintenant obsolètes
     // car tout est géré par l'API centrale (ACCOUNT_API_URL).
     
@@ -1378,18 +1378,25 @@ function populateDeliverySelectorsCheckout() {
     const methodSelect = document.getElementById('delivery-method');
     if (!locationSelect || !methodSelect) return;
 
-    const deliveryOptions = siteConfig.deliveryOptions; // Utiliser la configuration dynamique
+    // Utiliser la configuration dynamique chargée au démarrage
+    const deliveryOptions = siteConfig.deliveryOptions || {};
+    const locations = deliveryOptions.locations || {};
+
     let locationHTML = '<option value="">-- Choisir une localité --</option>';
-    for (const region in deliveryOptions) {
-        locationHTML += `<optgroup label="${region}">`;
-        for (const city in deliveryOptions[region]) {
-            locationHTML += `<option value="${city}">${city}</option>`;
-        }
-        locationHTML += `</optgroup>`;
-    }
+    
+    // NOUVEAU: Parcourir la nouvelle structure des localités
+    Object.keys(locations).forEach(locationKey => {
+        const locationData = locations[locationKey];
+        locationHTML += `<option value="${locationKey}">${locationData.label}</option>`;
+    });
+
     locationSelect.innerHTML = locationHTML;
 
-    locationSelect.addEventListener('change', updateDeliveryMethodsCheckout);
+    // NOUVEAU: L'écouteur d'événement est maintenant géré par le script dans checkout.html
+    // qui appelle `window.initializeCheckoutDelivery`. On s'assure que cette fonction est appelée ici.
+    if (window.initializeCheckoutDelivery) {
+        window.initializeCheckoutDelivery(deliveryOptions);
+    }
     methodSelect.addEventListener('change', updateCheckoutTotal);
 
     updateDeliveryMethodsCheckout(); // Appel initial
@@ -1445,57 +1452,34 @@ function updateDeliveryMethodsCheckout() {
         return;
     }
 
-    let methodsForLocation = null;
-    // Parcourir les régions pour trouver la ville sélectionnée
-    // CORRECTION: La logique de recherche était incorrecte.
-    const deliveryOptions = siteConfig.deliveryOptions; // Utiliser la configuration dynamique
-    // On doit trouver la bonne région qui contient la ville sélectionnée.
-    const regionKey = Object.keys(deliveryOptions).find(region => deliveryOptions[region][selectedLocation]);
-    if (regionKey) {
-        methodsForLocation = deliveryOptions[regionKey][selectedLocation];
-    }
-
-    if (methodsForLocation) {
-        // NOUVEAU: Vérifier si la livraison gratuite s'applique
-        const isFreeShippingEligible = subtotal > 10000 && selectedLocation.toLowerCase().includes('dakar');
-
-        if (isFreeShippingEligible) {
-            // Si éligible, afficher uniquement l'option gratuite
-            methodSelect.innerHTML = `<option value="Gratuit">Standard - Gratuit (Offert)</option>`;
-        } else {
-            // Sinon, afficher les options payantes normalement
-            methodSelect.innerHTML = Object.keys(methodsForLocation).map(methodName =>
-                `<option value="${methodName}">${methodName} - ${methodsForLocation[methodName].toLocaleString('fr-FR')} F CFA</option>`
-            ).join('');
-        }
-        methodSelect.disabled = false;
-    } else {
-        methodSelect.innerHTML = '<option value="">Pas de méthode pour cette zone</option>';
-        methodSelect.disabled = true;
-    }
+    // La logique de mise à jour des méthodes de livraison est maintenant gérée par le script
+    // directement dans checkout.html, qui a été ajouté dans une précédente conversation.
+    // Cet appel est conservé pour déclencher la mise à jour du total.
 
     updateCheckoutTotal(); // Mettre à jour le total avec la nouvelle méthode/coût
 }
 
 /**
  * NOUVEAU: Calcule les frais de livraison en fonction de la localité et du sous-total.
- * @param {string} location - La localité de livraison sélectionnée.
+ * @param {string} locationKey - La clé de la localité de livraison sélectionnée (ex: 'dakar_plateau').
  * @param {number} subtotal - Le sous-total de la commande.
  * @returns {number} Le coût de la livraison.
  */
 function getShippingCost(location, subtotal) {
     // Condition pour la livraison gratuite
     const isFreeShippingEligible = subtotal > 10000 && location && location.toLowerCase().includes('dakar');
-    if (isFreeShippingEligible) {
+    if (isFreeShippingEligible) { // La livraison gratuite est prioritaire
         return 0;
     }
 
-    const selectedOptionText = document.getElementById('delivery-method').selectedOptions[0]?.text || '';
-    if (selectedOptionText) {
-        // Utilise une expression régulière pour trouver un nombre dans le texte de l'option.
-        const shippingCostMatch = selectedOptionText.match(/(\d+)/);
-        // Si un nombre est trouvé, on le convertit en nombre, sinon le coût reste 0.
-        return shippingCostMatch ? parseFloat(shippingCostMatch[0]) : 0;
+    const methodSelect = document.getElementById('delivery-method');
+    if (methodSelect && methodSelect.selectedOptions.length > 0) {
+        const selectedOption = methodSelect.selectedOptions[0];
+        // NOUVEAU: Le prix est maintenant stocké dans un attribut `data-price` pour plus de fiabilité.
+        const price = selectedOption.dataset.price;
+        if (price) {
+            return parseFloat(price);
+        }
     }
 
     return 0;
