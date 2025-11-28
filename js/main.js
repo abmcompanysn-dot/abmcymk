@@ -1,6 +1,6 @@
 const CONFIG = {
     // NOUVEAU: URL de l'API CENTRALE qui gère maintenant tout (comptes, commandes, etc.)
-    ACCOUNT_API_URL:"https://script.google.com/macros/s/AKfycby4qxZkYma2oNVVM3BdGeEAd84fDmHbw1Stw6AhKda8cgRI_eZeX5UyuKIACueKZXuzEw/exec",
+    ACCOUNT_API_URL:"https://script.google.com/macros/s/AKfycbxJIYYMJF9s3Khl8SwLLN1SdvzYw9ADCvCwENXPSTWJ2k9iG4NMJpyTqzRjWjUm05vU9g/exec",
     // Les URL spécifiques pour commandes, livraisons et notifications sont maintenant obsolètes
     // car tout est géré par l'API centrale (ACCOUNT_API_URL).
     
@@ -11,6 +11,27 @@ const CONFIG = {
     DEFAULT_PRODUCT_IMAGE: "logo/l.svg",
 };
 
+// NOUVEAU: La configuration de la livraison est maintenant gérée directement ici.
+const DELIVERY_CONFIG = {
+    "locations": {
+        "retrait_magasin": { "label": "Point de retrait (Magasin)", "methods": ["retrait_gratuit"] },
+        "dakar_plateau": { "label": "Dakar - Plateau", "methods": ["standard_dakar", "express_dakar"] },
+        "dakar_ucad": { "label": "Dakar - UCAD", "methods": ["point_relais_etudiant"] },
+        "dakar_esp": { "label": "Dakar - ESP", "methods": ["point_relais_etudiant"] },
+        "dakar_ensept": { "label": "Dakar - ENSEPT", "methods": ["point_relais_etudiant"] },
+        "dakar_rufisque": { "label": "Dakar - Rufisque", "methods": ["standard_rufisque"] },
+        "thies_ville": { "label": "Thiès - Ville", "methods": ["standard_thies"] }
+    },
+    "methods": {
+        "retrait_gratuit": { "label": "Retrait en magasin", "price": 0, "delay": "24h" },
+        "standard_dakar": { "label": "Livraison Standard", "price": 1500, "delay": "24h-48h" },
+        "express_dakar": { "label": "Livraison Express", "price": 2500, "delay": "Moins de 24h" },
+        "point_relais_etudiant": { "label": "Livraison point relais étudiant", "price": 500, "delay": "24h" },
+        "standard_rufisque": { "label": "Livraison Standard", "price": 3000, "delay": "48h" },
+        "standard_thies": { "label": "Livraison Standard", "price": 3500, "delay": "48h-72h" }
+    }
+};
+
 
 // Variables globales pour le chargement progressif de la page d'accueil
 let categoryDirectory = []; // Stocke la liste des catégories et leurs URLs
@@ -19,7 +40,7 @@ let renderedCategoriesCount = 0;
 const CATEGORIES_PER_LOAD = 3;
 
 // NOUVEAU: Variable globale pour stocker la configuration dynamique du site (options de livraison, etc.)
-let siteConfig = { deliveryOptions: {} };
+let siteConfig = { deliveryOptions: DELIVERY_CONFIG }; // Utilise la configuration locale par défaut
 
 // Attendre que le contenu de la page soit entièrement chargé
 document.addEventListener('DOMContentLoaded', () => {
@@ -117,9 +138,8 @@ async function initializeApp() {
           return;
       }
 
-      // NOUVEAU: Stocker les options de livraison récupérées depuis le serveur
-      // (En supposant que votre API les renvoie avec le catalogue)
-      if (catalog.data.deliveryOptions) siteConfig.deliveryOptions = catalog.data.deliveryOptions;
+      // Les options de livraison sont maintenant locales, plus besoin de les charger.
+      // if (catalog.data.deliveryOptions) siteConfig.deliveryOptions = catalog.data.deliveryOptions;
   
       // Remplir les menus et les liens de navigation
       populateCategoryMenu(catalog);

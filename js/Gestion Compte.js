@@ -1848,30 +1848,12 @@ function setupProject() {
   const configMap = new Map(configData.map(row => [row[0], row[1]]));
 
   const defaultConfigValues = {
-    'allowed_origins': 'https://abmcymarket.vercel.app,http://127.0.0.1:5500',
+    'allowed_origins': 'https://abmcymarket.vercel.app,http://127.0.0.1:5500,',
     'allowed_methods': 'POST, GET, OPTIONS',
     'allowed_headers': 'Content-Type, X-Requested-With',
     'allow_credentials': 'true',
-    // NOUVEAU: Structure de livraison mise à jour pour plus de flexibilité.
-    'delivery_options': JSON.stringify({
-        "locations": {
-            "retrait_magasin": { "label": "Point de retrait (Magasin)", "methods": ["retrait_gratuit"] },
-            "dakar_plateau": { "label": "Dakar - Plateau", "methods": ["standard_dakar", "express_dakar"] },
-            "dakar_ucad": { "label": "Dakar - UCAD", "methods": ["point_relais_etudiant"] },
-            "dakar_esp": { "label": "Dakar - ESP", "methods": ["point_relais_etudiant"] },
-            "dakar_ensept": { "label": "Dakar - ENSEPT", "methods": ["point_relais_etudiant"] },
-            "dakar_rufisque": { "label": "Dakar - Rufisque", "methods": ["standard_rufisque"] },
-            "thies_ville": { "label": "Thiès - Ville", "methods": ["standard_thies"] }
-        },
-        "methods": {
-            "retrait_gratuit": { "label": "Retrait en magasin", "price": 0, "delay": "24h" },
-            "standard_dakar": { "label": "Livraison Standard", "price": 1500, "delay": "24h-48h" },
-            "express_dakar": { "label": "Livraison Express", "price": 2500, "delay": "Moins de 24h" },
-            "point_relais_etudiant": { "label": "Livraison point relais étudiant", "price": 500, "delay": "24h" },
-            "standard_rufisque": { "label": "Livraison Standard", "price": 3000, "delay": "48h" },
-            "standard_thies": { "label": "Livraison Standard", "price": 3500, "delay": "48h-72h" }
-        }
-    }),
+    // NOUVEAU: La configuration de livraison est maintenant gérée côté client dans main.js
+    'delivery_options': JSON.stringify({}),
     // 'PAYDUNYA_MASTER_KEY': 'VOTRE_MASTER_KEY',
     // 'PAYDUNYA_PRIVATE_KEY': 'VOTRE_PRIVATE_KEY_TEST_OU_LIVE',
     // 'PAYDUNYA_PUBLIC_KEY': 'VOTRE_PUBLIC_KEY_TEST_OU_LIVE',
@@ -1881,8 +1863,9 @@ function setupProject() {
     'ABMCY_AGGREGATOR_ACTIVE': 'true',
     'ABMCY_PAYMENT_METHODS': JSON.stringify({ // CORRECTION: Uniquement Wave est conservé
         "wave": {
-            "name": "Wave Money",
-            "logo": "https://i.postimg.cc/yY022b72/wave-logo.png"
+            "name": "Wave",
+            "logo": "https://www.wave.com/img/nav-logo.png",
+            "baseUrl": "https://pay.wave.com/m/M_sn_J3jR9Wg9ilPF/c/sn/"
         }
     })
   };
