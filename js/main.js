@@ -48,32 +48,26 @@ const DELIVERY_CONFIG =
     "retrait_gratuit": {
       "label": "Retrait en magasin",
       "price": 0,
-      "delay": "24h"
     },
     "standard_dakar": {
       "label": "Livraison Standard",
       "price": 1500,
-      "delay": "24h-48h"
     },
     "express_dakar": {
       "label": "Livraison Express",
       "price": 2500,
-      "delay": "Moins de 24h"
     },
     "point_relais_etudiant": {
       "label": "Livraison point relais étudiant",
       "price": 500,
-      "delay": "24h"
     },
     "standard_rufisque": {
       "label": "Livraison Standard",
       "price": 3000,
-      "delay": "48h"
     },
     "standard_thies": {
       "label": "Livraison Standard",
       "price": 3500,
-      "delay": "48h-72h"
     }
   }
 }
@@ -1366,6 +1360,7 @@ async function loadPaymentMethods() {
             <img src="https://www.wave.com/static/media/Logo.8a8f13c6.svg" alt="Wave" class="h-6">
             <span class="text-sm font-medium">Wave</span>
         </label>
+        <!--
         <label for="orange-money" class="flex items-center space-x-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-100 has-[:checked]:bg-gold/10 has-[:checked]:border-gold">
             <input type="radio" id="orange-money" name="payment-provider" value="orange-money" class="form-radio h-4 w-4 text-gold focus:ring-gold">
             <img src="https://www.orange-sonatel.com/wp-content/uploads/2022/09/Orange-Money-logo.jpg" alt="Orange Money" class="h-6">
@@ -1376,6 +1371,7 @@ async function loadPaymentMethods() {
             <img src="https://www.freemoney.sn/wp-content/uploads/2023/03/Free-Money-Logo-01.png" alt="Free Money" class="h-6">
             <span class="text-sm font-medium">Free Money</span>
         </label>
+        -->
     `;
 
     mobilePaymentOptionsContainer.innerHTML = optionsHTML;
@@ -1586,8 +1582,11 @@ async function processCheckout(event) {
     const total = subtotal + shippingCost;
 
     // 5. Préparer l'objet de la commande pour le backend en fonction du mode de paiement
-    // NOUVELLE LOGIQUE POUR WAVE
-    if (customerData.paymentMethod === 'mobile-payment-group' && customerData.paymentProvider === 'wave') {
+    // NOUVELLE LOGIQUE POUR L'AGRÉGATEUR ABMCY (WAVE, OM, FREE MONEY)
+    const isAbmcyAggregatorPayment = customerData.paymentMethod === 'mobile-payment-group' && 
+                                     ['wave', 'orange-money', 'free-money'].includes(customerData.paymentProvider);
+
+    if (isAbmcyAggregatorPayment) {
         const action = 'enregistrerCommandeEtNotifier';
         const paymentNote = `Paiement via ${customerData.paymentProvider} (en attente de confirmation manuelle)`;
         const orderPayload = createOrderPayload(action, customerData, cart, total, clientId, clientName);
@@ -1608,7 +1607,7 @@ async function processCheckout(event) {
             localStorage.removeItem('abmcyUserOrders');
 
             // Rediriger immédiatement vers la page de l'agrégateur avec les infos nécessaires
-            const aggregatorUrl = `abmcy-aggregator.html?amount=${total}&provider=wave`;
+            const aggregatorUrl = `abmcy-aggregator.html?amount=${total}&provider=${customerData.paymentProvider}`;
             window.location.href = aggregatorUrl;
 
         } catch (error) {
@@ -1617,17 +1616,9 @@ async function processCheckout(event) {
         }
 
     } else {
-        // --- LOGIQUE EXISTANTE POUR LES AUTRES PAIEMENTS (Paiement à la livraison, Orange Money, etc.) ---
-        let action;
-        let paymentNote;
-
-        if (customerData.paymentMethod === 'mobile-payment-group' && customerData.paymentProvider) {
-            action = 'enregistrerCommandeEtNotifier';
-            paymentNote = `Paiement via ${customerData.paymentProvider} (en attente de confirmation manuelle)`;
-        } else {
-            action = 'enregistrerCommandeEtNotifier';
-            paymentNote = 'Paiement à la livraison';
-        }
+        // --- LOGIQUE EXISTANTE POUR LE PAIEMENT À LA LIVRAISON ---
+        const action = 'enregistrerCommandeEtNotifier';
+        const paymentNote = 'Paiement à la livraison';
 
         const orderPayload = createOrderPayload(action, customerData, cart, total, clientId, clientName);
         orderPayload.data.moyenPaiement = paymentNote;
