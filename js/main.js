@@ -1533,6 +1533,10 @@ async function processCheckout(event) {
     const submitButton = form.querySelector('button[type="submit"]');
     submitButton.disabled = true;
     submitButton.textContent = 'Traitement en cours...';
+
+    // NOUVEAU: Références aux éléments de la modale
+    const aggregatorModal = document.getElementById('aggregator-modal');
+
     statusDiv.textContent = 'Veuillez patienter...';
 
     // NOUVEAU: Récupérer les paramètres de paiement pour vérifier l'activation des agrégateurs
@@ -1545,6 +1549,7 @@ async function processCheckout(event) {
     } catch (error) {
         statusDiv.textContent = `Erreur lors de la récupération des paramètres de paiement: ${error.message}`;
         statusDiv.className = 'mt-4 text-center font-semibold text-red-600'; return;
+        submitButton.disabled = false; submitButton.textContent = 'Valider la commande';
     }
     // 1. Récupérer les données du formulaire
     const selectedPaymentMethodElement = form.querySelector('input[name="payment-method"]:checked');
@@ -1594,12 +1599,65 @@ async function processCheckout(event) {
     let action;
     let paymentNote;
     
-    // NOUVEAU: Logique simplifiée. Si le paiement mobile est sélectionné, on utilise l'agrégateur ABMCY.
+    // NOUVEAU: Logique de paiement améliorée pour intégrer la modale
     if (customerData.paymentMethod === 'mobile-payment-group' && customerData.paymentProvider) {
-        action = 'createAbmcyAggregatorInvoice'; // NOUVEAU: Action pour l'agrégateur ABMCY
-        paymentNote = customerData.paymentProvider;
-    // Sinon, c'est le paiement à la livraison (COD).
+        // --- CAS 1: Paiement Mobile ---
+        // On n'envoie pas tout de suite. On ouvre la modale.
+        statusDiv.textContent = 'Veuillez finaliser le paiement...';
+        statusDiv.className = 'mt-4 text-center font-semibold text-gray-600';
+        
+        // Afficher le total dans la modale
+        document.getElementById('modal-order-total').textContent = `${total.toLocaleString('fr-FR')} F CFA`;
+        
+        // Afficher la modale
+        aggregatorModal.classList.remove('hidden');
+
+        // Gérer l'annulation
+        document.getElementById('cancel-payment-btn').onclick = () => {
+            aggregatorModal.classList.add('hidden');
+            submitButton.disabled = false;
+            submitButton.textContent = 'Valider la commande';
+            statusDiv.textContent = '';
+        };
+
+        // Gérer la soumission de la modale
+        document.getElementById('modal-wave-form').onsubmit = async (e) => {
+            e.preventDefault();
+            const modalPayButton = document.getElementById('modal-pay-button');
+            const modalStatus = document.getElementById('modal-form-status');
+
+            modalPayButton.disabled = true;
+            modalPayButton.textContent = 'Traitement...';
+            modalStatus.textContent = 'Création de la commande...';
+            modalStatus.className = 'text-sm font-semibold text-gray-600';
+
+            // Maintenant on peut construire le payload et l'envoyer au backend
+            const orderPayload = createOrderPayload('createAbmcyAggregatorInvoice', customerData, cart, total, clientId, clientName);
+            
+            // Ajouter les infos de l'expéditeur de la modale
+            orderPayload.data.senderName = document.getElementById('modal-sender-name').value;
+            orderPayload.data.senderPhone = document.getElementById('modal-sender-phone').value;
+
+            try {
+                const result = await sendOrderToBackend(orderPayload);
+                // Si succès, on ouvre Wave et on redirige vers la confirmation
+                modalStatus.textContent = 'La page de paiement Wave s\'ouvre...';
+                modalStatus.className = 'text-sm font-semibold text-green-600';
+                window.open(result.payment_url, '_blank'); // Ouvre Wave dans un nouvel onglet
+                
+                // Redirection vers la page de confirmation
+                setTimeout(() => {
+                    window.location.href = `confirmation.html?orderId=${result.orderId}`;
+                }, 2000); // Court délai pour que l'utilisateur voie le message
+
+            } catch (error) {
+                handleCheckoutError(error, modalStatus, modalPayButton, 'Payer');
+            }
+        };
+        return; // Arrêter l'exécution de processCheckout ici, car on attend l'interaction avec la modale.
+
     } else {
+        // --- CAS 2: Paiement à la livraison ---
         action = 'enregistrerCommandeEtNotifier'; // Paiement à la livraison
         paymentNote = 'Paiement à la livraison';
         // // Ancien code pour Paydunya, conservé en commentaire pour référence
@@ -1609,32 +1667,59 @@ async function processCheckout(event) {
         // }
     }
 
+    const orderPayload = createOrderPayload(action, customerData, cart, total, clientId, clientName);
+
+    // 6. Envoyer la commande à l'API centrale
+    try {
+        const result = await sendOrderToBackend(orderPayload);
+        statusDiv.className = 'mt-4 text-center font-semibold text-green-600';
+        statusDiv.textContent = `Commande #${result.id} enregistrée avec succès ! Vous allez être redirigé.`;
+        saveCart([]); // Vider le panier
+        localStorage.removeItem('abmcyUserOrders'); // Invalider le cache
+        setTimeout(() => {
+            window.location.href = `confirmation.html?orderId=${result.id}`;
+        }, 3000);
+    } catch (error) {
+        handleCheckoutError(error, statusDiv, submitButton, 'Valider la commande');
+    }
+}
+
+/**
+ * NOUVEAU: Fonction centralisée pour créer le payload de la commande.
+ * @param {string} action - L'action à effectuer par le backend.
+ * @param {object} customerData - Données du client.
+ * @param {Array} cart - Le panier.
+ * @param {number} total - Le montant total.
+ * @param {string} clientId - L'ID du client.
+ * @param {string} clientName - Le nom du client.
+ * @returns {object} Le payload complet de la commande.
+ */
+function createOrderPayload(action, customerData, cart, total, clientId, clientName) {
+    let paymentNote = customerData.paymentMethod === 'cod' ? 'Paiement à la livraison' : customerData.paymentProvider;
+
     const orderPayload = {
         action: action,
         data: {
             idClient: clientId,
-            // NOUVEAU: Enrichir le nom du produit avec les variantes sélectionnées
             produits: cart.map(item => {
                 let finalName = item.name;
-                // Vérifier s'il y a des variantes et qu'elles ne sont pas vides
                 if (item.variants && Object.keys(item.variants).length > 0) {
                     const variantString = Object.entries(item.variants)
                         .map(([key, value]) => `${key}: ${value}`)
                         .join(', ');
-                    finalName += ` (${variantString})`; // Ex: "T-shirt (Taille: M, Couleur: Bleu)"
+                    finalName += ` (${variantString})`;
                 }
-                return { name: finalName, quantity: item.quantity, price: item.price, productId: item.productId, delaiLivraison: item.delaiLivraison }; // NOUVEAU: Ajout du délai
+                return { name: finalName, quantity: item.quantity, price: item.price, productId: item.productId, delaiLivraison: item.delaiLivraison };
             }),
             adresseLivraison: `${customerData.address}, ${customerData.location}`,
             total: total,
-            moyenPaiement: paymentNote, // NOUVEAU: Ajout des infos client pour Paydunya
-            paymentProvider: customerData.paymentProvider, // CORRECTION: Utiliser le fournisseur final
-            customer: { // NOUVEAU: Ajout des infos client pour Paydunya/ABMCY Aggregator
+            moyenPaiement: paymentNote,
+            paymentProvider: customerData.paymentProvider,
+            customer: {
                 name: clientName,
                 email: customerData.email,
                 phone: customerData.phone
             },
-            // AMÉLIORATION: Enrichir les notes pour l'admin avec toutes les infos client.
             notes: `[INFO CLIENT POUR L'ADMIN]
 Nom: ${clientName}
 Email: ${customerData.email}
@@ -1644,67 +1729,43 @@ Note du client: ${customerData.notes || 'Aucune'}`.trim()
         }
     };
 
-    // 6. Envoyer la commande à l'API centrale
-    // NOUVEAU: Un seul appel à l'API centrale
+    return orderPayload;
+}
+
+/**
+ * NOUVEAU: Fonction pour envoyer le payload de la commande au backend.
+ * @param {object} payload - Le payload de la commande.
+ * @returns {Promise<object>} La réponse du serveur.
+ */
+async function sendOrderToBackend(payload) {
     try {
         const response = await fetch(CONFIG.ACCOUNT_API_URL, {
             method: 'POST',
-            headers: { 'Content-Type': 'text/plain' }, // Utiliser text/plain pour éviter le preflight
-            body: JSON.stringify(orderPayload)
+            headers: { 'Content-Type': 'text/plain' },
+            body: JSON.stringify(payload)
         });
         const result = await response.json();
 
         if (result.success) {
-            statusDiv.className = 'mt-4 text-center font-semibold text-green-600';
-            saveCart([]); // Vider le panier après la commande
-
-            // CORRECTION: La redirection se fait si ce n'est pas un paiement à la livraison
-            if (action !== 'enregistrerCommandeEtNotifier') {
-                statusDiv.textContent = `Facture créée. Redirection vers la page de paiement...`;
-                localStorage.removeItem('abmcyUserOrders'); // Invalider le cache des commandes
-                // Rediriger l'utilisateur vers l'URL de paiement de l'agrégateur
-                window.location.href = result.payment_url;
-            } else {
-                statusDiv.textContent = `Commande #${result.id} enregistrée avec succès ! Vous allez être redirigé.`;
-                // Rediriger vers la page de confirmation pour le paiement à la livraison
-                localStorage.removeItem('abmcyUserOrders'); // Invalider le cache des commandes
-                setTimeout(() => {
-                    window.location.href = `confirmation.html?orderId=${result.id}`;
-                }, 3000);
-            }
+            saveCart([]); // Vider le panier uniquement en cas de succès
+            localStorage.removeItem('abmcyUserOrders'); // Invalider le cache
+            return result;
         } else {
             throw new Error(result.error || "Une erreur inconnue est survenue.");
         }
     } catch (error) {
-        let userFriendlyMessage;
-
-        // NOUVEAU: Logique améliorée pour gérer l'indisponibilité du paiement en ligne
-        if (action !== 'enregistrerCommandeEtNotifier' && error.message.includes("indisponible")) {
-            userFriendlyMessage = "Le paiement en ligne est indisponible. La commande a été automatiquement basculée en 'Paiement à la livraison'. Veuillez valider à nouveau.";
-            
-            // Sélectionner automatiquement le paiement à la livraison
-            const codRadio = document.getElementById('cod');
-            if (codRadio) codRadio.checked = true;
-            
-            // Cacher le choix du paiement mobile pour éviter la confusion
-            const mobileMoneyLabel = document.getElementById('mobile-money-label');
-            if (mobileMoneyLabel) mobileMoneyLabel.style.display = 'none';
-
-            // Réactiver le bouton pour que l'utilisateur puisse re-valider en COD
-            submitButton.disabled = false;
-            submitButton.textContent = 'Valider en Paiement à la livraison';
-        } else {
-            userFriendlyMessage = `Erreur: ${error.message}. Veuillez réessayer ou contacter le support.`;
-        }
-        // Autres erreurs inattendues
-        // statusDiv.textContent = `Erreur lors de la commande: ${error.message}`; // Pour le débogage, on pourrait laisser le message technique ici
-        statusDiv.textContent = userFriendlyMessage;
-        statusDiv.className = 'mt-4 text-center font-semibold text-red-600';
-        if (!submitButton.disabled) { // Ne pas réactiver si on a déjà géré le cas COD
-            submitButton.disabled = false;
-            submitButton.textContent = 'Valider la commande';
-        }
+        throw error; // Propage l'erreur pour qu'elle soit gérée par la fonction appelante
     }
+}
+
+/**
+ * NOUVEAU: Gère l'affichage des erreurs sur la page de paiement.
+ */
+function handleCheckoutError(error, statusDiv, submitButton, buttonText) {
+    statusDiv.textContent = `Erreur: ${error.message}. Veuillez réessayer ou contacter le support.`;
+    statusDiv.className = 'mt-4 text-center font-semibold text-red-600';
+    submitButton.disabled = false;
+    submitButton.textContent = buttonText;
 }
 
 /**

@@ -159,6 +159,38 @@
         <p>&copy; 2024 ABMCY MARKET. <a href="politique-confidentialite.html" class="underline">Politique de confidentialité</a></p>
     </footer>
 
+    <!-- NOUVEAU: Fenêtre modale pour l'agrégateur de paiement -->
+    <div id="aggregator-modal" class="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white p-8 rounded-lg shadow-xl w-full max-w-md text-center">
+            <div class="flex items-center justify-center mb-4">
+                <img src="https://www.wave.com/img/nav-logo.png" alt="Wave" class="h-8">
+            </div>
+            <h2 class="text-2xl font-bold text-gray-800 mb-2">Finaliser le paiement</h2>
+            <p class="text-gray-600 mb-6">Entrez vos informations pour ouvrir la page de paiement Wave.</p>
+            
+            <div class="bg-gray-50 p-4 rounded-md mb-6 border">
+                <p class="text-sm text-gray-500">Montant à payer</p>
+                <p id="modal-order-total" class="text-3xl font-bold text-gold my-1">0 F CFA</p>
+            </div>
+
+            <form id="modal-wave-form" class="space-y-4 text-left">
+                <div>
+                    <label for="modal-sender-name" class="block text-sm font-medium text-gray-700">Votre nom complet (expéditeur)</label>
+                    <input type="text" id="modal-sender-name" required placeholder="Ex: Mariama Diallo" class="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-gold focus:border-gold">
+                </div>
+                <div>
+                    <label for="modal-sender-phone" class="block text-sm font-medium text-gray-700">Votre numéro de téléphone Wave</p>
+                    <input type="tel" id="modal-sender-phone" required placeholder="Ex: 771234567" class="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-gold focus:border-gold">
+                </div>
+                <div class="flex gap-4 pt-4">
+                    <button type="button" id="cancel-payment-btn" class="w-full bg-gray-200 text-gray-800 font-bold py-3 px-4 rounded-lg hover:bg-gray-300 transition">Annuler</button>
+                    <button type="submit" id="modal-pay-button" class="w-full bg-blue-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-600 transition">Payer</button>
+                </div>
+            </form>
+            <div id="modal-form-status" class="mt-4 text-sm font-semibold"></div>
+        </div>
+    </div>
+
     <script src="js/main.js"></script>
 
     <!-- NOUVEAU: Script pour la logique de la page de paiement -->
