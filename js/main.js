@@ -12,27 +12,71 @@ const CONFIG = {
 };
 
 // NOUVEAU: La configuration de la livraison est maintenant gérée directement ici.
-const DELIVERY_CONFIG = {
-    "locations": {
-        "retrait_magasin": { "label": "Point de retrait (Magasin)", "methods": ["retrait_gratuit"] },
-        "dakar_plateau": { "label": "Dakar - Plateau", "methods": ["standard_dakar", "express_dakar"] },
-        "dakar_ucad": { "label": "Dakar - UCAD", "methods": ["point_relais_etudiant"] },
-        "dakar_esp": { "label": "Dakar - ESP", "methods": ["point_relais_etudiant"] },
-        "dakar_ensept": { "label": "Dakar - ENSEPT", "methods": ["point_relais_etudiant"] },
-        "dakar_rufisque": { "label": "Dakar - Rufisque", "methods": ["standard_rufisque"] },
-        "thies_ville": { "label": "Thiès - Ville", "methods": ["standard_thies"] }
+const DELIVERY_CONFIG = 
+    {
+  "locations": {
+    "retrait_magasin": {
+      "label": "Point de retrait (Magasin)",
+      "methods": ["retrait_gratuit"]
     },
-    "methods": {
-        "retrait_gratuit": { "label": "Retrait en magasin", "price": 0, "delay": "24h" },
-        "standard_dakar": { "label": "Livraison Standard", "price": 1500, "delay": "24h-48h" },
-        "express_dakar": { "label": "Livraison Express", "price": 2500, "delay": "Moins de 24h" },
-        "point_relais_etudiant": { "label": "Livraison point relais étudiant", "price": 500, "delay": "24h" },
-        "standard_rufisque": { "label": "Livraison Standard", "price": 3000, "delay": "48h" },
-        "standard_thies": { "label": "Livraison Standard", "price": 3500, "delay": "48h-72h" }
+    "dakar_plateau": {
+      "label": "Dakar - Plateau",
+      "methods": ["standard_dakar", "express_dakar"]
+    },
+    "dakar_ucad": {
+      "label": "Dakar - UCAD",
+      "methods": ["point_relais_etudiant"]
+    },
+    "dakar_esp": {
+      "label": "Dakar - ESP",
+      "methods": ["point_relais_etudiant"]
+    },
+    "dakar_ensept": {
+      "label": "Dakar - ENSEPT",
+      "methods": ["point_relais_etudiant"]
+    },
+    "dakar_rufisque": {
+      "label": "Dakar - Rufisque",
+      "methods": ["standard_rufisque"]
+    },
+    "thies_ville": {
+      "label": "Thiès - Ville",
+      "methods": ["standard_thies"]
     }
-};
-
-
+  },
+  "methods": {
+    "retrait_gratuit": {
+      "label": "Retrait en magasin",
+      "price": 0,
+      "delay": "24h"
+    },
+    "standard_dakar": {
+      "label": "Livraison Standard",
+      "price": 1500,
+      "delay": "24h-48h"
+    },
+    "express_dakar": {
+      "label": "Livraison Express",
+      "price": 2500,
+      "delay": "Moins de 24h"
+    },
+    "point_relais_etudiant": {
+      "label": "Livraison point relais étudiant",
+      "price": 500,
+      "delay": "24h"
+    },
+    "standard_rufisque": {
+      "label": "Livraison Standard",
+      "price": 3000,
+      "delay": "48h"
+    },
+    "standard_thies": {
+      "label": "Livraison Standard",
+      "price": 3500,
+      "delay": "48h-72h"
+    }
+  }
+}
 // Variables globales pour le chargement progressif de la page d'accueil
 let categoryDirectory = []; // Stocke la liste des catégories et leurs URLs
 let allLoadedProducts = []; // Stocke tous les produits déjà chargés
@@ -1640,15 +1684,19 @@ async function processCheckout(event) {
 
             try {
                 const result = await sendOrderToBackend(orderPayload);
-                // Si succès, on ouvre Wave et on redirige vers la confirmation
-                modalStatus.textContent = 'La page de paiement Wave s\'ouvre...';
-                modalStatus.className = 'text-sm font-semibold text-green-600';
-                window.open(result.payment_url, '_blank'); // Ouvre Wave dans un nouvel onglet
-                
-                // Redirection vers la page de confirmation
-                setTimeout(() => {
-                    window.location.href = `confirmation.html?orderId=${result.orderId}`;
-                }, 2000); // Court délai pour que l'utilisateur voie le message
+                if (result && result.payment_url) {
+                    // Si succès, on ouvre Wave et on redirige vers la confirmation
+                    modalStatus.textContent = 'La page de paiement Wave s\'ouvre...';
+                    modalStatus.className = 'text-sm font-semibold text-green-600';
+                    window.open(result.payment_url, '_blank'); // Ouvre Wave dans un nouvel onglet
+                    
+                    // Redirection vers la page de confirmation
+                    setTimeout(() => {
+                        window.location.href = `confirmation.html?orderId=${result.orderId}`;
+                    }, 2000); // Court délai pour que l'utilisateur voie le message
+                } else {
+                    throw new Error("La réponse du serveur ne contient pas d'URL de paiement.");
+                }
 
             } catch (error) {
                 handleCheckoutError(error, modalStatus, modalPayButton, 'Payer');
