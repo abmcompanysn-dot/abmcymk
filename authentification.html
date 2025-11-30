@@ -17,10 +17,39 @@
         .font-montserrat { font-family: 'Montserrat', sans-serif; }
         .dropdown:hover .dropdown-menu { display: block; }
         .dropdown-menu { display: none; }
+
+        /* NOUVEAU: Ambiance de Noël */
+        .christmas-hat {
+            position: absolute;
+            top: -15px;
+            left: -10px;
+            width: 50px;
+            height: auto;
+            transform: rotate(-15deg);
+            pointer-events: none; /* Pour que le lien du logo reste cliquable */
+            z-index: 10;
+        }
+        @keyframes fall {
+            0% { transform: translateY(-100%) translateX(0); }
+            100% { transform: translateY(100vh) translateX(5vw); }
+        }
+        .snowflake {
+            position: fixed;
+            top: -10%;
+            width: 5px;
+            height: 5px;
+            background: white;
+            border-radius: 50%;
+            opacity: 0.6;
+            animation: fall linear infinite;
+            pointer-events: none;
+            z-index: 100;
+        }
     </style>
 </head>
 <body class="bg-gray-100 font-montserrat">
-
+    <!-- NOUVEAU: Animation de neige -->
+    <div id="snow-container"></div>
     <!-- NOUVEAU: Conteneur sticky pour l'en-tête et la navigation -->
     <div class="sticky top-0 z-40 bg-white shadow-md">
         <!-- Header -->
@@ -28,9 +57,12 @@
             <div class="container mx-auto px-4 py-2">
                 <div class="flex items-center justify-between">
                     <!-- Logo -->
-                    <a href="index.html" class="flex items-center">
-                        <img src="logo/l.svg" alt="ABMCY MARKET Logo" class="h-10">
-                    </a>
+                    <div class="relative">
+                        <a href="index.html" class="flex items-center">
+                            <img src="logo/l.svg" alt="ABMCY MARKET Logo" class="h-10">
+                        </a>
+                        <img src="https://i.postimg.cc/NMyQcMv3/pngegg.png" alt="Bonnet de Noël" class="christmas-hat">
+                    </div>
 
                     <!-- Barre de recherche -->
                     <div class="flex-1 mx-4 relative">

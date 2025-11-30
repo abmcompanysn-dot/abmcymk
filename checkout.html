@@ -9,16 +9,48 @@
     <style>
         :root { --gold-color: #D4AF37; }
         .font-montserrat { font-family: 'Montserrat', sans-serif; }
+
+        /* NOUVEAU: Ambiance de Noël */
+        .christmas-hat {
+            position: absolute;
+            top: -15px;
+            left: -10px;
+            width: 50px;
+            height: auto;
+            transform: rotate(-15deg);
+            pointer-events: none; /* Pour que le lien du logo reste cliquable */
+            z-index: 10;
+        }
+        @keyframes fall {
+            0% { transform: translateY(-100%) translateX(0); }
+            100% { transform: translateY(100vh) translateX(5vw); }
+        }
+        .snowflake {
+            position: fixed;
+            top: -10%;
+            width: 5px;
+            height: 5px;
+            background: white;
+            border-radius: 50%;
+            opacity: 0.6;
+            animation: fall linear infinite;
+            pointer-events: none;
+            z-index: 100;
+        }
     </style>
 </head>
 <body class="bg-gray-100 font-montserrat">
-
+    <!-- NOUVEAU: Animation de neige -->
+    <div id="snow-container"></div>
     <!-- Header Simplifié -->
     <header class="bg-white shadow-sm">
         <div class="container mx-auto px-4 py-4 flex justify-between items-center">
-            <a href="index.html" class="flex items-center">
-                <img src="logo/l.svg" alt="ABMCY MARKET Logo" class="h-8">
-            </a>
+            <div class="relative">
+                <a href="index.html" class="flex items-center">
+                    <img src="logo/l.svg" alt="ABMCY MARKET Logo" class="h-8">
+                </a>
+                <img src="https://i.postimg.cc/NMyQcMv3/pngegg.png" alt="Bonnet de Noël" class="christmas-hat" style="width: 40px; top: -12px; left: -8px;">
+            </div>
             <div class="flex items-center space-x-2 text-sm text-gray-500">
                 <svg class="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"></path></svg>
                 <span>Paiement sécurisé</span>

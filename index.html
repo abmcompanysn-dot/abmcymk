@@ -88,11 +88,41 @@
             display: none; /* Chrome, Safari and Opera */
         }
         /* NOUVEAU: Style pour l'affichage décalé des produits sur mobile */
+
+        /* NOUVEAU: Ambiance de Noël */
+        .christmas-hat {
+            position: absolute;
+            top: -15px;
+            left: -10px;
+            width: 50px;
+            height: auto;
+            transform: rotate(-15deg);
+            pointer-events: none; /* Pour que le lien du logo reste cliquable */
+            z-index: 10;
+        }
+        @keyframes fall {
+            0% { transform: translateY(-100%) translateX(0); }
+            100% { transform: translateY(100vh) translateX(5vw); }
+        }
+        .snowflake {
+            position: fixed;
+            top: -10%;
+            width: 5px;
+            height: 5px;
+            background: white;
+            border-radius: 50%;
+            opacity: 0.6;
+            animation: fall linear infinite;
+            pointer-events: none;
+            z-index: 100;
+        }
     </style>
 </head>
 <body class="bg-gray-50 font-montserrat">
+    <!-- NOUVEAU: Animation de neige -->
+    <div id="snow-container"></div>
     <!-- NOUVEAU: Bandeau d'appel à l'action en haut de page -->
-    <div class="bg-gold text-black text-center py-2 font-semibold text-sm">
+    <div class="bg-red-600 text-white text-center py-2 font-semibold text-sm">
         <a href="tel:+221769047999" class="flex items-center justify-center gap-2">
             <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z"></path></svg>
             Appelez pour commander : +221 76 904 79 99
@@ -105,9 +135,12 @@
             <div class="container mx-auto px-4 py-2">
                 <div class="flex items-center justify-between">
                     <!-- Logo -->
-                    <a href="index.html" class="flex items-center">
-                        <img src="logo/l.svg" alt="ABMCY MARKET Logo" class="h-10">
-                    </a>
+                    <div class="relative">
+                        <a href="index.html" class="flex items-center">
+                            <img src="logo/l.svg" alt="ABMCY MARKET Logo" class="h-10">
+                        </a>
+                        <img src="https://i.postimg.cc/NMyQcMv3/pngegg.png" alt="Bonnet de Noël" class="christmas-hat">
+                    </div>
 
                     <!-- NOUVEAU: Bouton d'aide (WhatsApp) -->
                     <a href="https://wa.me/221769047999" target="_blank" rel="noopener noreferrer" class="flex flex-col items-center text-gray-600 hover:text-gold transition ml-4">
