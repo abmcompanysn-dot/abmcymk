@@ -116,6 +116,28 @@
             pointer-events: none;
             z-index: 100;
         }
+
+        /* NOUVEAU: Styles pour le compte à rebours de Noël */
+        #christmas-promo-countdown {
+            background: linear-gradient(45deg, #c8102e, #a41e34); /* Dégradé de rouges festifs */
+        }
+        .countdown-item {
+            min-width: 80px;
+        }
+        .countdown-number {
+            font-size: 2.5rem;
+            line-height: 1.1;
+            font-weight: 700;
+            color: white;
+            text-shadow: 1px 1px 3px rgba(0,0,0,0.2);
+        }
+        .countdown-label {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
     </style>
 </head>
 <body class="bg-gray-50 font-montserrat">
@@ -209,6 +231,32 @@
             <a href="#superdeals-products" class="bg-gold text-black px-6 py-2 md:px-8 md:py-3 rounded-lg font-semibold hover:bg-yellow-300 transition text-base md:text-lg">
                 Voir les SuperDeals
             </a>
+        </div>
+    </section>
+
+    <!-- NOUVEAU: Section Compte à Rebours de Noël -->
+    <section id="christmas-promo-countdown" class="py-8 text-white text-center">
+        <div class="container mx-auto px-4">
+            <h2 class="text-3xl font-extrabold mb-2">Offres Exclusives de Noël</h2>
+            <p class="mb-6 text-lg opacity-90">Ne manquez pas nos réductions, ça se termine dans :</p>
+            <div id="countdown-timer" class="flex justify-center items-center space-x-4 md:space-x-8">
+                <div class="countdown-item">
+                    <div id="days" class="countdown-number">00</div>
+                    <div class="countdown-label">Jours</div>
+                </div>
+                <div class="countdown-item">
+                    <div id="hours" class="countdown-number">00</div>
+                    <div class="countdown-label">Heures</div>
+                </div>
+                <div class="countdown-item">
+                    <div id="minutes" class="countdown-number">00</div>
+                    <div class="countdown-label">Min</div>
+                </div>
+                <div class="countdown-item">
+                    <div id="seconds" class="countdown-number">00</div>
+                    <div class="countdown-label">Sec</div>
+                </div>
+            </div>
         </div>
     </section>
 

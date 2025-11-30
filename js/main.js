@@ -160,6 +160,8 @@ async function initializeApp() {
     if (document.getElementById('countdown')) {
         startCountdown(); // Le compte à rebours est indépendant.
     }
+    
+    initializeChristmasCountdown(); // NOUVEAU: Appel de la fonction du compte à rebours de Noël
 
     // NOUVEAU: Optimisation pour la page d'authentification.
     // On ne charge pas le catalogue complet sur cette page pour la rendre plus rapide.
@@ -870,6 +872,57 @@ function displayPromotionProducts(catalog) {
         resultsCount.textContent = `Erreur lors du chargement des promotions.`;
         resultsContainer.innerHTML = `<p class="col-span-full text-center text-red-500">Impossible de charger les promotions.</p>`;
     }
+}
+
+/**
+ * NOUVEAU: Initialise et met à jour le compte à rebours de Noël.
+ */
+function initializeChristmasCountdown() {
+    // Sélectionne les éléments HTML du compte à rebours
+    const daysEl = document.getElementById('days');
+    const hoursEl = document.getElementById('hours');
+    const minutesEl = document.getElementById('minutes');
+    const secondsEl = document.getElementById('seconds');
+    const countdownContainer = document.getElementById('christmas-promo-countdown');
+
+    // Si le conteneur du compte à rebours n'existe pas sur la page, on arrête.
+    if (!countdownContainer) {
+        return;
+    }
+
+    // Définissez ici la date de fin de votre promotion.
+    // Format : "Mois Jour, Année Heure:Minute:Seconde"
+    // Par exemple, pour le 25 Décembre 2024 à 23:59:59
+    const countdownDate = new Date("Dec 25, 2024 23:59:59").getTime();
+
+    // Met à jour le compte à rebours toutes les secondes
+    const interval = setInterval(() => {
+        const now = new Date().getTime();
+        const distance = countdownDate - now;
+
+        // Si le compte à rebours est terminé
+        if (distance < 0) {
+            clearInterval(interval);
+            countdownContainer.innerHTML = '<div class="container mx-auto px-4"><h2 class="text-3xl font-extrabold">Les offres de Noël sont terminées !</h2></div>';
+            return;
+        }
+
+        // Calculs pour les jours, heures, minutes et secondes
+        const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+        // Fonction pour formater les nombres (ajoute un 0 si < 10)
+        const formatTime = (time) => time < 10 ? `0${time}` : time;
+
+        // Affiche les résultats dans les éléments HTML
+        daysEl.innerHTML = formatTime(days);
+        hoursEl.innerHTML = formatTime(hours);
+        minutesEl.innerHTML = formatTime(minutes);
+        secondsEl.innerHTML = formatTime(seconds);
+
+    }, 1000);
 }
 
 // --- LOGIQUE DE LA PAGE PRODUIT ---
