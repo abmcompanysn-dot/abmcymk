@@ -221,19 +221,27 @@ function initializeBannerTextAnimation() {
     }
 
     const phrases = [
-        {
-            main: "Achetez avec sens — chaque produit est une mission.",
-            sub: "Jëfandikoo ak xel — benn lu nekk mooy yoon."
-        },
-        {
-            main: "La qualité exceptionnelle, livrée à votre porte.",
-            sub: "Kalite gu mucc ayib, ci sa bunt kërug."
-        },
-        {
-            main: "Découvrez des trésors uniques, chaque jour.",
-            sub: "Gisal ay pokotaan yu amul moroom, bés bu nekk."
-        }
-    ];
+    {
+        main: "Célébrez la magie des fêtes avec nous.",
+        sub: "Sàmmal xew-xew yu mag yi ak nun."
+    },
+    {
+        main: "Des cadeaux qui illuminent vos moments.",
+        sub: "Ay sàngu yi di leer seen jamono."
+    },
+    {
+        main: "Partagez la joie, chaque sourire compte.",
+        sub: "Seddoo mbég, benn gëstu mooy am solo."
+    },
+    {
+        main: "Un Nouvel An rempli de promesses.",
+        sub: "At bu bees bu fees ak ndam."
+    },
+    {
+        main: "La chaleur des fêtes, livrée à votre cœur.",
+        sub: "Tànk yu xew-xew yi, ci sa xol."
+    }
+];;
 
     let currentIndex = 0;
 
