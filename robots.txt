@@ -3,4 +3,4 @@ User-agent: *
 Allow: /
 
 # Indique l'emplacement du sitemap.
-Sitemap: https://script.google.com/macros/s/AKfycbw6Y2VBKFXli2aMvbfCaWeMx0Ws29axaG3BIm2oMiFh1-qpc-hkSRIcrQbQ0JmXRQFB/exec?action=getSitemap
+Sitemap: https://abmcymarket.abmcy.com/sitemap.xml

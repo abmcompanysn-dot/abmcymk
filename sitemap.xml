@@ -3,7 +3,7 @@
 
     <!-- Page d'accueil -->
     <url>
-        <loc>https://abmcymarket.abmcy.com/index.html</loc>
+        <loc>https://abmcymarket.abmcy.com/</loc>
         <lastmod>2024-01-01</lastmod> <!-- Mettez à jour cette date -->
         <changefreq>daily</changefreq>
         <priority>1.0</priority>
@@ -16,7 +16,7 @@
         Voici un exemple pour un produit.
     -->
     <url>
-        <loc>https://abmcymarket.abmcy.com/produit.html?id=exemple-produit-1</loc>
+        <loc>https://abmcymarket.abmcy.com/produit?id=exemple-produit-1</loc>
         <lastmod>2024-01-01</lastmod>
         <changefreq>weekly</changefreq>
         <priority>0.9</priority>
@@ -28,7 +28,7 @@
         pour CHAQUE page de catégorie.
     -->
     <!-- <url>
-        <loc>https://abmcymarket.abmcy.com/categorie.html?nom=electronique</loc>
+        <loc>https://abmcymarket.abmcy.com/categorie?nom=electronique</loc>
         <lastmod>2024-01-01</lastmod>
         <changefreq>weekly</changefreq>
         <priority>0.8</priority>
@@ -36,27 +36,27 @@
 
     <!-- Autres pages importantes -->
     <url>
-        <loc>https://abmcymarket.abmcy.com/panier.html</loc>
+        <loc>https://abmcymarket.abmcy.com/panier</loc>
         <changefreq>monthly</changefreq>
         <priority>0.5</priority>
     </url>
     <url>
-        <loc>https://abmcymarket.abmcy.com/authentification.html</loc>
+        <loc>https://abmcymarket.abmcy.com/authentification</loc>
         <changefreq>yearly</changefreq>
         <priority>0.4</priority>
     </url>
     <url>
-        <loc>https://abmcymarket.abmcy.com/suivi-commande.html</loc>
+        <loc>https://abmcymarket.abmcy.com/suivi-commande</loc>
         <changefreq>monthly</changefreq>
         <priority>0.7</priority>
     </url>
     <url>
-        <loc>https://abmcymarket.abmcy.com/politique-retour.html</loc>
+        <loc>https://abmcymarket.abmcy.com/politique-retour</loc>
         <changefreq>yearly</changefreq>
         <priority>0.3</priority>
     </url>
     <url>
-        <loc>https://abmcymarket.abmcy.com/politique-confidentialite.html</loc>
+        <loc>https://abmcymarket.abmcy.com/politique-confidentialite</loc>
         <changefreq>yearly</changefreq>
         <priority>0.3</priority>
     </url>
