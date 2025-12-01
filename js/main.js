@@ -23,16 +23,40 @@ const DELIVERY_CONFIG =
       "label": "Dakar - Plateau",
       "methods": ["standard_dakar", "express_dakar"]
     },
+    "dakar_medina": {
+      "label": "Dakar - Médina",
+      "methods": ["standard_dakar", "express_dakar"]
+    },
+    "dakar_grand_yoff": {
+      "label": "Dakar - Grand Yoff",
+      "methods": ["standard_dakar", "express_dakar"]
+    },
+    "dakar_parcelles": {
+      "label": "Dakar - Parcelles Assainies",
+      "methods": ["standard_dakar", "express_dakar"]
+    },
+    "dakar_almadies": {
+      "label": "Dakar - Almadies",
+      "methods": ["standard_dakar", "express_dakar"]
+    },
     "dakar_ucad": {
       "label": "Dakar - UCAD",
       "methods": ["point_relais_etudiant"]
     },
     "dakar_esp": {
-      "label": "Dakar - ESP",
+      "label": "Dakar - ESP (Ex-ENSUT)",
       "methods": ["point_relais_etudiant"]
     },
     "dakar_ensept": {
       "label": "Dakar - ENSEPT",
+      "methods": ["point_relais_etudiant"]
+    },
+    "dakar_ism": {
+      "label": "Dakar - ISM",
+      "methods": ["point_relais_etudiant"]
+    },
+    "dakar_supdeco": {
+      "label": "Dakar - Sup de Co",
       "methods": ["point_relais_etudiant"]
     },
     "dakar_rufisque": {
@@ -1572,12 +1596,8 @@ function updateDeliveryMethodsCheckout() {
  * @returns {number} Le coût de la livraison.
  */
 function getShippingCost(location, subtotal) {
-    // Condition pour la livraison gratuite
-    const isFreeShippingEligible = subtotal > 10000 && location && location.toLowerCase().includes('dakar');
-    if (isFreeShippingEligible) { // La livraison gratuite est prioritaire
-        return 0;
-    }
-
+    // La condition de livraison gratuite pour les commandes > 10000 F a été retirée.
+    
     const methodSelect = document.getElementById('delivery-method');
     if (methodSelect && methodSelect.selectedOptions.length > 0) {
         const selectedOption = methodSelect.selectedOptions[0];
