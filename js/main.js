@@ -3266,19 +3266,20 @@ async function loadFavoriteProducts() {
 async function initializeConfirmationPage() {
     const params = new URLSearchParams(window.location.search);
     const orderId = params.get('orderId');
-    const orderIdElement = document.getElementById('order-id');
+    const orderNumberElement = document.getElementById('order-number'); // CORRECTION: Utiliser le bon ID
     const orderDetailsContainer = document.getElementById('order-details');
     const countdownContainer = document.getElementById('payment-countdown');
-    const errorMessageContainer = document.getElementById('error-message');
     
-    if (!orderId || !orderIdElement || !orderDetailsContainer || !errorMessageContainer) {
-        if (errorMessageContainer) errorMessageContainer.innerHTML = '<p class="text-red-600 font-bold">Erreur: Impossible d\'initialiser la page de confirmation.</p>';
-        if (orderIdElement) orderIdElement.textContent = 'Non disponible';
+    // Si l'un des éléments principaux est manquant, on ne fait rien.
+    if (!orderNumberElement || !orderDetailsContainer || !countdownContainer) {
         return;
     }
 
-    // Afficher l'ID immédiatement
-    orderIdElement.textContent = `#${orderId}`;
+    if (orderId) {
+        orderNumberElement.textContent = orderId;
+    } else {
+        orderNumberElement.textContent = 'Non disponible';
+    }
 
     // Afficher un message de chargement
     orderDetailsContainer.innerHTML = `
@@ -3313,15 +3314,6 @@ async function initializeConfirmationPage() {
                 <p class="text-xs text-gray-500 mt-3">Un email de confirmation vous a été envoyé.</p>
             `;
 
-            // NOUVEAU: Gérer le timer et le polling si le statut est "En attente de paiement ABMCY"
-            if (order.Statut.startsWith("En attente de paiement ABMCY") && order.InitiationTimestamp && countdownContainer) {
-                countdownContainer.classList.remove('hidden');
-                const initiationTime = new Date(order.InitiationTimestamp).getTime();
-                const EXPIRATION_TIME_MS = 25 * 60 * 1000; // 25 minutes
-                const endTime = initiationTime + EXPIRATION_TIME_MS; 
-
-                const statusDisplay = document.getElementById('current-order-status'); // L'élément qui affichera le statut
-
                 const updateCountdown = () => {
                     const now = new Date().getTime();
                     const timeLeft = endTime - now;
@@ -3330,7 +3322,6 @@ async function initializeConfirmationPage() {
                         clearInterval(countdownInterval); // Arrêter le compte à rebours
                         // Ne pas arrêter le polling, car le paiement peut arriver en retard
                         countdownContainer.innerHTML = '<p class="text-red-600 font-bold">Le délai de paiement est expiré. Si vous avez payé, veuillez contacter le support.</p>';
-                        if (statusDisplay.textContent.startsWith("En attente")) statusDisplay.textContent = 'Expiré (Délai dépassé)';
                         return;
                     }
 
@@ -3343,8 +3334,6 @@ async function initializeConfirmationPage() {
                         <p class="text-xs text-gray-500 mt-2">Vous pouvez fermer cette page, le statut de votre commande sera mis à jour automatiquement.</p>
                     `;
                 };
-                orderDetailsContainer.innerHTML += `<p class="mt-4"><strong>Statut actuel :</strong> <span id="current-order-status" class="font-semibold">${order.Statut}</span></p>`;
-
                 const countdownInterval = setInterval(updateCountdown, 1000);
                 updateCountdown(); // Appel initial
 
@@ -3358,24 +3347,18 @@ async function initializeConfirmationPage() {
                     const pollResult = await pollResponse.json();
 
                     if (pollResult.success && pollResult.data.Statut !== document.getElementById('current-order-status').textContent) {
-                        const newStatus = pollResult.data.Statut;
-                        document.getElementById('current-order-status').textContent = newStatus;
-                        if (newStatus === 'Confirmée' || newStatus.startsWith('Payée')) {
+                        if (pollResult.data.Statut === 'Confirmée' || pollResult.data.Statut.startsWith('Payée')) {
                             clearInterval(countdownInterval);
                             clearInterval(pollingInterval);
                             countdownContainer.innerHTML = '<p class="text-2xl font-bold text-green-600">Paiement confirmé avec succès !</p>';
                         }
                     }
                 }, 30000); // Toutes les 30 secondes
-            }
         } else {
             // AMÉLIORATION: Afficher un message d'erreur clair si la commande n'est pas trouvée
             document.getElementById('main-title').textContent = 'Commande Introuvable';
             document.getElementById('main-message').textContent = 'Nous n\'avons pas pu trouver les détails pour cette commande. Veuillez vérifier le numéro de commande ou contacter le support client.';
             orderDetailsContainer.classList.add('hidden');
-            if (countdownContainer) countdownContainer.classList.add('hidden');
-            errorMessageContainer.innerHTML = `<p class="text-red-600 font-bold">${result.error || 'Une erreur inconnue est survenue.'}</p>`;
-            errorMessageContainer.classList.remove('hidden');
 
         }
     } catch (error) {
