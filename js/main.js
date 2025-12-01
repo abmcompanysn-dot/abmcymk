@@ -2100,6 +2100,93 @@ function renderProductCard(product) { // This function remains synchronous as it
 }
 
 /**
+ * NOUVEAU: Crée une image partageable en utilisant un canvas.
+ * Dessine l'image du produit, un logo, le nom et le prix.
+ * @param {object} product - L'objet produit contenant les détails.
+ * @returns {Promise<File|null>} Un objet Fichier de l'image générée, ou null en cas d'erreur.
+ */
+async function createShareableImage(product) {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+
+    // --- Configuration de l'image ---
+    const canvasWidth = 800;
+    const canvasHeight = 1000; // Hauteur plus grande pour ajouter un bandeau d'information
+    canvas.width = canvasWidth;
+    canvas.height = canvasHeight;
+
+    // 1. Fond blanc
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+    // 2. Dessiner l'image principale du produit
+    try {
+        const productImage = new Image();
+        // IMPORTANT (CORS): L'image doit être servie avec les bons en-têtes CORS.
+        // J'ajoute `crossOrigin` pour tenter de charger l'image correctement.
+        productImage.crossOrigin = "Anonymous"; 
+        productImage.src = product.ImageURL;
+        
+        await new Promise((resolve, reject) => {
+            productImage.onload = resolve;
+            productImage.onerror = () => reject(new Error("Impossible de charger l'image du produit. Vérifiez les en-têtes CORS."));
+        });
+
+        // Calculer les dimensions pour que l'image remplisse la zone d'image (800x800)
+        const imgAspectRatio = productImage.width / productImage.height;
+        let drawWidth = canvasWidth;
+        let drawHeight = drawWidth / imgAspectRatio;
+        if (drawHeight < canvasWidth) {
+            drawHeight = canvasWidth;
+            drawWidth = drawHeight * imgAspectRatio;
+        }
+        const offsetX = (canvasWidth - drawWidth) / 2;
+        const offsetY = (canvasWidth - drawHeight) / 2;
+
+        ctx.drawImage(productImage, offsetX, offsetY, drawWidth, drawHeight);
+
+    } catch (error) {
+        console.error(error.message);
+        showToast(error.message, true);
+        return null; // Arrêter si l'image ne peut pas être chargée
+    }
+
+    // 3. Dessiner le bandeau d'information en bas
+    const infoY = 800;
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(0, infoY, canvasWidth, 200);
+
+    // 4. Ajouter le texte
+    // Nom du produit
+    ctx.fillStyle = '#1a1a1a'; // Noir
+    ctx.font = 'bold 42px Montserrat, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(product.Nom, canvasWidth / 2, infoY + 70, canvasWidth - 40);
+
+    // Prix
+    ctx.fillStyle = '#D4AF37'; // Or
+    ctx.font = 'bold 52px Montserrat, sans-serif';
+    ctx.fillText(`${product.PrixActuel.toLocaleString('fr-FR')} F CFA`, canvasWidth / 2, infoY + 135);
+
+    // Texte "Disponible sur"
+    ctx.fillStyle = '#6b7280'; // Gris
+    ctx.font = '24px Montserrat, sans-serif';
+    ctx.fillText('Disponible sur ABMCY MARKET', canvasWidth / 2, infoY + 175);
+
+    // 5. Convertir le canvas en Fichier pour le partage
+    return new Promise(resolve => {
+        canvas.toBlob(blob => {
+            if (blob) {
+                const file = new File([blob], `${product.IDProduit}.png`, { type: 'image/png' });
+                resolve(file);
+            } else {
+                resolve(null);
+            }
+        }, 'image/png');
+    });
+}
+
+/**
  * NOUVEAU: Copie le lien du produit dans le presse-papiers et affiche une notification.
  * @param {Event} event 
  * @param {string} productId 
@@ -2112,33 +2199,36 @@ async function shareProduct(event, productId) {
     const product = (await getCatalogAndRefreshInBackground()).data.products.find(p => p.IDProduit === productId);
     
     if (!product) {
-        showToast("Impossible de trouver les informations du produit.", true);
+        showToast("Impossible de générer l'image de partage.", true);
         return;
     }
 
-    // AMÉLIORATION : Personnalisation du message de partage avec le nom et le prix.
-    const priceText = `${product.PrixActuel.toLocaleString('fr-FR')} F CFA`;
-    const shareData = {
-        title: `À découvrir sur ABMCY MARKET : ${product.Nom}`,
-        text: `Salut ! J'ai trouvé "${product.Nom}" à ${priceText} sur ABMCY MARKET. Ça pourrait t'intéresser !`,
-        url: productUrl,
-    };
-    
-    // CORRECTION: On ne partage plus le fichier image directement pour garantir
-    // que le texte et le lien soient toujours partagés. Les applications modernes
-    // généreront un aperçu riche (avec l'image) à partir de l'URL fournie.
+    // NOUVELLE LOGIQUE: Générer l'image personnalisée
+    const shareableImageFile = await createShareableImage(product);
+
     try {
-        if (navigator.share) {
+        // Vérifier si l'API de partage est disponible et si on a pu créer l'image
+        if (navigator.share && shareableImageFile) {
+            const shareData = {
+                title: `Découvrez "${product.Nom}" sur ABMCY MARKET`,
+                text: `J'ai trouvé ce super produit sur ABMCY MARKET !`,
+                url: productUrl,
+                files: [shareableImageFile]
+            };
             await navigator.share(shareData);
-            console.log("Produit partagé avec succès via l API de partage");
+            console.log("Produit partagé avec succès via l'API de partage avec image personnalisée.");
         } else {
-            // Solution de secours pour les navigateurs qui ne supportent pas l'API de partage
-            navigator.clipboard.writeText(shareData.text + '\n' + shareData.url);
+            // Solution de secours : copier le lien si le partage de fichiers n'est pas possible
+            navigator.clipboard.writeText(productUrl);
             showToast('Lien du produit copié !');
         }
     } catch (err) {
         console.error('Erreur de partage: ', err);
-        // En cas d'erreur (par exemple, l'utilisateur annule le partage), on ne fait rien.
+        // Si l'utilisateur annule, une erreur "AbortError" est levée, c'est normal.
+        // On ne montre pas de message d'erreur dans ce cas.
+        if (err.name !== 'AbortError') {
+            showToast("Le partage a échoué.", true);
+        }
     }
 }
 
