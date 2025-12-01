@@ -939,10 +939,12 @@ function initializeChristmasCountdown() {
  */
 function handleSeasonalContent() {
     const today = new Date();
-    const currentMonth = today.getMonth(); // 0 = Janvier, 11 = Décembre
+    const currentMonth = today.getMonth(); // 0 = Janvier, 10 = Novembre, 11 = Décembre
+    const currentDate = today.getDate();   // Le jour du mois (1-31)
 
-    // --- Logique pour Noël (affiche le contenu si on est en Décembre) ---
-    const isChristmasPeriod = (currentMonth === 11); // 11 correspond à Décembre
+    // --- Logique pour Noël (affiche le contenu à partir du 15 Novembre jusqu'à fin Décembre) ---
+    // La condition est vraie si: (on est en Décembre) OU (on est en Novembre ET le jour est 15 ou plus)
+    const isChristmasPeriod = (currentMonth === 11) || (currentMonth === 10 && currentDate >= 15);
 
     if (isChristmasPeriod) {
         const christmasGifBanner = document.getElementById('christmas-gif-banner');
