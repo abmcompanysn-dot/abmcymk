@@ -162,6 +162,7 @@ async function initializeApp() {
     }
     
     initializeChristmasCountdown(); // NOUVEAU: Appel de la fonction du compte à rebours de Noël
+    handleSeasonalContent(); // NOUVEAU: Gère l'affichage des bannières saisonnières
 
     // NOUVEAU: Optimisation pour la page d'authentification.
     // On ne charge pas le catalogue complet sur cette page pour la rendre plus rapide.
@@ -931,6 +932,29 @@ function initializeChristmasCountdown() {
         secondsEl.innerHTML = formatTime(seconds);
 
     }, 1000);
+}
+
+/**
+ * NOUVEAU: Gère l'affichage des contenus saisonniers comme la bannière GIF de Noël.
+ */
+function handleSeasonalContent() {
+    const today = new Date();
+    const currentMonth = today.getMonth(); // 0 = Janvier, 11 = Décembre
+
+    // --- Logique pour Noël (affiche le contenu si on est en Décembre) ---
+    const isChristmasPeriod = (currentMonth === 11); // 11 correspond à Décembre
+
+    if (isChristmasPeriod) {
+        const christmasGifBanner = document.getElementById('christmas-gif-banner');
+        if (christmasGifBanner) {
+            christmasGifBanner.classList.remove('hidden');
+        }
+    }
+
+    // --- Logique pour d'autres fêtes (à ajouter ici) ---
+    // Exemple :
+    // const isValentinesPeriod = (currentMonth === 1); // Février
+    // if (isValentinesPeriod) { ... }
 }
 
 // --- LOGIQUE DE LA PAGE PRODUIT ---
