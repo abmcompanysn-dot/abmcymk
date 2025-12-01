@@ -901,7 +901,7 @@ function initializeChristmasCountdown() {
     // Définissez ici la date de fin de votre promotion.
     // Format : "Mois Jour, Année Heure:Minute:Seconde"
     // Par exemple, pour le 25 Décembre 2024 à 23:59:59
-    const countdownDate = new Date("Dec 25, 2024 23:59:59").getTime();
+    const countdownDate = new Date("Dec 25, 2025 23:59:59").getTime();
 
     // Met à jour le compte à rebours toutes les secondes
     const interval = setInterval(() => {
