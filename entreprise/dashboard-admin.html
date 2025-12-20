@@ -302,12 +302,14 @@
 
     <!-- Import des fonctions admin (ImgBB) -->
     <script src="../js/admin_functions.js"></script>
+    <!-- Import de la configuration centralisée -->
+    <script src="main-entreprise.js"></script>
 
     <script>
         // URL de l'API spécifique au type (Produits/Services)
         let BUSINESS_API_URL = ""; 
-        // URL de l'API Centrale (Infos entreprise)
-        const CENTRAL_API_URL = "https://script.google.com/macros/s/AKfycbzXrHv6q7RrBGqRQO2a_HWzvTKYCet9hSJ14hRVGKGqoIOO1JsQ5AKxPzmEw2W-GmaFfA/exec";
+        // URL de l'API Centrale (Infos entreprise) - Récupérée depuis main-entreprise.js
+        const CENTRAL_API_URL = ENTREPRISE_CONFIG.CENTRAL_API_URL;
 
         // Librairie pour générer le QR Code
         const script = document.createElement('script');

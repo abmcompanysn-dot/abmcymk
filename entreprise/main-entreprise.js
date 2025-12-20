@@ -6,13 +6,17 @@
  */
 
 // --- CONFIGURATION ---
-// URL de l'API CENTRALE qui fournit les données publiques des entreprises
-const CENTRAL_API_URL = "https://script.google.com/macros/s/AKfycbzXrHv6q7RrBGqRQO2a_HWzvTKYCet9hSJ14hRVGKGqoIOO1JsQ5AKxPzmEw2W-GmaFfA/exec";
+const ENTREPRISE_CONFIG = {
+    // URL de l'API CENTRALE qui fournit les données publiques des entreprises
+    CENTRAL_API_URL: "https://script.google.com/macros/s/AKfycbzXrHv6q7RrBGqRQO2a_HWzvTKYCet9hSJ14hRVGKGqoIOO1JsQ5AKxPzmEw2W-GmaFfA/exec"
+};
 
 /**
  * Point d'entrée principal, exécuté au chargement de la page.
  */
 document.addEventListener('DOMContentLoaded', () => {
+    // Empêcher l'exécution automatique sur le tableau de bord admin (qui possède l'ID 'dashboard-content')
+    if (document.getElementById('dashboard-content')) return;
     initializeApp();
 });
 
@@ -36,7 +40,7 @@ async function initializeApp() {
 
     try {
         // 1. Appeler l'API centrale pour obtenir toutes les données publiques de l'entreprise
-        const response = await fetch(`${CENTRAL_API_URL}?action=getBusinessPublicData&compteId=${compteId}`);
+        const response = await fetch(`${ENTREPRISE_CONFIG.CENTRAL_API_URL}?action=getBusinessPublicData&compteId=${compteId}`);
         const result = await response.json();
 
         if (!result.success) {
