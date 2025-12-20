@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tableau de Bord - ABMCY MARKET</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #1a1a1a;
+            --background-color: #ffffff;
+            --sidebar-bg: #1f1f1f;
+            --light-gray: #f4f4f9;
+            --text-color: #333;
+            --accent-color: #007bff;
+            --danger-color: #dc3545;
+            --success-color: #28a745;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: var(--light-gray);
+            margin: 0;
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* --- Sidebar --- */
+        .sidebar {
+            width: 250px;
+            background-color: var(--sidebar-bg);
+            color: #f1f1f1;
+            display: flex;
+            flex-direction: column;
+            padding: 1.5rem 0;
+        }
+        .sidebar-header {
+            padding: 0 1.5rem;
+            margin-bottom: 2rem;
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+        .sidebar-nav ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .sidebar-nav a {
+            display: block;
+            padding: 1rem 1.5rem;
+            color: #f1f1f1;
+            text-decoration: none;
+            transition: background-color 0.2s;
+        }
+        .sidebar-nav a:hover, .sidebar-nav a.active {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        /* --- Main Content --- */
+        .main-content {
+            flex-grow: 1;
+            padding: 2rem;
+            overflow-y: auto;
+        }
+        .main-header {
+            margin-bottom: 2rem;
+        }
+        .main-header h1 {
+            margin: 0;
+            color: var(--primary-color);
+        }
+
+        /* --- Sections & Cards --- */
+        .section {
+            background: var(--background-color);
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            margin-bottom: 2rem;
+        }
+        .section h2 {
+            margin-top: 0;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 0.8rem;
+            margin-bottom: 1.5rem;
+        }
+
+        /* --- Forms --- */
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr auto;
+            gap: 1rem;
+            align-items: flex-end;
+        }
+        .input-group {
+            display: flex;
+            flex-direction: column;
+        }
+        .input-group label {
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+        .input-group input {
+            padding: 0.7rem;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 1rem;
+        }
+        .submit-btn {
+            padding: 0.7rem 1.5rem;
+            background-color: var(--accent-color);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            height: fit-content;
+        }
+
+        /* --- Items List --- */
+        .items-list {
+            margin-top: 2rem;
+        }
+        .list-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem;
+            border-bottom: 1px solid #eee;
+        }
+        .list-item:last-child {
+            border-bottom: none;
+        }
+        .item-details {
+            font-weight: 500;
+        }
+        .item-price {
+            color: var(--accent-color);
+            margin-left: 1rem;
+        }
+        .item-actions button {
+            background: none;
+            border: 1px solid;
+            padding: 0.3rem 0.8rem;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-left: 0.5rem;
+        }
+        .delete-btn {
+            color: var(--danger-color);
+            border-color: var(--danger-color);
+        }
+
+        #loader {
+            text-align: center;
+            font-size: 1.2rem;
+            padding: 2rem;
+        }
+
+        /* --- QR Code Section --- */
+        #qrCodeContainer {
+            text-align: center;
+        }
+        #qrCodeContainer canvas {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 10px;
+        }
+
+        /* --- Preview Images --- */
+        .img-preview {
+            max-width: 100px;
+            max-height: 100px;
+            margin-top: 10px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            display: none; /* Caché par défaut */
+        }
+    </style>
+</head>
+<body>
+
+    <aside class="sidebar">
+        <div class="sidebar-header">ABMCY</div>
+        <nav class="sidebar-nav">
+            <ul>
+                <li><a href="#" onclick="showSection('dashboard')" id="nav-dashboard" class="active">Tableau de Bord</a></li>
+                <!-- <li><a href="#">Clients</a></li> -->
+                <li><a href="#" onclick="showSection('settings')" id="nav-settings">Paramètres</a></li>
+                <li><a href="#" onclick="logout()" id="nav-logout" style="color: #dc3545;">Déconnexion</a></li>
+            </ul>
+        </nav>
+    </aside>
+
+    <main class="main-content">
+        <header class="main-header">
+            <h1>Tableau de Bord</h1>
+            <p>Gérez vos services, produits et informations ici.</p>
+        </header>
+
+        <div id="loader">Chargement des données...</div>
+
+        <div id="dashboard-content" style="display: none;">
+            <!-- Section pour gérer les services -->
+            <section class="section">
+                <h2>Gérer les Services</h2>
+                <form id="addServiceForm" class="form-grid">
+                    <div class="input-group">
+                        <label for="serviceName">Nom du service</label>
+                        <input type="text" id="serviceName" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="servicePrice">Prix (€)</label>
+                        <input type="number" id="servicePrice" required>
+                    </div>
+                    <button type="submit" class="submit-btn">Ajouter</button>
+                </form>
+                <div id="servicesList" class="items-list">
+                    <!-- Les services seront injectés ici par JavaScript -->
+                </div>
+            </section>
+
+            <!-- Section pour gérer les produits -->
+            <section class="section">
+                <h2>Gérer les Produits</h2>
+                <form id="addProductForm" class="form-grid">
+                    <div class="input-group">
+                        <label for="productName">Nom du produit</label>
+                        <input type="text" id="productName" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="productPrice">Prix (€)</label>
+                        <input type="number" id="productPrice" required>
+                    </div>
+                    <button type="submit" class="submit-btn">Ajouter</button>
+                </form>
+                <div id="productsList" class="items-list">
+                    <!-- Les produits seront injectés ici par JavaScript -->
+                </div>
+            </section>
+
+            <!-- Section pour le QR Code et le lien public -->
+            <section class="section">
+                <h2>Partagez votre page</h2>
+                <p>Vos clients peuvent scanner ce QR code ou utiliser le lien ci-dessous pour accéder directement à votre page de services et produits.</p>
+                
+                <div style="margin: 1.5rem 0;">
+                    <a id="previewBtn" href="#" target="_blank" class="submit-btn" style="text-decoration: none; background-color: #28a745; display: inline-flex; align-items: center;">
+                        <span style="margin-right: 8px; font-size: 1.2em;">👁️</span> Prévisualiser ma page publique
+                    </a>
+                </div>
+
+                <div id="qrCodeContainer"></div>
+                <p><strong>Votre lien public :</strong> <a id="publicLink" href="#" target="_blank"></a></p>
+            </section>
+        </div>
+
+        <!-- NOUVEAU: Section Paramètres -->
+        <div id="settings-content" style="display: none;">
+            <section class="section">
+                <h2>Configuration de l'entreprise</h2>
+                <form id="settingsForm" class="form-grid" style="grid-template-columns: 1fr;">
+                    <div class="input-group">
+                        <label for="settingsName">Nom de l'entreprise</label>
+                        <input type="text" id="settingsName" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="settingsDesc">Description</label>
+                        <textarea id="settingsDesc" rows="4" style="padding: 0.7rem; border: 1px solid #ccc; border-radius: 6px; font-family: inherit;"></textarea>
+                    </div>
+                    <div class="input-group">
+                        <label for="settingsPhone">Téléphone</label>
+                        <input type="text" id="settingsPhone">
+                    </div>
+                    <div class="input-group">
+                        <label for="settingsAddress">Adresse</label>
+                        <input type="text" id="settingsAddress">
+                    </div>
+                    
+                    <div class="input-group">
+                        <label for="settingsLogo">Logo (Image de profil)</label>
+                        <input type="file" id="settingsLogo" accept="image/*">
+                        <img id="previewLogo" class="img-preview" alt="Aperçu Logo">
+                        <input type="hidden" id="currentLogoUrl">
+                    </div>
+
+                    <div class="input-group">
+                        <label for="settingsCover">Image de couverture (Page d'accueil)</label>
+                        <input type="file" id="settingsCover" accept="image/*">
+                        <img id="previewCover" class="img-preview" alt="Aperçu Couverture">
+                        <input type="hidden" id="currentCoverUrl">
+                    </div>
+
+                    <button type="submit" class="submit-btn" style="margin-top: 1rem;">Enregistrer les modifications</button>
+                </form>
+            </section>
+        </div>
+    </main>
+
+    <!-- Import des fonctions admin (ImgBB) -->
+    <script src="js/admin_functions.js"></script>
+
+    <script>
+        // URL de l'API spécifique au type (Produits/Services)
+        let BUSINESS_API_URL = ""; 
+        // URL de l'API Centrale (Infos entreprise)
+        const CENTRAL_API_URL = "https://script.google.com/macros/s/AKfycbwc4rWN0MMmZmpgtWUxnGrb-LW1MvFvYaSWZG3YCluqW-jgwndkRX0n9vZ0OrdW7f_I8A/exec";
+
+        // Librairie pour générer le QR Code
+        const script = document.createElement('script');
+        script.src = "https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js";
+        document.head.appendChild(script);
+
+        const loader = document.getElementById('loader');
+        const dashboardContent = document.getElementById('dashboard-content');
+        const settingsContent = document.getElementById('settings-content');
+        const servicesListDiv = document.getElementById('servicesList');
+        const productsListDiv = document.getElementById('productsList');
+
+        let compteId = null;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // 1. Récupérer l'ID du compte depuis l'URL
+            const params = new URLSearchParams(window.location.search);
+            compteId = params.get('compteId');
+
+            if (!compteId) {
+                loader.textContent = "Erreur : ID de compte manquant. Impossible de charger le tableau de bord.";
+                return;
+            }
+            
+            // 2. Charger les données initiales
+            fetchData();
+            setupQrCodeAndLink();
+        });
+
+        // Gestion de la navigation
+        function showSection(sectionId) {
+            // Cacher toutes les sections
+            dashboardContent.style.display = 'none';
+            settingsContent.style.display = 'none';
+            
+            // Désactiver les liens
+            document.getElementById('nav-dashboard').classList.remove('active');
+            document.getElementById('nav-settings').classList.remove('active');
+
+            // Afficher la section demandée
+            if (sectionId === 'dashboard') {
+                dashboardContent.style.display = 'block';
+                document.getElementById('nav-dashboard').classList.add('active');
+            } else if (sectionId === 'settings') {
+                settingsContent.style.display = 'block';
+                document.getElementById('nav-settings').classList.add('active');
+            }
+        }
+
+        async function fetchData() {
+            loader.style.display = 'block';
+            
+            try {
+                // 1. Récupérer les infos de l'entreprise depuis l'API Centrale
+                const centralResponse = await fetch(`${CENTRAL_API_URL}?action=getBusinessPublicData&compteId=${compteId}`);
+                const centralResult = await centralResponse.json();
+
+                if (!centralResult.success) throw new Error(centralResult.error);
+
+                const info = centralResult.data.businessInfo;
+                BUSINESS_API_URL = info.ApiTypeUrl; // Récupérer l'URL de l'API spécifique
+                
+                // Remplir le formulaire de paramètres
+                populateSettingsForm(info);
+
+                // 2. Récupérer les produits/services depuis l'API Spécifique
+                const response = await fetch(`${BUSINESS_API_URL}?compteId=${compteId}`);
+                const result = await response.json();
+
+                if (result.status === 'success') {
+                    renderItems(result.data.services, servicesListDiv, 'service');
+                    renderItems(result.data.products, productsListDiv, 'produit');
+                    loader.style.display = 'none';
+                    dashboardContent.style.display = 'block';
+                } else {
+                    throw new Error(result.message);
+                }
+            } catch (error) {
+                loader.textContent = `Erreur de chargement : ${error.message}`;
+            }
+        }
+
+        function populateSettingsForm(info) {
+            document.getElementById('settingsName').value = info.NomEntreprise || '';
+            document.getElementById('settingsDesc').value = info.Description || '';
+            document.getElementById('settingsPhone').value = info.Telephone || '';
+            document.getElementById('settingsAddress').value = info.Adresse || '';
+            
+            if (info.LogoUrl) {
+                document.getElementById('previewLogo').src = info.LogoUrl;
+                document.getElementById('previewLogo').style.display = 'block';
+                document.getElementById('currentLogoUrl').value = info.LogoUrl;
+            }
+            
+            if (info.CoverImageUrl) {
+                document.getElementById('previewCover').src = info.CoverImageUrl;
+                document.getElementById('previewCover').style.display = 'block';
+                document.getElementById('currentCoverUrl').value = info.CoverImageUrl;
+            }
+        }
+
+        function renderItems(items, container, type) {
+            container.innerHTML = ''; // Vider la liste
+            if (items.length === 0) {
+                container.innerHTML = `<p>Aucun ${type} ajouté pour le moment.</p>`;
+                return;
+            }
+
+            items.forEach(item => {
+                const name = item.Nom || item.NomService || item.NomProduit;
+                const price = item.Prix;
+                const itemId = item.IDItem;
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'list-item';
+                itemDiv.innerHTML = `
+                    <div class="item-details">
+                        ${name} <span class="item-price">${price}€</span>
+                    </div>
+                    <div class="item-actions">
+                        <button class="delete-btn" onclick="handleDeleteItem('${itemId}', '${type}')">Supprimer</button>
+                    </div>
+                `;
+                container.appendChild(itemDiv);
+            });
+        }
+
+        async function handleAddItem(e, type) {
+            e.preventDefault();
+            const form = e.target;
+            const nameInput = form.querySelector('input[type="text"]');
+            const priceInput = form.querySelector('input[type="number"]');
+            const submitBtn = form.querySelector('button[type="submit"]');
+
+            const data = {
+                compteId: compteId,
+                type: type,
+                nom: nameInput.value,
+                prix: parseFloat(priceInput.value)
+            };
+
+            if (!data.nom || !data.prix) {
+                alert("Veuillez remplir tous les champs.");
+                return;
+            }
+
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Ajout...';
+
+            try {
+                const response = await fetch(BUSINESS_API_URL, {
+                    method: 'POST',
+                    mode: 'cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                const result = await response.json();
+
+                if (result.status === 'success') {
+                    form.reset(); // Vider le formulaire
+                    await fetchData(); // Rafraîchir les listes
+                } else {
+                    throw new Error(result.message || "Une erreur inconnue est survenue.");
+                }
+            } catch (error) {
+                alert(`Erreur lors de l'ajout : ${error.message}`);
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Ajouter';
+            }
+        }
+
+        async function handleDeleteItem(itemId, type) {
+            if (!confirm("Êtes-vous sûr de vouloir supprimer cet élément ?")) return;
+
+            try {
+                const response = await fetch(BUSINESS_API_URL, {
+                    method: 'POST',
+                    mode: 'cors',
+                    headers: { 'Content-Type': 'text/plain' },
+                    body: JSON.stringify({
+                        action: 'deleteItem',
+                        data: { itemId: itemId, type: type }
+                    })
+                });
+                const result = await response.json();
+
+                if (result.status === 'success') {
+                    alert("Élément supprimé avec succès.");
+                    fetchData(); // Recharger la liste
+                } else {
+                    throw new Error(result.message || "Erreur lors de la suppression.");
+                }
+            } catch (error) {
+                alert(`Erreur : ${error.message}`);
+            }
+        }
+
+        function logout() {
+            // Rediriger vers la page de connexion
+            window.location.href = 'connexion-entreprise.html';
+        }
+
+        // Gestion de la sauvegarde des paramètres
+        document.getElementById('settingsForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = e.target.querySelector('button');
+            btn.disabled = true;
+            btn.textContent = 'Sauvegarde en cours...';
+
+            try {
+                // 1. Upload des images si nouvelles
+                const logoFile = document.getElementById('settingsLogo').files[0];
+                const coverFile = document.getElementById('settingsCover').files[0];
+                
+                let logoUrl = document.getElementById('currentLogoUrl').value;
+                let coverUrl = document.getElementById('currentCoverUrl').value;
+
+                if (logoFile) logoUrl = await uploadImageToImgBB(logoFile);
+                if (coverFile) coverUrl = await uploadImageToImgBB(coverFile);
+
+                // 2. Préparer les données
+                const updateData = {
+                    compteId: compteId,
+                    nom: document.getElementById('settingsName').value,
+                    description: document.getElementById('settingsDesc').value,
+                    telephone: document.getElementById('settingsPhone').value,
+                    adresse: document.getElementById('settingsAddress').value,
+                    logoUrl: logoUrl,
+                    coverImageUrl: coverUrl
+                };
+
+                // 3. Envoyer à l'API Centrale
+                const response = await fetch(CENTRAL_API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain' },
+                    body: JSON.stringify({ action: 'updateBusinessInfo', data: updateData })
+                });
+                const result = await response.json();
+
+                if (result.success) {
+                    alert("Informations mises à jour avec succès !");
+                    fetchData(); // Recharger les données pour voir les changements
+                } else {
+                    throw new Error(result.error);
+                }
+            } catch (error) {
+                alert("Erreur lors de la sauvegarde : " + error.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Enregistrer les modifications';
+            }
+        });
+
+        function setupQrCodeAndLink() {
+            // Construit l'URL de la page publique (babershop.html)
+            const publicUrl = `${window.location.origin}${window.location.pathname.replace('dashboard-admin.html', 'babershop.html')}?compteId=${compteId}`;
+            
+            const publicLink = document.getElementById('publicLink');
+            publicLink.href = publicUrl;
+            publicLink.textContent = publicUrl;
+            
+            const previewBtn = document.getElementById('previewBtn');
+            if (previewBtn) {
+                previewBtn.href = publicUrl;
+            }
+
+            // Attendre que la librairie QR Code soit chargée
+            script.onload = () => {
+                const qrContainer = document.getElementById('qrCodeContainer');
+                qrContainer.innerHTML = ''; // Vider au cas où
+                const canvas = document.createElement('canvas');
+                qrContainer.appendChild(canvas);
+                QRCode.toCanvas(canvas, publicUrl, { width: 200 }, (error) => {
+                    if (error) console.error(error);
+                });
+            };
+        }
+
+        // Lier les formulaires à la fonction d'ajout
+        document.getElementById('addServiceForm').addEventListener('submit', (e) => handleAddItem(e, 'service'));
+        document.getElementById('addProductForm').addEventListener('submit', (e) => handleAddItem(e, 'produit'));
+
+    </script>
+
+</body>
+</html>

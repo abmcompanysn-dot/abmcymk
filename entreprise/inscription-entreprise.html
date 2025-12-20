@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inscription Entreprise - ABMCY MARKET</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #1a1a1a;
+            --background-color: #ffffff;
+            --light-gray: #f4f4f9;
+            --text-color: #333;
+            --accent-color: #007bff;
+        }
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: var(--light-gray);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+        .form-container {
+            background: var(--background-color);
+            padding: 2.5rem;
+            border-radius: 12px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 450px;
+        }
+        h1 {
+            color: var(--primary-color);
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        .input-group {
+            margin-bottom: 1.5rem;
+        }
+        .input-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+        .input-group input, .input-group select {
+            width: 100%;
+            padding: 0.8rem;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 1rem;
+        }
+        .submit-btn {
+            width: 100%;
+            padding: 1rem;
+            background-color: var(--primary-color);
+            color: var(--background-color);
+            border: none;
+            border-radius: 6px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .submit-btn:hover {
+            background-color: #333;
+        }
+        #message {
+            text-align: center;
+            margin-top: 1rem;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="form-container">
+        <h1>Devenez Partenaire</h1>
+        <form id="entrepriseForm">
+            <div class="input-group">
+                <label for="nomEntreprise">Nom de votre entreprise</label>
+                <input type="text" id="nomEntreprise" name="nomEntreprise" required>
+            </div>
+            <div class="input-group">
+                <label for="email">Votre Email</label>
+                <input type="email" id="email" name="email" required>
+            </div>
+            <div class="input-group">
+                <label for="password">Mot de passe</label>
+                <input type="password" id="password" name="password" required minlength="6">
+            </div>
+            <div class="input-group">
+                <label for="typeEntreprise">Type d'entreprise</label>
+                <select id="typeEntreprise" name="typeEntreprise" required>
+                    <option value="coiffeur">Coiffeur / Salon de coiffure</option>
+                    <!-- Vous pourrez ajouter d'autres options ici plus tard -->
+                </select>
+            </div>
+            <button type="submit" class="submit-btn">Créer mon espace</button>
+        </form>
+        <p id="message"></p>
+        <div style="text-align: center; margin-top: 1.5rem; font-size: 0.9rem;">
+            <p>Déjà partenaire ? <a href="connexion-entreprise.html" style="color: var(--primary-color); text-decoration: none; font-weight: 600;">Se connecter</a></p>
+        </div>
+    </div>
+
+    <script>
+        const form = document.getElementById('entrepriseForm');
+        const messageDiv = document.getElementById('message');
+        const submitBtn = document.querySelector('.submit-btn');
+        
+        // REMPLACEZ PAR L'URL DE VOTRE SCRIPT "Gestion Entreprises ABMCY"
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx8HE80lfOvGjQRSp2kovO0s8ONlZKEwdaUVq-IHa0MqXiHovwfte0lu5dG9GAHVc6_xQ/exec"; 
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            submitBtn.disabled = true;
+            submitBtn.textContent = "Création en cours...";
+            messageDiv.style.color = 'var(--text-color)';
+            messageDiv.textContent = '';
+
+            const formData = {
+                action: 'creerCompteEntreprise',
+                data: {
+                    nomEntreprise: document.getElementById('nomEntreprise').value,
+                    email: document.getElementById('email').value,
+                    motDePasse: document.getElementById('password').value,
+                    typeEntreprise: document.getElementById('typeEntreprise').value,
+                }
+            };
+
+            try {
+                const response = await fetch(SCRIPT_URL, {
+                    method: 'POST',
+                    mode: 'cors',
+                    headers: { 'Content-Type': 'text/plain' },
+                    body: JSON.stringify(formData)
+                });
+                const result = await response.json();
+
+                if (result.status === 'success' || result.success) {
+                    messageDiv.textContent = "Compte créé ! Redirection...";
+                    // Redirige vers le tableau de bord avec le numéro de compte
+                    window.location.href = `dashboard-admin.html?compteId=${result.numeroCompte}`;
+                } else {
+                    throw new Error(result.message || "Une erreur inconnue est survenue.");
+                }
+            } catch (error) {
+                messageDiv.style.color = 'red';
+                messageDiv.textContent = `Erreur : ${error.message}`;
+                submitBtn.disabled = false;
+                submitBtn.textContent = "Créer mon espace";
+            }
+        });
+    </script>
+</body>
+</html>

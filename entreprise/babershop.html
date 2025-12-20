@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Le Salon Élégance - Coiffeur Professionnel</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root {
+            --primary-color: #1a1a1a;
+            --light-gray: #f4f4f9;
+            --text-color: #333;
+            --gold-color: #D4AF37;
+        }
+        .text-gold { color: var(--gold-color); }
+        .border-gold { border-color: var(--gold-color); }
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: var(--light-gray);
+            color: var(--text-color);
+            padding-bottom: 80px; /* Espace pour la nav mobile */
+        }
+        @media (min-width: 768px) { body { padding-bottom: 0; } }
+        .dropdown:hover .dropdown-menu { display: block; }
+        .dropdown-menu { display: none; }
+        .hero {
+            position: relative;
+            height: 40vh;
+            background-size: cover;
+            background-position: center;
+            color: white;
+        }
+        .hero::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(to top, rgba(0,0,0,0.7), transparent);
+        }
+        /* Style pour la galerie */
+        /* NOUVEAU: Styles pour la galerie statique et la lightbox */
+        .gallery-item img {
+            transition: transform 0.3s ease, filter 0.3s ease;
+        }
+        .gallery-item:hover img {
+            transform: scale(1.05);
+            filter: brightness(1.1);
+        }
+        .lightbox {
+            transition: opacity 0.3s ease-in-out;
+        }
+        .lightbox-content {
+            transition: transform 0.3s ease-in-out;
+        }
+        .lightbox.open .lightbox-content {
+            transform: scale(1);
+        }
+        .lightbox-close {
+            transition: transform 0.2s ease;
+        }
+        .lightbox-close:hover {
+            transform: rotate(90deg) scale(1.1);
+        }
+    </style>
+</head>
+<body>
+    <!-- NOUVEAU: Barre de navigation complète -->
+    <div class="sticky top-0 z-40 bg-white shadow-md">
+        <header>
+            <div class="container mx-auto px-4 py-2">
+                <div class="flex items-center justify-between">
+                    <a href="../index.html" class="flex items-center"><img src="../logo/l.svg" alt="ABMCY MARKET Logo" class="h-10"></a>
+                    <div class="flex-1 mx-4 relative">
+                        <form id="search-form-header" action="../recherche.html">
+                            <div class="relative flex items-center bg-gray-100 rounded-full border-2 border-transparent focus-within:bg-white focus-within:border-gold transition">
+                                <svg class="w-5 h-5 text-gray-400 mx-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                                <input type="search" name="q" placeholder="Rechercher..." class="w-full py-2.5 pr-4 text-sm bg-transparent focus:outline-none">
+                            </div>
+                        </form>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <a href="../panier.html" aria-label="Panier" class="text-gray-600 hover:text-gold relative"><svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.658-.463 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007zM8.625 10.5a.375.375 0 11-.75 0 .375.375 0 01.75 0zm7.5 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" /></svg><span class="cart-badge absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center hidden">0</span></a>
+                        <a href="../authentification.html" class="text-gray-600 hover:text-gold"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg></a>
+                    </div>
+                </div>
+            </div>
+        </header>
+    </div>
+
+    <!-- Squelette de chargement -->
+    <div id="skeleton-loader" class="animate-pulse">
+        <div class="h-[40vh] bg-gray-300"></div>
+        <div class="container mx-auto px-4 -mt-16 relative z-10">
+            <div class="h-32 w-32 bg-gray-400 rounded-full border-4 border-white"></div>
+        </div>
+        <div class="container mx-auto px-4 mt-4 space-y-8">
+            <div class="h-8 bg-gray-300 rounded w-3/4"></div>
+            <div class="h-4 bg-gray-300 rounded w-full"></div>
+            <div class="h-4 bg-gray-300 rounded w-1/2"></div>
+        </div>
+    </div>
+
+    <!-- Section d'accueil avec photo de couverture et de profil -->
+    <header id="hero-section" class="hero hidden" style="background-image: url('https://images.unsplash.com/photo-1599351431202-19a69e278484?q=80&w=2070');">
+    </header>
+
+    <main id="main-content" class="container mx-auto px-4 -mt-16 relative z-10">
+        <!-- NOUVEAU: Conteneur pour les messages d'erreur -->
+        <div id="error-container" class="mb-8"></div>
+
+        <!-- NOUVEAU: Ce conteneur cache tout le contenu dynamique jusqu'au chargement -->
+        <div id="dynamic-content" class="hidden">
+            <div class="flex items-end mb-6">
+                <img id="business-logo" src="" alt="Logo de l'entreprise" class="bg-gray-200 h-32 w-32 rounded-full border-4 border-white shadow-lg object-cover">
+                <div class="ml-4 mb-2">
+                    <h1 id="business-name" class="text-3xl font-bold text-gray-800"></h1>
+                    <p id="business-address" class="text-sm text-gray-600"></p>
+                </div>
+            </div>
+            <section class="bg-white p-6 rounded-lg shadow-md mb-8">
+                <h2 class="text-2xl font-bold mb-4">À propos de nous</h2>
+                <p id="business-description" class="text-gray-600 leading-relaxed"></p>
+            </section>
+        </div>
+
+        <!-- NOUVEAU: Section Galerie / Catalogue -->
+        <section id="static-gallery-section" class="bg-white p-6 rounded-lg shadow-md mb-8">
+            <h2 class="text-2xl font-bold mb-4">Notre Catalogue de Coiffures</h2>
+            <div id="gallery-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                <!-- Catalogue de coiffures Homme (webp) -->
+                <div class="gallery-item group cursor-pointer" onclick="openLightbox('im-cf/1.webp', 'Coiffure Homme 1')">
+                    <div class="aspect-w-1 aspect-h-1 bg-gray-200 rounded-lg overflow-hidden">
+                        <img src="im-cf/1.webp" alt="Coiffure Homme 1" class="w-full h-full object-cover" loading="lazy" onerror="this.parentElement.parentElement.style.display='none'">
+                    </div>
+                    <p class="mt-2 font-semibold text-gray-800 group-hover:text-gold">Coiffure Homme 1</p>
+                    <p class="text-xs text-gray-500">Style Tendance</p>
+                </div>
+                <div class="gallery-item group cursor-pointer" onclick="openLightbox('im-cf/2.webp', 'Coiffure Homme 2')">
+                    <div class="aspect-w-1 aspect-h-1 bg-gray-200 rounded-lg overflow-hidden">
+                        <img src="im-cf/2.webp" alt="Coiffure Homme 2" class="w-full h-full object-cover" loading="lazy" onerror="this.parentElement.parentElement.style.display='none'">
+                    </div>
+                    <p class="mt-2 font-semibold text-gray-800 group-hover:text-gold">Coiffure Homme 2</p>
+                    <p class="text-xs text-gray-500">Style Tendance</p>
+                </div>
+                <div class="gallery-item group cursor-pointer" onclick="openLightbox('im-cf/3.webp', 'Coiffure Homme 3')">
+                    <div class="aspect-w-1 aspect-h-1 bg-gray-200 rounded-lg overflow-hidden">
+                        <img src="im-cf/3.webp" alt="Coiffure Homme 3" class="w-full h-full object-cover" loading="lazy" onerror="this.parentElement.parentElement.style.display='none'">
+                    </div>
+                    <p class="mt-2 font-semibold text-gray-800 group-hover:text-gold">Coiffure Homme 3</p>
+                    <p class="text-xs text-gray-500">Style Tendance</p>
+                </div>
+                <div class="gallery-item group cursor-pointer" onclick="openLightbox('im-cf/4.webp', 'Coiffure Homme 4')">
+                    <div class="aspect-w-1 aspect-h-1 bg-gray-200 rounded-lg overflow-hidden">
+                        <img src="im-cf/4.webp" alt="Coiffure Homme 4" class="w-full h-full object-cover" loading="lazy" onerror="this.parentElement.parentElement.style.display='none'">
+                    </div>
+                    <p class="mt-2 font-semibold text-gray-800 group-hover:text-gold">Coiffure Homme 4</p>
+                    <p class="text-xs text-gray-500">Style Tendance</p>
+                </div>
+                <div class="gallery-item group cursor-pointer" onclick="openLightbox('im-cf/5.webp', 'Coiffure Homme 5')">
+                    <div class="aspect-w-1 aspect-h-1 bg-gray-200 rounded-lg overflow-hidden">
+                        <img src="im-cf/5.webp" alt="Coiffure Homme 5" class="w-full h-full object-cover" loading="lazy" onerror="this.parentElement.parentElement.style.display='none'">
+                    </div>
+                    <p class="mt-2 font-semibold text-gray-800 group-hover:text-gold">Coiffure Homme 5</p>
+                    <p class="text-xs text-gray-500">Style Tendance</p>
+                </div>
+                <div class="gallery-item group cursor-pointer" onclick="openLightbox('im-cf/6.webp', 'Coiffure Homme 6')">
+                    <div class="aspect-w-1 aspect-h-1 bg-gray-200 rounded-lg overflow-hidden">
+                        <img src="im-cf/6.webp" alt="Coiffure Homme 6" class="w-full h-full object-cover" loading="lazy" onerror="this.parentElement.parentElement.style.display='none'">
+                    </div>
+                    <p class="mt-2 font-semibold text-gray-800 group-hover:text-gold">Coiffure Homme 6</p>
+                    <p class="text-xs text-gray-500">Style Tendance</p>
+                </div>
+                <div class="gallery-item group cursor-pointer" onclick="openLightbox('im-cf/7.webp', 'Coiffure Homme 7')">
+                    <div class="aspect-w-1 aspect-h-1 bg-gray-200 rounded-lg overflow-hidden">
+                        <img src="im-cf/7.webp" alt="Coiffure Homme 7" class="w-full h-full object-cover" loading="lazy" onerror="this.parentElement.parentElement.style.display='none'">
+                    </div>
+                    <p class="mt-2 font-semibold text-gray-800 group-hover:text-gold">Coiffure Homme 7</p>
+                    <p class="text-xs text-gray-500">Style Tendance</p>
+                </div>
+                <div class="gallery-item group cursor-pointer" onclick="openLightbox('im-cf/8.webp', 'Coiffure Homme 8')">
+                    <div class="aspect-w-1 aspect-h-1 bg-gray-200 rounded-lg overflow-hidden">
+                        <img src="im-cf/8.webp" alt="Coiffure Homme 8" class="w-full h-full object-cover" loading="lazy" onerror="this.parentElement.parentElement.style.display='none'">
+                    </div>
+                    <p class="mt-2 font-semibold text-gray-800 group-hover:text-gold">Coiffure Homme 8</p>
+                    <p class="text-xs text-gray-500">Style Tendance</p>
+                </div>
+                <div class="gallery-item group cursor-pointer" onclick="openLightbox('im-cf/9.webp', 'Coiffure Homme 9')">
+                    <div class="aspect-w-1 aspect-h-1 bg-gray-200 rounded-lg overflow-hidden">
+                        <img src="im-cf/9.webp" alt="Coiffure Homme 9" class="w-full h-full object-cover" loading="lazy" onerror="this.parentElement.parentElement.style.display='none'">
+                    </div>
+                    <p class="mt-2 font-semibold text-gray-800 group-hover:text-gold">Coiffure Homme 9</p>
+                    <p class="text-xs text-gray-500">Style Tendance</p>
+                </div>
+                <div class="gallery-item group cursor-pointer" onclick="openLightbox('im-cf/10.webp', 'Coiffure Homme 10')">
+                    <div class="aspect-w-1 aspect-h-1 bg-gray-200 rounded-lg overflow-hidden">
+                        <img src="im-cf/10.webp" alt="Coiffure Homme 10" class="w-full h-full object-cover" loading="lazy" onerror="this.parentElement.parentElement.style.display='none'">
+                    </div>
+                    <p class="mt-2 font-semibold text-gray-800 group-hover:text-gold">Coiffure Homme 10</p>
+                    <p class="text-xs text-gray-500">Style Tendance</p>
+                </div>
+                <div class="gallery-item group cursor-pointer" onclick="openLightbox('im-cf/11.webp', 'Coiffure Homme 11')">
+                    <div class="aspect-w-1 aspect-h-1 bg-gray-200 rounded-lg overflow-hidden">
+                        <img src="im-cf/11.webp" alt="Coiffure Homme 11" class="w-full h-full object-cover" loading="lazy" onerror="this.parentElement.parentElement.style.display='none'">
+                    </div>
+                    <p class="mt-2 font-semibold text-gray-800 group-hover:text-gold">Coiffure Homme 11</p>
+                    <p class="text-xs text-gray-500">Style Tendance</p>
+                </div>
+                <div class="gallery-item group cursor-pointer" onclick="openLightbox('im-cf/12.webp', 'Coiffure Homme 12')">
+                    <div class="aspect-w-1 aspect-h-1 bg-gray-200 rounded-lg overflow-hidden">
+                        <img src="im-cf/12.webp" alt="Coiffure Homme 12" class="w-full h-full object-cover" loading="lazy" onerror="this.parentElement.parentElement.style.display='none'">
+                    </div>
+                    <p class="mt-2 font-semibold text-gray-800 group-hover:text-gold">Coiffure Homme 12</p>
+                    <p class="text-xs text-gray-500">Style Tendance</p>
+                </div>
+                <div class="gallery-item group cursor-pointer" onclick="openLightbox('im-cf/13.webp', 'Coiffure Homme 13')">
+                    <div class="aspect-w-1 aspect-h-1 bg-gray-200 rounded-lg overflow-hidden">
+                        <img src="im-cf/13.webp" alt="Coiffure Homme 13" class="w-full h-full object-cover" loading="lazy" onerror="this.parentElement.parentElement.style.display='none'">
+                    </div>
+                    <p class="mt-2 font-semibold text-gray-800 group-hover:text-gold">Coiffure Homme 13</p>
+                    <p class="text-xs text-gray-500">Style Tendance</p>
+                </div>
+                <div class="gallery-item group cursor-pointer" onclick="openLightbox('im-cf/14.webp', 'Coiffure Homme 14')">
+                    <div class="aspect-w-1 aspect-h-1 bg-gray-200 rounded-lg overflow-hidden">
+                        <img src="im-cf/14.webp" alt="Coiffure Homme 14" class="w-full h-full object-cover" loading="lazy" onerror="this.parentElement.parentElement.style.display='none'">
+                    </div>
+                    <p class="mt-2 font-semibold text-gray-800 group-hover:text-gold">Coiffure Homme 14</p>
+                    <p class="text-xs text-gray-500">Style Tendance</p>
+                </div>
+                <div class="gallery-item group cursor-pointer" onclick="openLightbox('im-cf/15.webp', 'Coiffure Homme 15')">
+                    <div class="aspect-w-1 aspect-h-1 bg-gray-200 rounded-lg overflow-hidden">
+                        <img src="im-cf/15.webp" alt="Coiffure Homme 15" class="w-full h-full object-cover" loading="lazy" onerror="this.parentElement.parentElement.style.display='none'">
+                    </div>
+                    <p class="mt-2 font-semibold text-gray-800 group-hover:text-gold">Coiffure Homme 15</p>
+                    <p class="text-xs text-gray-500">Style Tendance</p>
+                </div>
+                <div class="gallery-item group cursor-pointer" onclick="openLightbox('im-cf/16.webp', 'Coiffure Homme 16')">
+                    <div class="aspect-w-1 aspect-h-1 bg-gray-200 rounded-lg overflow-hidden">
+                        <img src="im-cf/16.webp" alt="Coiffure Homme 16" class="w-full h-full object-cover" loading="lazy" onerror="this.parentElement.parentElement.style.display='none'">
+                    </div>
+                    <p class="mt-2 font-semibold text-gray-800 group-hover:text-gold">Coiffure Homme 16</p>
+                    <p class="text-xs text-gray-500">Style Tendance</p>
+                </div>
+                <div class="gallery-item group cursor-pointer" onclick="openLightbox('im-cf/17.webp', 'Coiffure Homme 17')">
+                    <div class="aspect-w-1 aspect-h-1 bg-gray-200 rounded-lg overflow-hidden">
+                        <img src="im-cf/17.webp" alt="Coiffure Homme 17" class="w-full h-full object-cover" loading="lazy" onerror="this.parentElement.parentElement.style.display='none'">
+                    </div>
+                    <p class="mt-2 font-semibold text-gray-800 group-hover:text-gold">Coiffure Homme 17</p>
+                    <p class="text-xs text-gray-500">Style Tendance</p>
+                </div>
+                <div class="gallery-item group cursor-pointer" onclick="openLightbox('im-cf/18.webp', 'Coiffure Homme 18')">
+                    <div class="aspect-w-1 aspect-h-1 bg-gray-200 rounded-lg overflow-hidden">
+                        <img src="im-cf/18.webp" alt="Coiffure Homme 18" class="w-full h-full object-cover" loading="lazy" onerror="this.parentElement.parentElement.style.display='none'">
+                    </div>
+                    <p class="mt-2 font-semibold text-gray-800 group-hover:text-gold">Coiffure Homme 18</p>
+                    <p class="text-xs text-gray-500">Style Tendance</p>
+                </div>
+                <div class="gallery-item group cursor-pointer" onclick="openLightbox('im-cf/19.webp', 'Coiffure Homme 19')">
+                    <div class="aspect-w-1 aspect-h-1 bg-gray-200 rounded-lg overflow-hidden">
+                        <img src="im-cf/19.webp" alt="Coiffure Homme 19" class="w-full h-full object-cover" loading="lazy" onerror="this.parentElement.parentElement.style.display='none'">
+                    </div>
+                    <p class="mt-2 font-semibold text-gray-800 group-hover:text-gold">Coiffure Homme 19</p>
+                    <p class="text-xs text-gray-500">Style Tendance</p>
+                </div>
+                <div class="gallery-item group cursor-pointer" onclick="openLightbox('im-cf/20.webp', 'Coiffure Homme 20')">
+                    <div class="aspect-w-1 aspect-h-1 bg-gray-200 rounded-lg overflow-hidden">
+                        <img src="im-cf/20.webp" alt="Coiffure Homme 20" class="w-full h-full object-cover" loading="lazy" onerror="this.parentElement.parentElement.style.display='none'">
+                    </div>
+                    <p class="mt-2 font-semibold text-gray-800 group-hover:text-gold">Coiffure Homme 20</p>
+                    <p class="text-xs text-gray-500">Style Tendance</p>
+                </div>
+                <!-- Catalogue de coupes Homme (jpg) -->
+                <div class="gallery-item group cursor-pointer" onclick="openLightbox('im-cf/1.jpg', 'Coupe Homme 1')">
+                    <div class="aspect-w-1 aspect-h-1 bg-gray-200 rounded-lg overflow-hidden">
+                        <img src="im-cf/1.jpg" alt="Coupe Homme 1" class="w-full h-full object-cover" loading="lazy" onerror="this.parentElement.parentElement.style.display='none'">
+                    </div>
+                    <p class="mt-2 font-semibold text-gray-800 group-hover:text-gold">Coupe Homme 1</p>
+                    <p class="text-xs text-gray-500">Style Classique</p>
+                </div>
+                <div class="gallery-item group cursor-pointer" onclick="openLightbox('im-cf/2.jpg', 'Coupe Homme 2')">
+                    <div class="aspect-w-1 aspect-h-1 bg-gray-200 rounded-lg overflow-hidden">
+                        <img src="im-cf/2.jpg" alt="Coupe Homme 2" class="w-full h-full object-cover" loading="lazy" onerror="this.parentElement.parentElement.style.display='none'">
+                    </div>
+                    <p class="mt-2 font-semibold text-gray-800 group-hover:text-gold">Coupe Homme 2</p>
+                    <p class="text-xs text-gray-500">Style Classique</p>
+                </div>
+                <div class="gallery-item group cursor-pointer" onclick="openLightbox('im-cf/3.jpg', 'Coupe Homme 3')">
+                    <div class="aspect-w-1 aspect-h-1 bg-gray-200 rounded-lg overflow-hidden">
+                        <img src="im-cf/3.jpg" alt="Coupe Homme 3" class="w-full h-full object-cover" loading="lazy" onerror="this.parentElement.parentElement.style.display='none'">
+                    </div>
+                    <p class="mt-2 font-semibold text-gray-800 group-hover:text-gold">Coupe Homme 3</p>
+                    <p class="text-xs text-gray-500">Style Classique</p>
+                </div>
+                <div class="gallery-item group cursor-pointer" onclick="openLightbox('im-cf/4.jpg', 'Coupe Homme 4')">
+                    <div class="aspect-w-1 aspect-h-1 bg-gray-200 rounded-lg overflow-hidden">
+                        <img src="im-cf/4.jpg" alt="Coupe Homme 4" class="w-full h-full object-cover" loading="lazy" onerror="this.parentElement.parentElement.style.display='none'">
+                    </div>
+                    <p class="mt-2 font-semibold text-gray-800 group-hover:text-gold">Coupe Homme 4</p>
+                    <p class="text-xs text-gray-500">Style Classique</p>
+                </div>
+                <div class="gallery-item group cursor-pointer" onclick="openLightbox('im-cf/5.jpg', 'Coupe Homme 5')">
+                    <div class="aspect-w-1 aspect-h-1 bg-gray-200 rounded-lg overflow-hidden">
+                        <img src="im-cf/5.jpg" alt="Coupe Homme 5" class="w-full h-full object-cover" loading="lazy" onerror="this.parentElement.parentElement.style.display='none'">
+                    </div>
+                    <p class="mt-2 font-semibold text-gray-800 group-hover:text-gold">Coupe Homme 5</p>
+                    <p class="text-xs text-gray-500">Style Classique</p>
+                </div>
+                <div class="gallery-item group cursor-pointer" onclick="openLightbox('im-cf/6.jpg', 'Coupe Homme 6')">
+                    <div class="aspect-w-1 aspect-h-1 bg-gray-200 rounded-lg overflow-hidden">
+                        <img src="im-cf/6.jpg" alt="Coupe Homme 6" class="w-full h-full object-cover" loading="lazy" onerror="this.parentElement.parentElement.style.display='none'">
+                    </div>
+                    <p class="mt-2 font-semibold text-gray-800 group-hover:text-gold">Coupe Homme 6</p>
+                    <p class="text-xs text-gray-500">Style Classique</p>
+                </div>
+                <div class="gallery-item group cursor-pointer" onclick="openLightbox('im-cf/7.jpg', 'Coupe Homme 7')">
+                    <div class="aspect-w-1 aspect-h-1 bg-gray-200 rounded-lg overflow-hidden">
+                        <img src="im-cf/7.jpg" alt="Coupe Homme 7" class="w-full h-full object-cover" loading="lazy" onerror="this.parentElement.parentElement.style.display='none'">
+                    </div>
+                    <p class="mt-2 font-semibold text-gray-800 group-hover:text-gold">Coupe Homme 7</p>
+                    <p class="text-xs text-gray-500">Style Classique</p>
+                </div>
+                <div class="gallery-item group cursor-pointer" onclick="openLightbox('im-cf/8.jpg', 'Coupe Homme 8')">
+                    <div class="aspect-w-1 aspect-h-1 bg-gray-200 rounded-lg overflow-hidden">
+                        <img src="im-cf/8.jpg" alt="Coupe Homme 8" class="w-full h-full object-cover" loading="lazy" onerror="this.parentElement.parentElement.style.display='none'">
+                    </div>
+                    <p class="mt-2 font-semibold text-gray-800 group-hover:text-gold">Coupe Homme 8</p>
+                    <p class="text-xs text-gray-500">Style Classique</p>
+                </div>
+                <div class="gallery-item group cursor-pointer" onclick="openLightbox('im-cf/9.jpg', 'Coupe Homme 9')">
+                    <div class="aspect-w-1 aspect-h-1 bg-gray-200 rounded-lg overflow-hidden">
+                        <img src="im-cf/9.jpg" alt="Coupe Homme 9" class="w-full h-full object-cover" loading="lazy" onerror="this.parentElement.parentElement.style.display='none'">
+                    </div>
+                    <p class="mt-2 font-semibold text-gray-800 group-hover:text-gold">Coupe Homme 9</p>
+                    <p class="text-xs text-gray-500">Style Classique</p>
+                </div>
+                <div class="gallery-item group cursor-pointer" onclick="openLightbox('im-cf/10.jpg', 'Coupe Homme 10')">
+                    <div class="aspect-w-1 aspect-h-1 bg-gray-200 rounded-lg overflow-hidden">
+                        <img src="im-cf/10.jpg" alt="Coupe Homme 10" class="w-full h-full object-cover" loading="lazy" onerror="this.parentElement.parentElement.style.display='none'">
+                    </div>
+                    <p class="mt-2 font-semibold text-gray-800 group-hover:text-gold">Coupe Homme 10</p>
+                    <p class="text-xs text-gray-500">Style Classique</p>
+                </div>
+                <div class="gallery-item group cursor-pointer" onclick="openLightbox('im-cf/11.jpg', 'Coupe Homme 11')">
+                    <div class="aspect-w-1 aspect-h-1 bg-gray-200 rounded-lg overflow-hidden">
+                        <img src="im-cf/11.jpg" alt="Coupe Homme 11" class="w-full h-full object-cover" loading="lazy" onerror="this.parentElement.parentElement.style.display='none'">
+                    </div>
+                    <p class="mt-2 font-semibold text-gray-800 group-hover:text-gold">Coupe Homme 11</p>
+                    <p class="text-xs text-gray-500">Style Classique</p>
+                </div>
+                <div class="gallery-item group cursor-pointer" onclick="openLightbox('im-cf/12.jpg', 'Coupe Homme 12')">
+                    <div class="aspect-w-1 aspect-h-1 bg-gray-200 rounded-lg overflow-hidden">
+                        <img src="im-cf/12.jpg" alt="Coupe Homme 12" class="w-full h-full object-cover" loading="lazy" onerror="this.parentElement.parentElement.style.display='none'">
+                    </div>
+                    <p class="mt-2 font-semibold text-gray-800 group-hover:text-gold">Coupe Homme 12</p>
+                    <p class="text-xs text-gray-500">Style Classique</p>
+                </div>
+                <div class="gallery-item group cursor-pointer" onclick="openLightbox('im-cf/13.jpg', 'Coupe Homme 13')">
+                    <div class="aspect-w-1 aspect-h-1 bg-gray-200 rounded-lg overflow-hidden">
+                        <img src="im-cf/13.jpg" alt="Coupe Homme 13" class="w-full h-full object-cover" loading="lazy" onerror="this.parentElement.parentElement.style.display='none'">
+                    </div>
+                    <p class="mt-2 font-semibold text-gray-800 group-hover:text-gold">Coupe Homme 13</p>
+                    <p class="text-xs text-gray-500">Style Classique</p>
+                </div>
+                <div class="gallery-item group cursor-pointer" onclick="openLightbox('im-cf/14.jpg', 'Coupe Homme 14')">
+                    <div class="aspect-w-1 aspect-h-1 bg-gray-200 rounded-lg overflow-hidden">
+                        <img src="im-cf/14.jpg" alt="Coupe Homme 14" class="w-full h-full object-cover" loading="lazy" onerror="this.parentElement.parentElement.style.display='none'">
+                    </div>
+                    <p class="mt-2 font-semibold text-gray-800 group-hover:text-gold">Coupe Homme 14</p>
+                    <p class="text-xs text-gray-500">Style Classique</p>
+                </div>
+                <div class="gallery-item group cursor-pointer" onclick="openLightbox('im-cf/15.jpg', 'Coupe Homme 15')">
+                    <div class="aspect-w-1 aspect-h-1 bg-gray-200 rounded-lg overflow-hidden">
+                        <img src="im-cf/15.jpg" alt="Coupe Homme 15" class="w-full h-full object-cover" loading="lazy" onerror="this.parentElement.parentElement.style.display='none'">
+                    </div>
+                    <p class="mt-2 font-semibold text-gray-800 group-hover:text-gold">Coupe Homme 15</p>
+                    <p class="text-xs text-gray-500">Style Classique</p>
+                </div>
+                <div class="gallery-item group cursor-pointer" onclick="openLightbox('im-cf/16.jpg', 'Coupe Homme 16')">
+                    <div class="aspect-w-1 aspect-h-1 bg-gray-200 rounded-lg overflow-hidden">
+                        <img src="im-cf/16.jpg" alt="Coupe Homme 16" class="w-full h-full object-cover" loading="lazy" onerror="this.parentElement.parentElement.style.display='none'">
+                    </div>
+                    <p class="mt-2 font-semibold text-gray-800 group-hover:text-gold">Coupe Homme 16</p>
+                    <p class="text-xs text-gray-500">Style Classique</p>
+                </div>
+                <div class="gallery-item group cursor-pointer" onclick="openLightbox('im-cf/17.jpg', 'Coupe Homme 17')">
+                    <div class="aspect-w-1 aspect-h-1 bg-gray-200 rounded-lg overflow-hidden">
+                        <img src="im-cf/17.jpg" alt="Coupe Homme 17" class="w-full h-full object-cover" loading="lazy" onerror="this.parentElement.parentElement.style.display='none'">
+                    </div>
+                    <p class="mt-2 font-semibold text-gray-800 group-hover:text-gold">Coupe Homme 17</p>
+                    <p class="text-xs text-gray-500">Style Classique</p>
+                </div>
+                <div class="gallery-item group cursor-pointer" onclick="openLightbox('im-cf/18.jpg', 'Coupe Homme 18')">
+                    <div class="aspect-w-1 aspect-h-1 bg-gray-200 rounded-lg overflow-hidden">
+                        <img src="im-cf/18.jpg" alt="Coupe Homme 18" class="w-full h-full object-cover" loading="lazy" onerror="this.parentElement.parentElement.style.display='none'">
+                    </div>
+                    <p class="mt-2 font-semibold text-gray-800 group-hover:text-gold">Coupe Homme 18</p>
+                    <p class="text-xs text-gray-500">Style Classique</p>
+                </div>
+                <div class="gallery-item group cursor-pointer" onclick="openLightbox('im-cf/19.jpg', 'Coupe Homme 19')">
+                    <div class="aspect-w-1 aspect-h-1 bg-gray-200 rounded-lg overflow-hidden">
+                        <img src="im-cf/19.jpg" alt="Coupe Homme 19" class="w-full h-full object-cover" loading="lazy" onerror="this.parentElement.parentElement.style.display='none'">
+                    </div>
+                    <p class="mt-2 font-semibold text-gray-800 group-hover:text-gold">Coupe Homme 19</p>
+                    <p class="text-xs text-gray-500">Style Classique</p>
+                </div>
+                <div class="gallery-item group cursor-pointer" onclick="openLightbox('im-cf/20.jpg', 'Coupe Homme 20')">
+                    <div class="aspect-w-1 aspect-h-1 bg-gray-200 rounded-lg overflow-hidden">
+                        <img src="im-cf/20.jpg" alt="Coupe Homme 20" class="w-full h-full object-cover" loading="lazy" onerror="this.parentElement.parentElement.style.display='none'">
+                    </div>
+                    <p class="mt-2 font-semibold text-gray-800 group-hover:text-gold">Coupe Homme 20</p>
+                    <p class="text-xs text-gray-500">Style Classique</p>
+                </div>
+                <div class="gallery-item group cursor-pointer" onclick="openLightbox('im-cf/21.jpg', 'Coupe Homme 21')">
+                    <div class="aspect-w-1 aspect-h-1 bg-gray-200 rounded-lg overflow-hidden">
+                        <img src="im-cf/21.jpg" alt="Coupe Homme 21" class="w-full h-full object-cover" loading="lazy" onerror="this.parentElement.parentElement.style.display='none'">
+                    </div>
+                    <p class="mt-2 font-semibold text-gray-800 group-hover:text-gold">Coupe Homme 21</p>
+                    <p class="text-xs text-gray-500">Style Classique</p>
+                </div>
+                <div class="gallery-item group cursor-pointer" onclick="openLightbox('im-cf/22.jpg', 'Coupe Homme 22')">
+                    <div class="aspect-w-1 aspect-h-1 bg-gray-200 rounded-lg overflow-hidden">
+                        <img src="im-cf/22.jpg" alt="Coupe Homme 22" class="w-full h-full object-cover" loading="lazy" onerror="this.parentElement.parentElement.style.display='none'">
+                    </div>
+                    <p class="mt-2 font-semibold text-gray-800 group-hover:text-gold">Coupe Homme 22</p>
+                    <p class="text-xs text-gray-500">Style Classique</p>
+                </div>
+                <div class="gallery-item group cursor-pointer" onclick="openLightbox('im-cf/23.jpg', 'Coupe Homme 23')">
+                    <div class="aspect-w-1 aspect-h-1 bg-gray-200 rounded-lg overflow-hidden">
+                        <img src="im-cf/23.jpg" alt="Coupe Homme 23" class="w-full h-full object-cover" loading="lazy" onerror="this.parentElement.parentElement.style.display='none'">
+                    </div>
+                    <p class="mt-2 font-semibold text-gray-800 group-hover:text-gold">Coupe Homme 23</p>
+                    <p class="text-xs text-gray-500">Style Classique</p>
+                </div>
+                <div class="gallery-item group cursor-pointer" onclick="openLightbox('im-cf/24.jpg', 'Coupe Homme 24')">
+                    <div class="aspect-w-1 aspect-h-1 bg-gray-200 rounded-lg overflow-hidden">
+                        <img src="im-cf/24.jpg" alt="Coupe Homme 24" class="w-full h-full object-cover" loading="lazy" onerror="this.parentElement.parentElement.style.display='none'">
+                    </div>
+                    <p class="mt-2 font-semibold text-gray-800 group-hover:text-gold">Coupe Homme 24</p>
+                    <p class="text-xs text-gray-500">Style Classique</p>
+                </div>
+                <div class="gallery-item group cursor-pointer" onclick="openLightbox('im-cf/25.jpg', 'Coupe Homme 25')">
+                    <div class="aspect-w-1 aspect-h-1 bg-gray-200 rounded-lg overflow-hidden">
+                        <img src="im-cf/25.jpg" alt="Coupe Homme 25" class="w-full h-full object-cover" loading="lazy" onerror="this.parentElement.parentElement.style.display='none'">
+                    </div>
+                    <p class="mt-2 font-semibold text-gray-800 group-hover:text-gold">Coupe Homme 25</p>
+                    <p class="text-xs text-gray-500">Style Classique</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- NOUVEAU: Ce conteneur cache également les services/produits -->
+        <div id="dynamic-content-2" class="hidden">
+            <!-- Section pour les Services -->
+            <section class="bg-white p-6 rounded-lg shadow-md mb-8">
+                <h2 class="text-2xl font-bold mb-4">Nos Services</h2>
+                <div id="services-list" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Les services seront injectés ici par JavaScript -->
+                </div>
+            </section>
+
+            <!-- Section pour les Produits à vendre -->
+            <section class="bg-white p-6 rounded-lg shadow-md">
+                <h2 class="text-2xl font-bold mb-4">Nos Produits à la Vente</h2>
+                <div id="products-list" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Les produits seront injectés ici par JavaScript -->
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <!-- NOUVEAU: Structure pour la Lightbox (visionneuse d'images) -->
+    <div id="lightbox" class="lightbox fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4 opacity-0 pointer-events-none">
+        <div class="lightbox-content relative bg-white p-2 rounded-lg shadow-2xl max-w-4xl max-h-full transform scale-95">
+            <img id="lightbox-image" src="" alt="Image en grand" class="max-w-full max-h-[85vh] object-contain">
+            <p id="lightbox-caption" class="text-center text-white mt-2 font-semibold"></p>
+        </div>
+        <button id="lightbox-close" class="lightbox-close absolute top-4 right-4 text-white text-4xl font-bold">&times;</button>
+    </div>
+
+    <!-- NOUVEAU: Barre de navigation mobile -->
+    <nav class="md:hidden bg-white border-t-2 border-gray-200 fixed bottom-0 left-0 right-0 z-40">
+        <div class="flex justify-around items-center h-16">
+            <a href="../index.html" class="flex flex-col items-center text-gray-600 hover:text-gold transition"><svg class="w-6 h-6 mb-1" fill="currentColor" viewBox="0 0 20 20"><path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"></path></svg><span class="text-xs font-semibold">Accueil</span></a>
+            <a href="../suivi-commande.html" class="flex flex-col items-center text-gray-600 hover:text-gold transition"><svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75c0-.231-.035-.454-.1-.664M6.75 7.5H18a2.25 2.25 0 012.25 2.25v9a2.25 2.25 0 01-2.25-2.25H6.75a2.25 2.25 0 01-2.25-2.25v-9a2.25 2.25 0 012.25-2.25z"></path></svg><span class="text-xs">Suivi</span></a>
+            <a href="../compte.html" class="flex flex-col items-center text-gray-600 hover:text-gold transition"><svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg><span class="text-xs">Compte</span></a>
+            <a href="../panier.html" class="flex flex-col items-center text-gray-600 hover:text-gold transition relative"><svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.658-.463 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007zM8.625 10.5a.375.375 0 11-.75 0 .375.375 0 01.75 0zm7.5 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" /></svg><span class="cart-badge absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center hidden">0</span><span class="text-xs">Panier</span></a>
+        </div>
+    </nav>
+
+    <!-- Le script est maintenant externe et dans le bon dossier -->
+    <script src="main-entreprise.js" defer></script>
+</body>
+</html>

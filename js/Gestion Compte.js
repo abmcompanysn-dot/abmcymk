@@ -15,6 +15,7 @@ const ADMIN_EMAIL = "abmcompanysn@gmail.com";
 const SHEET_NAMES = {
     USERS: "Utilisateurs",
     ORDERS: "Commandes",
+    ENTREPRISES: "Comptes_Entreprises", // NOUVEAU: Feuille pour les comptes des entreprises partenaires
     LOGS: "Logs",
     CONFIG: "Config",
     ADDRESSES: "Adresses", // NOUVEAU: Feuille pour les adresses
@@ -67,6 +68,11 @@ function doGet(e) {
       return HtmlService.createHtmlOutputFromFile('abmcy_admin')
           .setTitle('Tableau de Bord Admin - ABMCY MARKET')
           .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+    }
+    // NOUVEAU: Action pour récupérer les données publiques d'une entreprise
+    if (action === 'getBusinessPublicData') {
+        // Cette action est publique, pas besoin de vérifier l'origine ici.
+        return getBusinessPublicData(e.parameter.compteId);
     }
     
     // Réponse par défaut pour un simple test de l'API
@@ -128,6 +134,14 @@ function doPost(e) {
         switch (action) {
             case 'creerCompteClient':
                 return creerCompteClient(data, origin);
+            case 'creerCompteEntreprise': // NOUVEAU
+                return creerCompteEntreprise(data, origin);
+            case 'connecterEntreprise': // NOUVEAU
+                return connecterEntreprise(data, origin);
+            case 'requestBusinessPasswordReset': // NOUVEAU
+                return requestBusinessPasswordReset(data, origin);
+            case 'resetBusinessPassword': // NOUVEAU
+                return resetBusinessPassword(data, origin);
             case 'connecterClient':
                 return connecterClient(data, origin);
             case 'getOrderById': // NOUVEAU
@@ -191,6 +205,8 @@ function doPost(e) {
                 const orderData = JSON.parse(orderResult.getContent());
                 if (orderData.success) { sendOrderConfirmationEmail(orderData, data, "cod"); }
                 return orderResult;
+            case 'updateBusinessInfo': // NOUVEAU: Mettre à jour les infos de l'entreprise
+                return updateBusinessInfo(data, origin);
             case 'logClientEvent':
                 return logClientEvent(data, origin);
             // NOUVEAU: Gérer le webhook de Paydunya
@@ -210,6 +226,48 @@ function doPost(e) {
         return createJsonResponse({ success: false, error: `Erreur serveur: ${error.message}` }, origin);
     } finally {
         lock.releaseLock();
+    }
+}
+
+/**
+ * NOUVEAU: Met à jour les informations d'une entreprise partenaire.
+ * @param {object} data - { compteId, nom, description, telephone, adresse, logoUrl, coverImageUrl }
+ * @param {string} origin - L'origine de la requête.
+ */
+function updateBusinessInfo(data, origin) {
+    try {
+        const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.ENTREPRISES);
+        const allData = sheet.getDataRange().getValues();
+        const headers = allData[0];
+        
+        const idIndex = headers.indexOf("NumeroCompte");
+        const rowIndex = allData.findIndex(row => row[idIndex] === data.compteId);
+
+        if (rowIndex === -1) {
+            return createJsonResponse({ success: false, error: "Entreprise non trouvée." }, origin);
+        }
+
+        const rowToUpdate = rowIndex + 1; // +1 car les indices de feuille commencent à 1
+
+        // Fonction helper pour mettre à jour une colonne si la donnée est présente
+        const updateCol = (colName, value) => {
+            const colIndex = headers.indexOf(colName);
+            if (colIndex > -1 && value !== undefined && value !== null) {
+                sheet.getRange(rowToUpdate, colIndex + 1).setValue(value);
+            }
+        };
+
+        updateCol("NomEntreprise", data.nom);
+        updateCol("Description", data.description);
+        updateCol("Telephone", data.telephone);
+        updateCol("Adresse", data.adresse);
+        if (data.logoUrl) updateCol("LogoUrl", data.logoUrl);
+        if (data.coverImageUrl) updateCol("CoverImageUrl", data.coverImageUrl);
+
+        return createJsonResponse({ success: true, message: "Informations mises à jour avec succès." }, origin);
+    } catch (error) {
+        logError('updateBusinessInfo', error);
+        return createJsonResponse({ success: false, error: error.message }, origin);
     }
 }
 
@@ -267,6 +325,155 @@ function creerCompteClient(data, origin) {
 
     } catch (error) {
         logError(JSON.stringify({ action: 'creerCompteClient', data }), error);
+        return createJsonResponse({ success: false, error: error.message }, origin);
+    }
+}
+
+/**
+ * NOUVEAU: Crée un compte entreprise.
+ * @param {object} data - { nomEntreprise, email, typeEntreprise, motDePasse }
+ */
+function creerCompteEntreprise(data, origin) {
+    try {
+        const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.ENTREPRISES);
+        const allData = sheet.getDataRange().getValues();
+        const headers = allData[0];
+        const emailIndex = headers.indexOf("Email");
+
+        // Vérifier si l'email existe déjà
+        if (emailIndex > -1) {
+            const emailExists = allData.some(row => row[emailIndex] === data.email);
+            if (emailExists) return createJsonResponse({ success: false, error: "Cet email est déjà utilisé par une autre entreprise." }, origin);
+        }
+
+        const compteId = `ENT-${new Date().getTime()}`;
+        const { passwordHash, salt } = hashPassword(data.motDePasse);
+        
+        // Colonnes: NumeroCompte, NomEntreprise, Type, Proprietaire, Telephone, Adresse, ApiTypeUrl, LogoUrl, Description, CoverImageUrl, GalerieUrls, Email, PasswordHash, Salt
+        // On remplit ce qu'on a, le reste sera vide pour l'instant
+        const newRow = [
+            compteId, data.nomEntreprise, data.typeEntreprise, "", "", "", "", "", "", "", "", data.email, passwordHash, salt
+        ];
+        
+        // S'assurer que la ligne correspond aux colonnes (gestion dynamique simplifiée ici, on suppose l'ordre de setupProject)
+        sheet.appendRow(newRow);
+
+        return createJsonResponse({ status: 'success', numeroCompte: compteId }, origin);
+    } catch (error) {
+        logError('creerCompteEntreprise', error);
+        return createJsonResponse({ success: false, error: error.message }, origin);
+    }
+}
+
+/**
+ * NOUVEAU: Connecte une entreprise.
+ * @param {object} data - { email, motDePasse }
+ */
+function connecterEntreprise(data, origin) {
+    try {
+        const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.ENTREPRISES);
+        const allData = sheet.getDataRange().getValues();
+        const headers = allData[0];
+        const emailIndex = headers.indexOf("Email");
+        
+        const userRow = allData.find(row => row[emailIndex] === data.email);
+        if (!userRow) return createJsonResponse({ success: false, error: "Email ou mot de passe incorrect." }, origin);
+
+        const storedHash = userRow[headers.indexOf("PasswordHash")];
+        const salt = userRow[headers.indexOf("Salt")];
+        
+        if (hashPassword(data.motDePasse, salt).passwordHash !== storedHash) {
+            return createJsonResponse({ success: false, error: "Email ou mot de passe incorrect." }, origin);
+        }
+
+        return createJsonResponse({ success: true, numeroCompte: userRow[headers.indexOf("NumeroCompte")] }, origin);
+    } catch (error) {
+        return createJsonResponse({ success: false, error: error.message }, origin);
+    }
+}
+
+/**
+ * NOUVEAU: Demande de réinitialisation de mot de passe pour une entreprise.
+ * @param {object} data - { email }
+ */
+function requestBusinessPasswordReset(data, origin) {
+    try {
+        const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.ENTREPRISES);
+        const allData = sheet.getDataRange().getValues();
+        const headers = allData[0];
+        const emailIndex = headers.indexOf("Email");
+        const tokenIndex = headers.indexOf("ResetToken");
+        const expiryIndex = headers.indexOf("ResetTokenExpiry");
+
+        if (tokenIndex === -1 || expiryIndex === -1) {
+            throw new Error("Colonnes de réinitialisation manquantes dans la feuille Entreprises.");
+        }
+
+        const rowIndex = allData.findIndex(row => row[emailIndex] === data.email);
+
+        if (rowIndex !== -1) {
+            const resetToken = Utilities.getUuid();
+            const expiryDate = new Date(new Date().getTime() + 15 * 60 * 1000); // Valide 15 minutes
+
+            const rowToUpdate = rowIndex + 1;
+            sheet.getRange(rowToUpdate, tokenIndex + 1).setValue(resetToken);
+            sheet.getRange(rowToUpdate, expiryIndex + 1).setValue(expiryDate);
+
+            // Envoyer l'email
+            const resetUrl = `https://abmcymarket.abmcy.com/entreprise/reset-password.html?token=${resetToken}`;
+            const subject = "Réinitialisation de votre mot de passe Partenaire ABMCY";
+            const body = `
+                <p>Bonjour,</p>
+                <p>Une demande de réinitialisation de mot de passe a été effectuée pour votre compte partenaire.</p>
+                <p>Cliquez sur le lien ci-dessous pour définir un nouveau mot de passe (valide 15 minutes) :</p>
+                <p><a href="${resetUrl}" style="font-weight:bold;">Réinitialiser mon mot de passe</a></p>
+                <p>Si vous n'êtes pas à l'origine de cette demande, ignorez cet email.</p>
+            `;
+            MailApp.sendEmail(data.email, subject, "", { htmlBody: body });
+        }
+
+        return createJsonResponse({ success: true, message: "Si cet email existe, un lien a été envoyé." }, origin);
+    } catch (error) {
+        logError('requestBusinessPasswordReset', error);
+        return createJsonResponse({ success: false, error: error.message }, origin);
+    }
+}
+
+/**
+ * NOUVEAU: Réinitialise le mot de passe entreprise avec le jeton.
+ * @param {object} data - { token, newPassword }
+ */
+function resetBusinessPassword(data, origin) {
+    try {
+        const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.ENTREPRISES);
+        const allData = sheet.getDataRange().getValues();
+        const headers = allData[0];
+        const tokenIndex = headers.indexOf("ResetToken");
+        const expiryIndex = headers.indexOf("ResetTokenExpiry");
+        const hashIndex = headers.indexOf("PasswordHash");
+        const saltIndex = headers.indexOf("Salt");
+
+        const rowIndex = allData.findIndex(row => row[tokenIndex] === data.token);
+
+        if (rowIndex === -1) {
+            return createJsonResponse({ success: false, error: "Jeton invalide ou expiré." }, origin);
+        }
+
+        const expiryDate = new Date(allData[rowIndex][expiryIndex]);
+        if (expiryDate < new Date()) {
+            return createJsonResponse({ success: false, error: "Jeton expiré." }, origin);
+        }
+
+        const { passwordHash, salt } = hashPassword(data.newPassword);
+        const rowToUpdate = rowIndex + 1;
+
+        sheet.getRange(rowToUpdate, hashIndex + 1).setValue(passwordHash);
+        sheet.getRange(rowToUpdate, saltIndex + 1).setValue(salt);
+        sheet.getRange(rowToUpdate, tokenIndex + 1).setValue(""); // Effacer le jeton
+        sheet.getRange(rowToUpdate, expiryIndex + 1).setValue("");
+
+        return createJsonResponse({ success: true, message: "Mot de passe réinitialisé avec succès." }, origin);
+    } catch (error) {
         return createJsonResponse({ success: false, error: error.message }, origin);
     }
 }
@@ -1918,6 +2125,7 @@ function setupProject() {
     [SHEET_NAMES.LOGS]: ["Timestamp", "Source", "Action", "Détails"],
     [SHEET_NAMES.CONFIG]: ["Clé", "Valeur"],
     [SHEET_NAMES.ADDRESSES]: ["IDAdresse", "IDClient", "Label", "Details", "IsDefault"], // NOUVEAU
+    [SHEET_NAMES.ENTREPRISES]: ["NumeroCompte", "NomEntreprise", "Type", "Proprietaire", "Telephone", "Adresse", "ApiTypeUrl", "LogoUrl", "Description", "CoverImageUrl", "GalerieUrls", "Email", "PasswordHash", "Salt", "ResetToken", "ResetTokenExpiry"],
     [SHEET_NAMES.ABMCY_AGGREGATOR_HISTORY]: ["Timestamp", "IDCommande", "Montant", "MoyenPaiement", "TransactionReference", "NomExpediteur", "NumeroExpediteur", "StatutLog", "NotesAdmin"], // NOUVEAU
     [SHEET_NAMES.ABMCY_Admin]: ["Clé", "Valeur"], // NOUVEAU
     [SHEET_NAMES.LIVRAISONS]: ["IDLivraison", "IDCommande", "IDClient", "Adresse", "Statut", "DateMiseAJour", "Transporteur"],
@@ -1948,6 +2156,35 @@ function setupProject() {
       addColumnsIfNotExists(sheet, headers);
     }
   });
+
+  // NOUVEAU: Remplir la feuille Entreprises avec des exemples
+  const entreprisesSheet = ss.getSheetByName(SHEET_NAMES.ENTREPRISES);
+  if (entreprisesSheet && entreprisesSheet.getLastRow() < 2) { // Ne remplir que si la feuille est vide (sauf en-têtes)
+    const defaultLogo = "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png";
+    const entreprisesExemples = [
+      { type: "Coiffeur", nom: "Salon de Coiffure Chic" },
+      { type: "Restaurant", nom: "Le Gourmet Dakarois" },
+      { type: "Boutique de Mode", nom: "Tendance & Style" },
+      { type: "Service de Livraison", nom: "ViteLivré Express" },
+      { type: "Agence Immobilière", nom: "ImmoConfiance SN" }
+    ];
+
+    const rows = entreprisesExemples.map((entreprise, index) => {
+      const compteId = `ENT-${String(new Date().getTime()).slice(-5) + index}`;
+      return [
+        compteId, // NumeroCompte
+        entreprise.nom, // NomEntreprise
+        entreprise.type, // Type
+        "Nom du Propriétaire", // Proprietaire
+        "77XXXXXXX", // Telephone
+        "Adresse de l'entreprise", // Adresse
+        "REMPLIR_URL_API_DU_TYPE", // ApiTypeUrl (ex: URL du script pour les coiffeurs)
+        defaultLogo, // LogoUrl
+        `Description pour ${entreprise.nom}` // Description
+      ];
+    });
+    entreprisesSheet.getRange(2, 1, rows.length, rows[0].length).setValues(rows);
+  }
 
   // Remplir la configuration par défaut
   const configSheet = ss.getSheetByName(SHEET_NAMES.CONFIG);
@@ -2083,4 +2320,74 @@ function openAbmcyAdminInSidebar() {
     .setWidth(500)
     .setTitle('Confirmation Manuelle ABMCY');
   SpreadsheetApp.getUi().showSidebar(html);
+}
+
+/**
+ * NOUVEAU: Récupère toutes les données publiques d'une entreprise partenaire.
+ * C'est le point d'entrée pour les pages vitrines comme babershop.html.
+ * @param {string} compteId - L'ID du compte de l'entreprise.
+ * @returns {GoogleAppsScript.Content.TextOutput} Réponse JSON avec les infos de l'entreprise, ses services et produits.
+ */
+function getBusinessPublicData(compteId) {
+    if (!compteId) {
+        return createJsonResponse({ success: false, error: "ID de compte manquant." });
+    }
+
+    try {
+        // 1. Récupérer les informations de base de l'entreprise depuis la feuille "Entreprises"
+        const entreprisesSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.ENTREPRISES);
+        if (!entreprisesSheet) throw new Error("La feuille des entreprises est introuvable.");
+
+        const allEntreprises = entreprisesSheet.getDataRange().getValues();
+        const headers = allEntreprises.shift() || [];
+        const compteIdIndex = headers.indexOf("NumeroCompte");
+
+        const entrepriseRow = allEntreprises.find(row => row[compteIdIndex] === compteId);
+
+        if (!entrepriseRow) {
+            return createJsonResponse({ success: false, error: "Entreprise non trouvée." });
+        }
+
+        const businessInfo = headers.reduce((obj, header, index) => {
+            obj[header] = entrepriseRow[index];
+            return obj;
+        }, {});
+
+        // 2. Récupérer l'URL de l'API de données spécifique à ce type d'entreprise
+        const apiTypeUrl = businessInfo.ApiTypeUrl;
+        if (!apiTypeUrl || !apiTypeUrl.startsWith('https')) {
+            // Si pas d'API de données, on retourne juste les infos de base
+            return createJsonResponse({ success: true, data: { businessInfo: businessInfo, services: [], products: [] } });
+        }
+
+        // 3. Appeler l'API du type d'entreprise (ex: API Coiffeurs) pour obtenir les services et produits
+        const apiResponse = UrlFetchApp.fetch(`${apiTypeUrl}?compteId=${compteId}`, {
+            method: 'get',
+            muteHttpExceptions: true
+        });
+
+        let services = [];
+        let products = [];
+
+        if (apiResponse.getResponseCode() === 200) {
+            const apiResult = JSON.parse(apiResponse.getContentText());
+            if (apiResult.status === 'success' && apiResult.data) {
+                services = apiResult.data.services || [];
+                products = apiResult.data.products || [];
+            }
+        }
+
+        // 4. Agréger toutes les données et les renvoyer
+        const finalData = {
+            businessInfo: businessInfo,
+            services: services,
+            products: products
+        };
+
+        return createJsonResponse({ success: true, data: finalData });
+
+    } catch (error) {
+        logError(`getBusinessPublicData pour ${compteId}`, error);
+        return createJsonResponse({ success: false, error: `Erreur serveur: ${error.message}` });
+    }
 }
