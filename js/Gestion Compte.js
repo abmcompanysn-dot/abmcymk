@@ -34,6 +34,14 @@ const ALLOWED_ORIGINS = {
     "null": true // Autoriser pour les tests locaux ou les redirections depuis des applications
 };
 
+// NOUVEAU: Configuration des URLs d'API spécifiques par type d'entreprise.
+// C'est ici que le système "récupère l'API" pour l'associer au compte.
+const BUSINESS_TYPE_APIS = {
+    "Coiffeur": "https://script.google.com/macros/s/AKfycb.../exec", // ⚠️ REMPLACEZ CECI par l'URL déployée de votre script 'api_type_coiffeur.js'
+    "Restaurant": "", // À définir plus tard
+    "Boutique": ""    // À définir plus tard
+};
+
 // --- POINTS D'ENTRÉE DE L'API WEB (doGet, doPost, doOptions) ---
 
 /**
@@ -107,7 +115,8 @@ function doPost(e) {
         } catch (jsonError) {
             throw new Error("Le corps de la requête n'est pas un JSON valide.");
         }
-        const { action, data } = request;
+        let { action, data } = request;
+        if (action) action = action.trim(); // Nettoyage pour éviter les erreurs d'espaces
 
         if (!action) {
             return createJsonResponse({ success: false, error: 'Action non spécifiée.' }, origin);
@@ -349,10 +358,13 @@ function creerCompteEntreprise(data, origin) {
         const compteId = `ENT-${new Date().getTime()}`;
         const { passwordHash, salt } = hashPassword(data.motDePasse);
         
+        // NOUVEAU: Récupère automatiquement l'URL de l'API en fonction du type choisi (ex: Coiffeur)
+        const apiTypeUrl = BUSINESS_TYPE_APIS[data.typeEntreprise] || "";
+
         // Colonnes: NumeroCompte, NomEntreprise, Type, Proprietaire, Telephone, Adresse, ApiTypeUrl, LogoUrl, Description, CoverImageUrl, GalerieUrls, Email, PasswordHash, Salt
         // On remplit ce qu'on a, le reste sera vide pour l'instant
         const newRow = [
-            compteId, data.nomEntreprise, data.typeEntreprise, "", "", "", "", "", "", "", "", data.email, passwordHash, salt
+            compteId, data.nomEntreprise, data.typeEntreprise, "", "", "", apiTypeUrl, "", "", "", "", data.email, passwordHash, salt
         ];
         
         // S'assurer que la ligne correspond aux colonnes (gestion dynamique simplifiée ici, on suppose l'ordre de setupProject)

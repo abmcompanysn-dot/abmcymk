@@ -17,10 +17,7 @@ const PRODUCTS_SHEET = "Produits"; // Feuille contenant les produits de TOUS les
 function doOptions(e) {
   return ContentService.createTextOutput()
     .setMimeType(ContentService.MimeType.JSON)
-    .append(JSON.stringify({ status: "success" }))
-    .addHeader("Access-Control-Allow-Origin", "*")
-    .addHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-    .addHeader("Access-Control-Allow-Headers", "Content-Type");
+    .append(JSON.stringify({ status: "success" }));
 }
 
 /**
@@ -81,6 +78,8 @@ function doPost(e) {
         return setupSheets();
       case 'addDemoData':
         return addDemoData(data);
+      case 'creerCompteEntreprise':
+        return createJsonResponse({ status: "error", message: "Veuillez utiliser l'API Centrale (Gestion Compte) pour créer un compte entreprise." });
       default:
         return createJsonResponse({ status: "error", message: "Action non reconnue." });
     }
@@ -348,6 +347,5 @@ function getDataForId(sheetName, id) {
 
 function createJsonResponse(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj))
-    .setMimeType(ContentService.MimeType.JSON)
-    .addHeader("Access-Control-Allow-Origin", "*");
+    .setMimeType(ContentService.MimeType.JSON);
 }
