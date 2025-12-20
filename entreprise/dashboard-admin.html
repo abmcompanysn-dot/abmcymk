@@ -333,6 +333,9 @@
             }
             
             // 2. Charger les données initiales
+            // NOUVEAU: Charger les données locales pour un affichage immédiat
+            loadLocalData();
+            
             fetchData();
             setupQrCodeAndLink();
         });
@@ -357,6 +360,21 @@
             }
         }
 
+        function loadLocalData() {
+            try {
+                const localUser = JSON.parse(localStorage.getItem('abmcyBusinessUser'));
+                if (localUser && localUser.numeroCompte === compteId) {
+                    // Afficher le nom de l'entreprise immédiatement
+                    if (localUser.nomEntreprise) {
+                        document.querySelector('.main-header h1').textContent = `Tableau de Bord - ${localUser.nomEntreprise}`;
+                        document.getElementById('settingsName').value = localUser.nomEntreprise;
+                    }
+                }
+            } catch (e) {
+                console.log("Pas de données locales valides.");
+            }
+        }
+
         async function fetchData() {
             loader.style.display = 'block';
             
@@ -368,6 +386,9 @@
                 if (!centralResult.success) throw new Error(centralResult.error);
 
                 const info = centralResult.data.businessInfo;
+                // Mettre à jour le titre avec le nom officiel venant du serveur
+                document.querySelector('.main-header h1').textContent = `Tableau de Bord - ${info.NomEntreprise}`;
+                
                 BUSINESS_API_URL = info.ApiTypeUrl; // Récupérer l'URL de l'API spécifique
                 
                 // Remplir le formulaire de paramètres
@@ -506,8 +527,12 @@
         }
 
         function logout() {
-            // Rediriger vers la page de connexion
-            window.location.href = 'connexion-entreprise.html';
+            if (confirm("Êtes-vous sûr de vouloir vous déconnecter ?")) {
+                // Supprimer les données de session locales
+                localStorage.removeItem('abmcyBusinessUser');
+                // Rediriger vers la page d'authentification
+                window.location.href = 'inscription-entreprise.html';
+            }
         }
 
         // Gestion de la sauvegarde des paramètres

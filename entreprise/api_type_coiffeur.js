@@ -75,7 +75,7 @@ function doPost(e) {
       case 'submitPublicHaircut':
         return submitPublicHaircut(data);
       case 'setup':
-        return setupSheets();
+        return createJsonResponse(setupSheets());
       case 'addDemoData':
         return addDemoData(data);
       case 'creerCompteEntreprise':
@@ -210,26 +210,49 @@ function submitPublicHaircut(data) {
  */
 function setupSheets() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  // En-têtes correspondant à la structure utilisée dans addItem et updateItem
-  const headers = ["CompteID", "IDItem", "Nom", "Prix", "Description", "ImageURL", "Categorie", "Caracteristiques", "Date"];
-  const sheetsToSetup = [SERVICES_SHEET, PRODUCTS_SHEET];
+  
+  // Configuration des feuilles et des colonnes attendues
+  const sheetsToCreate = {
+    [SERVICES_SHEET]: ["CompteID", "IDItem", "Nom", "Prix", "Description", "ImageURL", "Categorie", "Caracteristiques", "Date"],
+    [PRODUCTS_SHEET]: ["CompteID", "IDItem", "Nom", "Prix", "Description", "ImageURL", "Categorie", "Caracteristiques", "Date"]
+  };
+
   let log = [];
 
-  sheetsToSetup.forEach(sheetName => {
+  Object.entries(sheetsToCreate).forEach(([sheetName, desiredHeaders]) => {
     let sheet = ss.getSheetByName(sheetName);
     if (!sheet) {
       sheet = ss.insertSheet(sheetName);
-      sheet.appendRow(headers);
+      sheet.appendRow(desiredHeaders);
       sheet.setFrozenRows(1); // Fige la ligne d'en-tête pour plus de lisibilité
       log.push(`Feuille "${sheetName}" créée.`);
-    } else if (sheet.getLastRow() === 0) {
-      sheet.appendRow(headers);
-      sheet.setFrozenRows(1);
-      log.push(`En-têtes ajoutés à "${sheetName}".`);
+    } else {
+      // Synchronisation des colonnes
+      const lastCol = sheet.getLastColumn();
+      let currentHeaders = [];
+      if (lastCol > 0) {
+        currentHeaders = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+      }
+
+      // 1. Ajouter les colonnes manquantes
+      const headersToAdd = desiredHeaders.filter(h => !currentHeaders.includes(h));
+      if (headersToAdd.length > 0) {
+        sheet.getRange(1, lastCol + 1, 1, headersToAdd.length).setValues([headersToAdd]);
+        log.push(`Colonnes ajoutées à "${sheetName}": ${headersToAdd.join(', ')}.`);
+      }
+
+      // 2. Supprimer les colonnes en trop (non utilisées)
+      for (let i = currentHeaders.length - 1; i >= 0; i--) {
+        const header = currentHeaders[i];
+        if (!desiredHeaders.includes(header)) {
+           sheet.deleteColumn(i + 1);
+           log.push(`Colonne "${header}" supprimée de "${sheetName}".`);
+        }
+      }
     }
   });
 
-  return createJsonResponse({ status: "success", message: log.length > 0 ? log.join(" ") : "Configuration déjà en place (Feuilles et en-têtes OK)." });
+  return { status: "success", message: log.length > 0 ? log.join("\n") : "Configuration vérifiée : Tout est à jour." };
 }
 
 /**
@@ -302,27 +325,8 @@ function onOpen() {
  * Version manuelle de l'initialisation (pour le menu).
  */
 function manualSetup() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const headers = ["CompteID", "IDItem", "Nom", "Prix", "Description", "ImageURL", "Categorie", "Caracteristiques", "Date"];
-  const sheetsToSetup = [SERVICES_SHEET, PRODUCTS_SHEET];
-  let log = [];
-
-  sheetsToSetup.forEach(sheetName => {
-    let sheet = ss.getSheetByName(sheetName);
-    if (!sheet) {
-      sheet = ss.insertSheet(sheetName);
-      sheet.appendRow(headers);
-      sheet.setFrozenRows(1);
-      log.push(`Feuille "${sheetName}" créée.`);
-    } else if (sheet.getLastRow() === 0) {
-      sheet.appendRow(headers);
-      sheet.setFrozenRows(1);
-      log.push(`En-têtes ajoutés à "${sheetName}".`);
-    }
-  });
-
-  const message = log.length > 0 ? log.join("\n") : "Configuration déjà en place (Feuilles et en-têtes OK).";
-  SpreadsheetApp.getUi().alert(message);
+  const result = setupSheets();
+  SpreadsheetApp.getUi().alert(result.message);
 }
 
 // --- Fonctions Utilitaires ---
