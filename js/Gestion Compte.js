@@ -37,7 +37,7 @@ const ALLOWED_ORIGINS = {
 // NOUVEAU: Configuration des URLs d'API spécifiques par type d'entreprise.
 // C'est ici que le système "récupère l'API" pour l'associer au compte.
 const BUSINESS_TYPE_APIS = {
-    "Coiffeur": "https://script.google.com/macros/s/AKfycb.../exec", // ⚠️ REMPLACEZ CECI par l'URL déployée de votre script 'api_type_coiffeur.js'
+    "Coiffeur": "https://script.google.com/macros/s/AKfycby62FrbIrT8ZRmh-PNdZynWcAltiJFNhY-_6fMVXgxmztLGJXDpFkTOR1lw-EqPPLCOgw/exec", // ⚠️ REMPLACEZ CECI par l'URL déployée de votre script 'api_type_coiffeur.js'
     "Restaurant": "", // À définir plus tard
     "Boutique": ""    // À définir plus tard
 };
@@ -370,7 +370,14 @@ function creerCompteEntreprise(data, origin) {
         // S'assurer que la ligne correspond aux colonnes (gestion dynamique simplifiée ici, on suppose l'ordre de setupProject)
         sheet.appendRow(newRow);
 
-        return createJsonResponse({ success: true, data: { numeroCompte: compteId } }, origin);
+        const businessData = {
+            numeroCompte: compteId,
+            nomEntreprise: data.nomEntreprise,
+            email: data.email,
+            typeEntreprise: data.typeEntreprise
+        };
+
+        return createJsonResponse({ success: true, data: { business: businessData } }, origin);
     } catch (error) {
         logError('creerCompteEntreprise', error);
         return createJsonResponse({ success: false, error: error.message }, origin);
@@ -398,7 +405,15 @@ function connecterEntreprise(data, origin) {
             return createJsonResponse({ success: false, error: "Email ou mot de passe incorrect." }, origin);
         }
 
-        return createJsonResponse({ success: true, data: { numeroCompte: userRow[headers.indexOf("NumeroCompte")] } }, origin);
+        const businessData = {
+            numeroCompte: userRow[headers.indexOf("NumeroCompte")],
+            nomEntreprise: userRow[headers.indexOf("NomEntreprise")],
+            email: userRow[headers.indexOf("Email")],
+            typeEntreprise: userRow[headers.indexOf("Type")],
+            logoUrl: userRow[headers.indexOf("LogoUrl")] || ""
+        };
+
+        return createJsonResponse({ success: true, data: { business: businessData } }, origin);
     } catch (error) {
         return createJsonResponse({ success: false, error: error.message }, origin);
     }
@@ -2144,28 +2159,49 @@ function setupProject() {
     [SHEET_NAMES.NOTIFICATIONS]: ["IDNotification", "IDCommande", "Type", "Message", "Statut", "Date"],
   };
 
-  // NOUVEAU: Fonction utilitaire pour ajouter des colonnes si elles n'existent pas
-  const addColumnsIfNotExists = (sheet, requiredHeaders) => {
-    if (!sheet) return;
-    const currentHeaders = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-    const headersToAdd = requiredHeaders.filter(h => !currentHeaders.includes(h));
-    
-    if (headersToAdd.length > 0) {
-      const lastColumn = sheet.getLastColumn();
-      sheet.getRange(1, lastColumn + 1, 1, headersToAdd.length).setValues([headersToAdd]);
-    }
-  };
+  // 1. Supprimer les feuilles non utilisées
+  const existingSheets = ss.getSheets();
+  const desiredSheetNames = Object.keys(sheetsToCreate);
 
-  Object.entries(sheetsToCreate).forEach(([sheetName, headers]) => {
+  existingSheets.forEach(sheet => {
+    if (!desiredSheetNames.includes(sheet.getName())) {
+      try {
+        ss.deleteSheet(sheet);
+      } catch (e) {
+        // Ignorer si on ne peut pas supprimer (ex: dernière feuille)
+      }
+    }
+  });
+
+  // 2. Créer ou mettre à jour les feuilles
+  Object.entries(sheetsToCreate).forEach(([sheetName, desiredHeaders]) => {
     let sheet = ss.getSheetByName(sheetName);
     if (!sheet) {
       sheet = ss.insertSheet(sheetName);
-      sheet.appendRow(headers);
+      sheet.appendRow(desiredHeaders);
       sheet.setFrozenRows(1);
       sheet.getRange("A1:Z1").setFontWeight("bold");
     } else {
-      // NOUVEAU: Si la feuille existe, on vérifie et on ajoute les colonnes manquantes.
-      addColumnsIfNotExists(sheet, headers);
+      // Synchronisation des colonnes
+      const lastCol = sheet.getLastColumn();
+      let currentHeaders = [];
+      if (lastCol > 0) {
+        currentHeaders = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+      }
+      
+      // Ajouter les colonnes manquantes
+      const headersToAdd = desiredHeaders.filter(h => !currentHeaders.includes(h));
+      if (headersToAdd.length > 0) {
+        sheet.getRange(1, lastCol + 1, 1, headersToAdd.length).setValues([headersToAdd]);
+      }
+
+      // Supprimer les colonnes en trop (non utilisées)
+      for (let i = currentHeaders.length - 1; i >= 0; i--) {
+        const header = currentHeaders[i];
+        if (!desiredHeaders.includes(header)) {
+           sheet.deleteColumn(i + 1);
+        }
+      }
     }
   });
 

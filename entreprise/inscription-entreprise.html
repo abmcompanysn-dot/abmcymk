@@ -191,9 +191,17 @@
 
                 if (result.success || result.status === 'success') {
                     if (action === 'creerCompteEntreprise' || action === 'connecterEntreprise') {
+                        // Sauvegarder les infos de l'entreprise pour la session
+                        if (result.data && result.data.business) {
+                            localStorage.setItem('abmcyBusinessUser', JSON.stringify(result.data.business));
+                        }
+
                         messageDiv.style.color = 'green';
                         messageDiv.textContent = "Succès ! Redirection...";
-                        window.location.href = `dashboard-admin.html?compteId=${result.data ? result.data.numeroCompte : result.numeroCompte}`;
+                        
+                        // Récupérer l'ID (supporte la nouvelle structure 'business')
+                        const accountId = result.data?.business?.numeroCompte || result.data?.numeroCompte || result.numeroCompte;
+                        window.location.href = `dashboard-admin.html?compteId=${accountId}`;
                     } else if (action === 'requestBusinessPasswordReset') {
                         messageDiv.style.color = 'green';
                         messageDiv.textContent = result.message || "Email envoyé si le compte existe.";
