@@ -7,7 +7,7 @@
 
 // --- CONFIGURATION ---
 // URL de l'API CENTRALE qui fournit les données publiques des entreprises
-const CENTRAL_API_URL = "https://script.google.com/macros/s/AKfycbx8HE80lfOvGjQRSp2kovO0s8ONlZKEwdaUVq-IHa0MqXiHovwfte0lu5dG9GAHVc6_xQ/exec";
+const CENTRAL_API_URL = "https://script.google.com/macros/s/AKfycbzXrHv6q7RrBGqRQO2a_HWzvTKYCet9hSJ14hRVGKGqoIOO1JsQ5AKxPzmEw2W-GmaFfA/exec";
 
 /**
  * Point d'entrée principal, exécuté au chargement de la page.

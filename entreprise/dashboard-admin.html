@@ -301,13 +301,13 @@
     </main>
 
     <!-- Import des fonctions admin (ImgBB) -->
-    <script src="js/admin_functions.js"></script>
+    <script src="../js/admin_functions.js"></script>
 
     <script>
         // URL de l'API spécifique au type (Produits/Services)
         let BUSINESS_API_URL = ""; 
         // URL de l'API Centrale (Infos entreprise)
-        const CENTRAL_API_URL = "https://script.google.com/macros/s/AKfycbwc4rWN0MMmZmpgtWUxnGrb-LW1MvFvYaSWZG3YCluqW-jgwndkRX0n9vZ0OrdW7f_I8A/exec";
+        const CENTRAL_API_URL = "https://script.google.com/macros/s/AKfycbzXrHv6q7RrBGqRQO2a_HWzvTKYCet9hSJ14hRVGKGqoIOO1JsQ5AKxPzmEw2W-GmaFfA/exec";
 
         // Librairie pour générer le QR Code
         const script = document.createElement('script');
@@ -395,7 +395,15 @@
                 populateSettingsForm(info);
 
                 // 2. Récupérer les produits/services depuis l'API Spécifique
-                const response = await fetch(`${BUSINESS_API_URL}?compteId=${compteId}`);
+                const response = await fetch(BUSINESS_API_URL, {
+                    method: 'POST',
+                    mode: 'cors',
+                    headers: { 'Content-Type': 'text/plain' },
+                    body: JSON.stringify({
+                        action: 'getBusinessItems', // Action pour récupérer les données
+                        data: { compteId: compteId }
+                    })
+                });
                 const result = await response.json();
 
                 if (result.status === 'success') {
@@ -462,17 +470,22 @@
             const priceInput = form.querySelector('input[type="number"]');
             const submitBtn = form.querySelector('button[type="submit"]');
 
-            const data = {
-                compteId: compteId,
-                type: type,
-                nom: nameInput.value,
-                prix: parseFloat(priceInput.value)
-            };
+            const nom = nameInput.value;
+            const prix = parseFloat(priceInput.value);
 
-            if (!data.nom || !data.prix) {
-                alert("Veuillez remplir tous les champs.");
+            if (!nom || isNaN(prix)) {
+                alert("Veuillez remplir tous les champs avec des valeurs valides.");
                 return;
             }
+
+            // Utilisation d'une structure cohérente avec 'action' et 'data'
+            const payload = {
+                action: type === 'service' ? 'addService' : 'addProduct',
+                data: {
+                    compteId: compteId,
+                    item: { nom, prix }
+                }
+            };
 
             submitBtn.disabled = true;
             submitBtn.textContent = 'Ajout...';
@@ -481,8 +494,8 @@
                 const response = await fetch(BUSINESS_API_URL, {
                     method: 'POST',
                     mode: 'cors',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(data)
+                    headers: { 'Content-Type': 'text/plain' }, // Cohérence avec les autres appels
+                    body: JSON.stringify(payload)
                 });
                 const result = await response.json();
 
@@ -510,7 +523,11 @@
                     headers: { 'Content-Type': 'text/plain' },
                     body: JSON.stringify({
                         action: 'deleteItem',
-                        data: { itemId: itemId, type: type }
+                        data: { 
+                            compteId: compteId, // Ajout du compteId manquant
+                            itemId: itemId, 
+                            type: type 
+                        }
                     })
                 });
                 const result = await response.json();

@@ -37,7 +37,7 @@ const ALLOWED_ORIGINS = {
 // NOUVEAU: Configuration des URLs d'API spécifiques par type d'entreprise.
 // C'est ici que le système "récupère l'API" pour l'associer au compte.
 const BUSINESS_TYPE_APIS = {
-    "Coiffeur": "https://script.google.com/macros/s/AKfycby62FrbIrT8ZRmh-PNdZynWcAltiJFNhY-_6fMVXgxmztLGJXDpFkTOR1lw-EqPPLCOgw/exec", // ⚠️ REMPLACEZ CECI par l'URL déployée de votre script 'api_type_coiffeur.js'
+    "Coiffeur": "https://script.google.com/macros/s/AKfycbyqZjV7fovVrTsw4Y7xFd5X5Zlco5bwPGyG86Sk7W31SD24nPwguk1POos8Pi5s60sRPA/exec", // ⚠️ REMPLACEZ CECI par l'URL déployée de votre script 'api_type_coiffeur.js'
     "Restaurant": "", // À définir plus tard
     "Boutique": ""    // À définir plus tard
 };
@@ -369,6 +369,23 @@ function creerCompteEntreprise(data, origin) {
         
         // S'assurer que la ligne correspond aux colonnes (gestion dynamique simplifiée ici, on suppose l'ordre de setupProject)
         sheet.appendRow(newRow);
+
+        // NOUVEAU : Si une API est associée à ce type d'entreprise, on l'appelle pour générer les données de démo (5 services, 5 produits)
+        if (apiTypeUrl && apiTypeUrl.startsWith('http')) {
+            try {
+                UrlFetchApp.fetch(apiTypeUrl, {
+                    method: 'post',
+                    contentType: 'application/json',
+                    payload: JSON.stringify({
+                        action: 'addDemoData',
+                        data: { compteId: compteId }
+                    }),
+                    muteHttpExceptions: true
+                });
+            } catch (e) {
+                console.error(`Erreur lors de l'initialisation des données démo pour ${compteId}: ${e.message}`);
+            }
+        }
 
         const businessData = {
             numeroCompte: compteId,

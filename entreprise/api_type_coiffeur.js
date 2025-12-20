@@ -272,14 +272,17 @@ function addDemoData(data) {
     return createJsonResponse({ status: "error", message: "Le compte possède déjà des services. Ajout des données de démo annulé." });
   }
 
-  const demoServices = [
+  const defaultImage = 'https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png';
+
+  const demoItems = [
+    // --- 5 SERVICES ---
     {
       compteId: compteId,
       type: 'service',
       nom: 'Coupe Dégradé Américain',
       prix: 2500,
       description: 'Dégradé à blanc progressif, contours nets.',
-      imageUrl: 'https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png',
+      imageUrl: defaultImage,
       category: 'Coupe',
       characteristics: 'Tendance,Moderne'
     },
@@ -289,7 +292,7 @@ function addDemoData(data) {
       nom: 'Taille de Barbe Complète',
       prix: 1500,
       description: 'Rituel complet : taille, contours, huile de soin.',
-      imageUrl: 'https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png',
+      imageUrl: defaultImage,
       category: 'Barbe',
       characteristics: 'Relaxant,Soin'
     },
@@ -299,16 +302,62 @@ function addDemoData(data) {
       nom: 'Soins Visage Black Mask',
       prix: 3000,
       description: 'Nettoyage en profondeur et masque purifiant.',
-      imageUrl: 'https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png',
+      imageUrl: defaultImage,
       category: 'Soin',
       characteristics: 'Purifiant,Frais'
+    },
+    {
+      compteId: compteId,
+      type: 'service',
+      nom: 'Coupe Classique Ciseaux',
+      prix: 2000,
+      description: 'Coupe traditionnelle aux ciseaux pour un rendu naturel.',
+      imageUrl: defaultImage,
+      category: 'Coupe',
+      characteristics: 'Classique,Naturel'
+    },
+    {
+      compteId: compteId,
+      type: 'service',
+      nom: 'Coloration / Teinture',
+      prix: 5000,
+      description: 'Coloration cheveux ou barbe pour cacher les cheveux blancs ou changer de style.',
+      imageUrl: defaultImage,
+      category: 'Coloration',
+      characteristics: 'Style,Jeunesse'
+    },
+    // --- 5 PRODUITS ---
+    {
+      compteId: compteId, type: 'produit', nom: 'Cire Coiffante Mate', prix: 4000,
+      description: 'Fixation forte avec un effet mat naturel.', imageUrl: defaultImage,
+      category: 'Coiffant', characteristics: 'Mat,Fort'
+    },
+    {
+      compteId: compteId, type: 'produit', nom: 'Huile à Barbe Bio', prix: 3500,
+      description: 'Nourrit et adoucit la barbe, parfum boisé.', imageUrl: defaultImage,
+      category: 'Barbe', characteristics: 'Bio,Hydratant'
+    },
+    {
+      compteId: compteId, type: 'produit', nom: 'Gel de Rasage Précision', prix: 2500,
+      description: 'Transparent pour des contours parfaits.', imageUrl: defaultImage,
+      category: 'Rasage', characteristics: 'Précision'
+    },
+    {
+      compteId: compteId, type: 'produit', nom: 'Shampoing Purifiant', prix: 3000,
+      description: 'Nettoie en profondeur et élimine les résidus.', imageUrl: defaultImage,
+      category: 'Soins', characteristics: 'Purifiant'
+    },
+    {
+      compteId: compteId, type: 'produit', nom: 'Peigne en Bois', prix: 1500,
+      description: 'Antistatique, idéal pour la barbe.', imageUrl: defaultImage,
+      category: 'Accessoire', characteristics: 'Durable'
     }
   ];
 
   // Ajoute chaque service en utilisant la fonction existante
-  demoServices.forEach(service => addItem(service));
+  demoItems.forEach(item => addItem(item));
 
-  return createJsonResponse({ status: "success", message: `Services de démonstration ajoutés pour le compte ${compteId}.` });
+  return createJsonResponse({ status: "success", message: `5 services et 5 produits de démonstration ajoutés pour le compte ${compteId}.` });
 }
 
 /**
