@@ -143,9 +143,9 @@ function doPost(e) {
         switch (action) {
             case 'creerCompteClient':
                 return creerCompteClient(data, origin);
-            case 'creerCompteEntreprise': // NOUVEAU
+            case 'creerCompteEntreprise':
                 return creerCompteEntreprise(data, origin);
-            case 'connecterEntreprise': // NOUVEAU
+            case 'connecterEntreprise':
                 return connecterEntreprise(data, origin);
             case 'requestBusinessPasswordReset': // NOUVEAU
                 return requestBusinessPasswordReset(data, origin);
@@ -370,7 +370,7 @@ function creerCompteEntreprise(data, origin) {
         // S'assurer que la ligne correspond aux colonnes (gestion dynamique simplifiée ici, on suppose l'ordre de setupProject)
         sheet.appendRow(newRow);
 
-        return createJsonResponse({ status: 'success', numeroCompte: compteId }, origin);
+        return createJsonResponse({ success: true, data: { numeroCompte: compteId } }, origin);
     } catch (error) {
         logError('creerCompteEntreprise', error);
         return createJsonResponse({ success: false, error: error.message }, origin);
@@ -398,7 +398,7 @@ function connecterEntreprise(data, origin) {
             return createJsonResponse({ success: false, error: "Email ou mot de passe incorrect." }, origin);
         }
 
-        return createJsonResponse({ success: true, numeroCompte: userRow[headers.indexOf("NumeroCompte")] }, origin);
+        return createJsonResponse({ success: true, data: { numeroCompte: userRow[headers.indexOf("NumeroCompte")] } }, origin);
     } catch (error) {
         return createJsonResponse({ success: false, error: error.message }, origin);
     }

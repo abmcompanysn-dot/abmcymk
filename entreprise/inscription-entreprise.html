@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Inscription Entreprise - ABMCY MARKET</title>
+    <title>Espace Partenaire - ABMCY MARKET</title>
+    <link rel="icon" href="https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png" type="image/png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
@@ -67,6 +68,20 @@
         .submit-btn:hover {
             background-color: #333;
         }
+        .hidden {
+            display: none;
+        }
+        .link-btn {
+            background: none;
+            border: none;
+            color: var(--primary-color);
+            font-weight: 600;
+            cursor: pointer;
+            padding: 0;
+            font-family: inherit;
+            font-size: inherit;
+            text-decoration: underline;
+        }
         #message {
             text-align: center;
             margin-top: 1rem;
@@ -76,82 +91,151 @@
 </head>
 <body>
     <div class="form-container">
-        <h1>Devenez Partenaire</h1>
-        <form id="entrepriseForm">
-            <div class="input-group">
-                <label for="nomEntreprise">Nom de votre entreprise</label>
-                <input type="text" id="nomEntreprise" name="nomEntreprise" required>
+        <!-- SECTION INSCRIPTION -->
+        <div id="register-section">
+            <h1>Inscription Partenaire</h1>
+            <form id="registerForm">
+                <div class="input-group">
+                    <label for="nomEntreprise">Nom de votre entreprise</label>
+                    <input type="text" id="nomEntreprise" name="nomEntreprise" required>
+                </div>
+                <div class="input-group">
+                    <label for="email">Votre Email</label>
+                    <input type="email" id="email" name="email" required>
+                </div>
+                <div class="input-group">
+                    <label for="password">Mot de passe</label>
+                    <input type="password" id="password" name="password" required minlength="6">
+                </div>
+                <div class="input-group">
+                    <label for="typeEntreprise">Type d'entreprise</label>
+                    <select id="typeEntreprise" name="typeEntreprise" required>
+                        <option value="coiffeur">Coiffeur / Salon de coiffure</option>
+                        <!-- Vous pourrez ajouter d'autres options ici plus tard -->
+                    </select>
+                </div>
+                <button type="submit" class="submit-btn">Créer mon espace</button>
+            </form>
+            <div style="text-align: center; margin-top: 1.5rem; font-size: 0.9rem;">
+                <p>Déjà partenaire ? <button class="link-btn" onclick="switchView('login')">Se connecter</button></p>
             </div>
-            <div class="input-group">
-                <label for="email">Votre Email</label>
-                <input type="email" id="email" name="email" required>
-            </div>
-            <div class="input-group">
-                <label for="password">Mot de passe</label>
-                <input type="password" id="password" name="password" required minlength="6">
-            </div>
-            <div class="input-group">
-                <label for="typeEntreprise">Type d'entreprise</label>
-                <select id="typeEntreprise" name="typeEntreprise" required>
-                    <option value="coiffeur">Coiffeur / Salon de coiffure</option>
-                    <!-- Vous pourrez ajouter d'autres options ici plus tard -->
-                </select>
-            </div>
-            <button type="submit" class="submit-btn">Créer mon espace</button>
-        </form>
-        <p id="message"></p>
-        <div style="text-align: center; margin-top: 1.5rem; font-size: 0.9rem;">
-            <p>Déjà partenaire ? <a href="connexion-entreprise.html" style="color: var(--primary-color); text-decoration: none; font-weight: 600;">Se connecter</a></p>
         </div>
+
+        <!-- SECTION CONNEXION -->
+        <div id="login-section" class="hidden">
+            <h1>Connexion Partenaire</h1>
+            <form id="loginForm">
+                <div class="input-group">
+                    <label for="loginEmail">Email</label>
+                    <input type="email" id="loginEmail" required>
+                </div>
+                <div class="input-group">
+                    <label for="loginPassword">Mot de passe</label>
+                    <input type="password" id="loginPassword" required>
+                </div>
+                <button type="submit" class="submit-btn">Se connecter</button>
+            </form>
+            <div style="text-align: center; margin-top: 1.5rem; font-size: 0.9rem;">
+                <p><button class="link-btn" onclick="switchView('forgot')">Mot de passe oublié ?</button></p>
+                <p>Pas encore de compte ? <button class="link-btn" onclick="switchView('register')">S'inscrire</button></p>
+            </div>
+        </div>
+
+        <!-- SECTION MOT DE PASSE OUBLIÉ -->
+        <div id="forgot-section" class="hidden">
+            <h1>Mot de passe oublié</h1>
+            <p style="text-align: center; margin-bottom: 1.5rem; font-size: 0.9rem;">Entrez votre email pour recevoir un lien de réinitialisation.</p>
+            <form id="forgotForm">
+                <div class="input-group">
+                    <label for="forgotEmail">Email</label>
+                    <input type="email" id="forgotEmail" required>
+                </div>
+                <button type="submit" class="submit-btn">Envoyer le lien</button>
+            </form>
+            <div style="text-align: center; margin-top: 1.5rem; font-size: 0.9rem;">
+                <p><button class="link-btn" onclick="switchView('login')">Retour à la connexion</button></p>
+            </div>
+        </div>
+
+        <p id="message"></p>
     </div>
 
     <script>
-        const form = document.getElementById('entrepriseForm');
         const messageDiv = document.getElementById('message');
-        const submitBtn = document.querySelector('.submit-btn');
         
-        // REMPLACEZ PAR L'URL DE VOTRE SCRIPT "Gestion Entreprises ABMCY"
         const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx8HE80lfOvGjQRSp2kovO0s8ONlZKEwdaUVq-IHa0MqXiHovwfte0lu5dG9GAHVc6_xQ/exec"; 
 
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            submitBtn.disabled = true;
-            submitBtn.textContent = "Création en cours...";
+        function switchView(viewId) {
+            document.getElementById('register-section').classList.add('hidden');
+            document.getElementById('login-section').classList.add('hidden');
+            document.getElementById('forgot-section').classList.add('hidden');
+            document.getElementById(viewId + '-section').classList.remove('hidden');
+            messageDiv.textContent = '';
+        }
+
+        async function handleAuth(action, data, btn) {
+            btn.disabled = true;
+            const originalText = btn.textContent;
+            btn.textContent = "Traitement...";
             messageDiv.style.color = 'var(--text-color)';
             messageDiv.textContent = '';
-
-            const formData = {
-                action: 'creerCompteEntreprise',
-                data: {
-                    nomEntreprise: document.getElementById('nomEntreprise').value,
-                    email: document.getElementById('email').value,
-                    motDePasse: document.getElementById('password').value,
-                    typeEntreprise: document.getElementById('typeEntreprise').value,
-                }
-            };
 
             try {
                 const response = await fetch(SCRIPT_URL, {
                     method: 'POST',
                     mode: 'cors',
                     headers: { 'Content-Type': 'text/plain' },
-                    body: JSON.stringify(formData)
+                    body: JSON.stringify({ action, data })
                 });
                 const result = await response.json();
 
-                if (result.status === 'success' || result.success) {
-                    messageDiv.textContent = "Compte créé ! Redirection...";
-                    // Redirige vers le tableau de bord avec le numéro de compte
-                    window.location.href = `dashboard-admin.html?compteId=${result.numeroCompte}`;
+                if (result.success || result.status === 'success') {
+                    if (action === 'creerCompteEntreprise' || action === 'connecterEntreprise') {
+                        messageDiv.style.color = 'green';
+                        messageDiv.textContent = "Succès ! Redirection...";
+                        window.location.href = `dashboard-admin.html?compteId=${result.data ? result.data.numeroCompte : result.numeroCompte}`;
+                    } else if (action === 'requestBusinessPasswordReset') {
+                        messageDiv.style.color = 'green';
+                        messageDiv.textContent = result.message || "Email envoyé si le compte existe.";
+                    }
                 } else {
-                    throw new Error(result.message || "Une erreur inconnue est survenue.");
+                    throw new Error(result.error || result.message || "Erreur inconnue.");
                 }
             } catch (error) {
                 messageDiv.style.color = 'red';
                 messageDiv.textContent = `Erreur : ${error.message}`;
-                submitBtn.disabled = false;
-                submitBtn.textContent = "Créer mon espace";
+            } finally {
+                btn.disabled = false;
+                btn.textContent = originalText;
             }
+        }
+
+        document.getElementById('registerForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const data = {
+                nomEntreprise: document.getElementById('nomEntreprise').value,
+                email: document.getElementById('email').value,
+                motDePasse: document.getElementById('password').value,
+                typeEntreprise: document.getElementById('typeEntreprise').value,
+            };
+            handleAuth('creerCompteEntreprise', data, e.target.querySelector('button'));
+        });
+
+        document.getElementById('loginForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const data = {
+                email: document.getElementById('loginEmail').value,
+                motDePasse: document.getElementById('loginPassword').value,
+            };
+            handleAuth('connecterEntreprise', data, e.target.querySelector('button'));
+        });
+
+        document.getElementById('forgotForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const data = {
+                email: document.getElementById('forgotEmail').value,
+            };
+            handleAuth('requestBusinessPasswordReset', data, e.target.querySelector('button'));
         });
     </script>
 </body>
