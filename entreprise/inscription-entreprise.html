@@ -82,6 +82,18 @@
             font-size: inherit;
             text-decoration: underline;
         }
+        .password-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+        .toggle-password {
+            position: absolute;
+            right: 10px;
+            cursor: pointer;
+            font-size: 1.2rem;
+            user-select: none;
+        }
         #message {
             text-align: center;
             margin-top: 1rem;
@@ -105,7 +117,10 @@
                 </div>
                 <div class="input-group">
                     <label for="password">Mot de passe</label>
-                    <input type="password" id="password" name="password" required minlength="6">
+                    <div class="password-wrapper">
+                        <input type="password" id="password" name="password" required minlength="6">
+                        <span class="toggle-password" onclick="togglePassword('password', this)">👁️</span>
+                    </div>
                 </div>
                 <div class="input-group">
                     <label for="typeEntreprise">Type d'entreprise</label>
@@ -130,7 +145,10 @@
                 </div>
                 <div class="input-group">
                     <label for="loginPassword">Mot de passe</label>
-                    <input type="password" id="loginPassword" required>
+                    <div class="password-wrapper">
+                        <input type="password" id="loginPassword" required>
+                        <span class="toggle-password" onclick="togglePassword('loginPassword', this)">👁️</span>
+                    </div>
                 </div>
                 <button type="submit" class="submit-btn">Se connecter</button>
             </form>
@@ -159,14 +177,26 @@
         <p id="message"></p>
     </div>
 
+    <script src="admin_functions.js"></script>
     <script>
         const messageDiv = document.getElementById('message');
         
-        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzUC9mbsUKkfTegf9MthFVzGcXDRRctpCU9Mml4v9Erfbs4Uf_-ujaQh1m98NC9_dk6AQ/exec"; 
+        const SCRIPT_URL = GLOBAL_CENTRAL_API_URL; 
 
         document.addEventListener('DOMContentLoaded', () => {
             loadBusinessTypes();
         });
+
+        function togglePassword(inputId, icon) {
+            const input = document.getElementById(inputId);
+            if (input.type === "password") {
+                input.type = "text";
+                icon.textContent = "🙈";
+            } else {
+                input.type = "password";
+                icon.textContent = "👁️";
+            }
+        }
 
         function switchView(viewId) {
             document.getElementById('register-section').classList.add('hidden');

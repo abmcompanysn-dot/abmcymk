@@ -221,6 +221,126 @@
             .list-item { flex-direction: column; align-items: flex-start; gap: 1rem; }
             .item-actions { align-self: flex-end; }
         }
+
+        /* --- Logs Table --- */
+        .logs-table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+        .logs-table th, .logs-table td { padding: 0.8rem; text-align: left; border-bottom: 1px solid #eee; }
+        .logs-table th { background-color: #f8f9fa; font-weight: 600; }
+        .logs-table tr:hover { background-color: #f1f1f1; }
+        .log-date { color: #666; font-size: 0.9em; white-space: nowrap; }
+        .log-action { font-weight: 500; }
+        .log-details { color: #555; font-size: 0.9em; }
+        
+        /* Badge pour le type d'action */
+        .badge { padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8em; color: white; }
+        .badge-add { background-color: var(--success-color); }
+        .badge-edit { background-color: var(--accent-color); }
+        .badge-delete { background-color: var(--danger-color); }
+
+        /* --- Password Toggle --- */
+        .password-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+        .toggle-password {
+            position: absolute;
+            right: 10px;
+            cursor: pointer;
+            font-size: 1.2rem;
+            user-select: none;
+        }
+
+        /* --- Public Link Section (Professional Style) --- */
+        .share-container {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 12px;
+            padding: 2rem;
+            margin-top: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+            align-items: center;
+        }
+        
+        @media (min-width: 768px) {
+            .share-container {
+                flex-direction: row;
+                align-items: flex-start;
+            }
+        }
+
+        .qr-wrapper {
+            background: white;
+            padding: 1rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            text-align: center;
+            border: 1px solid #eee;
+        }
+
+        .link-details {
+            flex: 1;
+            width: 100%;
+        }
+
+        .link-box {
+            display: flex;
+            background: white;
+            border: 1px solid #ced4da;
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+        }
+
+        .link-box input {
+            flex: 1;
+            border: none;
+            padding: 1rem;
+            font-family: 'Courier New', monospace;
+            color: #495057;
+            background: transparent;
+            outline: none;
+            font-size: 0.95rem;
+        }
+
+        .copy-btn {
+            background: #f8f9fa;
+            border: none;
+            border-left: 1px solid #ced4da;
+            padding: 0 1.5rem;
+            cursor: pointer;
+            font-weight: 600;
+            color: var(--primary-color);
+            transition: all 0.2s;
+        }
+
+        .copy-btn:hover {
+            background: #e2e6ea;
+            color: var(--accent-color);
+        }
+        
+        .btn-outline {
+            background: transparent;
+            border: 2px solid var(--primary-color);
+            color: var(--primary-color);
+            padding: 0.7rem 1.5rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.2s;
+            text-decoration: none;
+        }
+
+        .btn-outline:hover {
+            background: var(--primary-color);
+            color: white;
+        }
     </style>
 </head>
 <body>
@@ -235,6 +355,7 @@
             <ul>
                 <li><a href="#" onclick="showSection('dashboard')" id="nav-dashboard" class="active">Tableau de Bord</a></li>
                 <!-- <li><a href="#">Clients</a></li> -->
+                <li><a href="#" onclick="showSection('logs')" id="nav-logs">Journal d'activité</a></li>
                 <li><a href="#" onclick="showSection('settings')" id="nav-settings">Paramètres</a></li>
                 <li><a href="#" onclick="logout()" id="nav-logout" style="color: #dc3545;">Déconnexion</a></li>
             </ul>
@@ -298,17 +419,61 @@
 
             <!-- Section pour le QR Code et le lien public -->
             <section class="section">
-                <h2>Partagez votre page</h2>
-                <p>Vos clients peuvent scanner ce QR code ou utiliser le lien ci-dessous pour accéder directement à votre page de services et produits.</p>
+                <h2>Votre Vitrine en Ligne</h2>
+                <p>Voici le lien unique vers votre boutique professionnelle. Partagez-le sur vos réseaux sociaux (Instagram, WhatsApp, Facebook) pour permettre à vos clients de réserver.</p>
                 
-                <div style="margin: 1.5rem 0;">
-                    <a id="previewBtn" href="#" target="_blank" class="submit-btn" style="text-decoration: none; background-color: #28a745; display: inline-flex; align-items: center;">
-                        <span style="margin-right: 8px; font-size: 1.2em;">👁️</span> Prévisualiser ma page publique
-                    </a>
+                <div class="share-container">
+                    <div class="qr-wrapper">
+                        <div id="qrCodeContainer"></div>
+                        <p style="margin-top: 0.8rem; font-size: 0.85rem; color: #666; font-weight: 500;">Scannez pour visiter</p>
+                    </div>
+                    
+                    <div class="link-details">
+                        <label style="display:block; margin-bottom:0.8rem; font-weight:600; color:#333;">Lien public officiel</label>
+                        <div class="link-box">
+                            <input type="text" id="publicLinkInput" readonly>
+                            <button class="copy-btn" onclick="copyLink()">Copier</button>
+                        </div>
+                        <div id="visitStats" style="display:none; margin-bottom: 1.5rem; color: #666; font-size: 0.9rem; background: #fff; padding: 8px 12px; border-radius: 6px; border: 1px solid #eee; display: inline-block;">
+                            📊 <span id="visitCount" style="font-weight:bold; color: var(--primary-color);">0</span> visites sur ce lien
+                        </div>
+                        
+                        <div class="chart-container" style="position: relative; height: 200px; width: 100%; margin-bottom: 1.5rem; display: none;" id="chartWrapper">
+                            <canvas id="visitsChart"></canvas>
+                        </div>
+                        
+                        <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                            <a id="previewBtn" href="#" target="_blank" class="submit-btn" style="text-decoration: none; display: inline-flex; align-items: center; gap: 0.5rem;">
+                                <span>🚀</span> Visiter ma page
+                            </a>
+                            <button onclick="shareNative()" class="btn-outline">
+                                <span>📤</span> Partager
+                            </button>
+                        </div>
+                    </div>
                 </div>
+            </section>
+        </div>
 
-                <div id="qrCodeContainer"></div>
-                <p><strong>Votre lien public :</strong> <a id="publicLink" href="#" target="_blank"></a></p>
+        <!-- NOUVEAU: Section Journal d'activité (Logs) -->
+        <div id="logs-content" style="display: none;">
+            <section class="section">
+                <h2>Journal d'activité</h2>
+                <p>Historique des actions effectuées sur votre compte.</p>
+                <div style="overflow-x: auto;">
+                    <table class="logs-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Action</th>
+                                <th>Détails</th>
+                            </tr>
+                        </thead>
+                        <tbody id="logsTableBody">
+                            <!-- Les logs seront injectés ici -->
+                        </tbody>
+                    </table>
+                </div>
             </section>
         </div>
 
@@ -320,6 +485,11 @@
                     <div class="input-group">
                         <label for="settingsName">Nom de l'entreprise</label>
                         <input type="text" id="settingsName" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="settingsSlug">Identifiant personnalisé (Lien court)</label>
+                        <input type="text" id="settingsSlug" placeholder="ex: mon-salon-elegance" pattern="[a-zA-Z0-9-]+" title="Lettres, chiffres et tirets uniquement">
+                        <small style="color: #666; font-size: 0.8em;">Sera utilisé pour votre lien : .../babershop.html?alias=<b>votre-identifiant</b></small>
                     </div>
                     <div class="input-group">
                         <label for="settingsDesc">Description</label>
@@ -358,15 +528,24 @@
                 <form id="changePasswordForm" class="form-grid" style="grid-template-columns: 1fr;">
                     <div class="input-group">
                         <label for="currentPassword">Mot de passe actuel</label>
-                        <input type="password" id="currentPassword" required>
+                        <div class="password-wrapper">
+                            <input type="password" id="currentPassword" required>
+                            <span class="toggle-password" onclick="togglePassword('currentPassword', this)">👁️</span>
+                        </div>
                     </div>
                     <div class="input-group">
                         <label for="newPassword">Nouveau mot de passe</label>
-                        <input type="password" id="newPassword" required minlength="8" placeholder="8+ chars, Maj, Min, Chiffre, Symbole">
+                        <div class="password-wrapper">
+                            <input type="password" id="newPassword" required minlength="8" placeholder="8+ chars, Maj, Min, Chiffre, Symbole">
+                            <span class="toggle-password" onclick="togglePassword('newPassword', this)">👁️</span>
+                        </div>
                     </div>
                     <div class="input-group">
                         <label for="confirmNewPassword">Confirmer le nouveau mot de passe</label>
-                        <input type="password" id="confirmNewPassword" required minlength="8">
+                        <div class="password-wrapper">
+                            <input type="password" id="confirmNewPassword" required minlength="8">
+                            <span class="toggle-password" onclick="togglePassword('confirmNewPassword', this)">👁️</span>
+                        </div>
                     </div>
                     <button type="submit" class="submit-btn" style="margin-top: 1rem; background-color: #6c757d;">Changer le mot de passe</button>
                 </form>
@@ -375,15 +554,17 @@
     </main>
 
     <!-- Import des fonctions admin (ImgBB) -->
-    <script src="../js/admin_functions.js"></script>
+    <script src="admin_functions.js"></script>
     <!-- Import de la configuration centralisée -->
     <script src="main-entreprise.js"></script>
+    <!-- Import de Chart.js pour le graphique -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <script>
         // URL de l'API spécifique au type (Produits/Services)
         let BUSINESS_API_URL = ""; 
-        // URL de l'API Centrale (Infos entreprise) - Récupérée depuis main-entreprise.js
-        const CENTRAL_API_URL = ENTREPRISE_CONFIG.CENTRAL_API_URL;
+        // URL de l'API Centrale (Infos entreprise) - Récupérée depuis admin_functions.js
+        const CENTRAL_API_URL = GLOBAL_CENTRAL_API_URL;
 
         // Librairie pour générer le QR Code
         const script = document.createElement('script');
@@ -393,13 +574,26 @@
         const loader = document.getElementById('loader');
         const dashboardContent = document.getElementById('dashboard-content');
         const settingsContent = document.getElementById('settings-content');
+        const logsContent = document.getElementById('logs-content');
         const servicesListDiv = document.getElementById('servicesList');
         const productsListDiv = document.getElementById('productsList');
 
         let compteId = null;
+        let currentSlug = null; // Stocker le slug actuel
 
         function toggleSidebar() {
             document.querySelector('.sidebar').classList.toggle('open');
+        }
+
+        function togglePassword(inputId, icon) {
+            const input = document.getElementById(inputId);
+            if (input.type === "password") {
+                input.type = "text";
+                icon.textContent = "🙈";
+            } else {
+                input.type = "password";
+                icon.textContent = "👁️";
+            }
         }
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -425,16 +619,23 @@
             // Cacher toutes les sections
             dashboardContent.style.display = 'none';
             settingsContent.style.display = 'none';
+            logsContent.style.display = 'none';
             
             // Désactiver les liens
             document.getElementById('nav-dashboard').classList.remove('active');
             document.getElementById('nav-settings').classList.remove('active');
+            document.getElementById('nav-logs').classList.remove('active');
 
             // Afficher la section demandée
             if (sectionId === 'dashboard') {
                 dashboardContent.style.display = 'block';
                 document.getElementById('nav-dashboard').classList.add('active');
                 if(window.innerWidth <= 768) toggleSidebar(); // Fermer le menu sur mobile après clic
+            } else if (sectionId === 'logs') {
+                logsContent.style.display = 'block';
+                document.getElementById('nav-logs').classList.add('active');
+                fetchLogs(); // Charger les logs
+                if(window.innerWidth <= 768) toggleSidebar();
             } else if (sectionId === 'settings') {
                 settingsContent.style.display = 'block';
                 document.getElementById('nav-settings').classList.add('active');
@@ -497,6 +698,27 @@
                     renderItems(result.data.products, productsListDiv, 'produit');
                     loader.style.display = 'none';
                     dashboardContent.style.display = 'block';
+
+                    // 3. Récupérer le slug actuel
+                    const slugResponse = await fetch(BUSINESS_API_URL, {
+                        method: 'POST',
+                        mode: 'cors',
+                        headers: { 'Content-Type': 'text/plain' },
+                        body: JSON.stringify({ action: 'getSlug', data: { compteId: compteId } })
+                    });
+                    const slugResult = await slugResponse.json();
+                    if (slugResult.status === 'success' && slugResult.slug) {
+                        currentSlug = slugResult.slug;
+                        document.getElementById('settingsSlug').value = currentSlug;
+                        
+                        // Afficher les statistiques de visites
+                        if (slugResult.visits !== undefined) {
+                            document.getElementById('visitCount').textContent = slugResult.visits;
+                            document.getElementById('visitStats').style.display = 'inline-block';
+                            loadVisitChart(); // Charger le graphique
+                        }
+                        setupQrCodeAndLink(); // Mettre à jour le lien avec le slug
+                    }
                 } else {
                     throw new Error(result.message);
                 }
@@ -560,6 +782,49 @@
                 `;
                 container.appendChild(itemDiv);
             });
+        }
+
+        async function fetchLogs() {
+            const tbody = document.getElementById('logsTableBody');
+            tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;">Chargement...</td></tr>';
+
+            try {
+                const response = await fetch(BUSINESS_API_URL, {
+                    method: 'POST',
+                    mode: 'cors',
+                    headers: { 'Content-Type': 'text/plain' },
+                    body: JSON.stringify({
+                        action: 'getLogs',
+                        data: { compteId: compteId }
+                    })
+                });
+                const result = await response.json();
+
+                if (result.status === 'success') {
+                    tbody.innerHTML = '';
+                    if (result.data.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;">Aucune activité enregistrée.</td></tr>';
+                        return;
+                    }
+
+                    result.data.forEach(log => {
+                        const date = new Date(log.Date).toLocaleString('fr-FR');
+                        let badgeClass = 'badge';
+                        if (log.Action.includes('Ajout')) badgeClass += ' badge-add';
+                        else if (log.Action.includes('Modification')) badgeClass += ' badge-edit';
+                        else if (log.Action.includes('Suppression')) badgeClass += ' badge-delete';
+
+                        const row = `<tr>
+                            <td class="log-date">${date}</td>
+                            <td class="log-action"><span class="${badgeClass}">${log.Action}</span></td>
+                            <td class="log-details">${log.Details}</td>
+                        </tr>`;
+                        tbody.innerHTML += row;
+                    });
+                }
+            } catch (error) {
+                tbody.innerHTML = `<tr><td colspan="3" style="color:red;">Erreur: ${error.message}</td></tr>`;
+            }
         }
 
         async function handleAddItem(e, type) {
@@ -690,6 +955,17 @@
                 if (logoFile) logoUrl = await uploadImageToImgBB(logoFile);
                 if (coverFile) coverUrl = await uploadImageToImgBB(coverFile);
 
+                // 1.5 Sauvegarder le slug (alias)
+                const slugVal = document.getElementById('settingsSlug').value;
+                if (slugVal) {
+                    await fetch(BUSINESS_API_URL, { // On utilise l'API métier pour le slug
+                        method: 'POST',
+                        headers: { 'Content-Type': 'text/plain' },
+                        body: JSON.stringify({ action: 'setSlug', data: { compteId: compteId, slug: slugVal } })
+                    });
+                    currentSlug = slugVal; // Mettre à jour localement
+                }
+
                 // 2. Préparer les données
                 const updateData = {
                     compteId: compteId,
@@ -770,11 +1046,17 @@
 
         function setupQrCodeAndLink() {
             // Construit l'URL de la page publique (babershop.html)
-            const publicUrl = `${window.location.origin}${window.location.pathname.replace('dashboard-admin.html', 'babershop.html')}?compteId=${compteId}`;
+            let publicUrl = `${window.location.origin}${window.location.pathname.replace('dashboard-admin.html', 'babershop.html')}`;
             
-            const publicLink = document.getElementById('publicLink');
-            publicLink.href = publicUrl;
-            publicLink.textContent = publicUrl;
+            // Si on a un slug, on l'utilise pour une URL plus jolie
+            if (currentSlug) {
+                publicUrl += `?alias=${currentSlug}`;
+            } else {
+                publicUrl += `?compteId=${compteId}`;
+            }
+            
+            const linkInput = document.getElementById('publicLinkInput');
+            if (linkInput) linkInput.value = publicUrl;
             
             const previewBtn = document.getElementById('previewBtn');
             if (previewBtn) {
@@ -791,6 +1073,79 @@
                     if (error) console.error(error);
                 });
             };
+        }
+
+        function copyLink() {
+            const copyText = document.getElementById("publicLinkInput");
+            copyText.select();
+            copyText.setSelectionRange(0, 99999); /* Pour mobile */
+            navigator.clipboard.writeText(copyText.value).then(() => {
+                const btn = document.querySelector('.copy-btn');
+                const originalText = btn.textContent;
+                btn.textContent = "Copié !";
+                btn.style.color = "var(--success-color)";
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.style.color = "";
+                }, 2000);
+            });
+        }
+
+        function shareNative() {
+            const url = document.getElementById("publicLinkInput").value;
+            if (navigator.share) {
+                navigator.share({
+                    title: document.querySelector('.main-header h1').textContent,
+                    text: 'Découvrez mes services et produits sur ma boutique en ligne !',
+                    url: url
+                }).catch(console.error);
+            } else {
+                copyLink();
+                alert("Lien copié dans le presse-papier !");
+            }
+        }
+
+        async function loadVisitChart() {
+            try {
+                const response = await fetch(BUSINESS_API_URL, {
+                    method: 'POST',
+                    mode: 'cors',
+                    headers: { 'Content-Type': 'text/plain' },
+                    body: JSON.stringify({ action: 'getVisitStats', data: { compteId: compteId } })
+                });
+                const result = await response.json();
+
+                if (result.status === 'success' && result.data.length > 0) {
+                    document.getElementById('chartWrapper').style.display = 'block';
+                    const ctx = document.getElementById('visitsChart').getContext('2d');
+                    
+                    new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: result.labels,
+                            datasets: [{
+                                label: 'Visites (7 derniers jours)',
+                                data: result.data,
+                                borderColor: '#007bff',
+                                backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                                borderWidth: 2,
+                                tension: 0.3,
+                                fill: true
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: { display: false }
+                            },
+                            scales: {
+                                y: { beginAtZero: true, ticks: { precision: 0 } }
+                            }
+                        }
+                    });
+                }
+            } catch (e) { console.error("Erreur graphique:", e); }
         }
 
         // Lier les formulaires à la fonction d'ajout

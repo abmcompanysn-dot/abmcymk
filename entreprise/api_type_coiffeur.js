@@ -10,6 +10,8 @@
 
 const SERVICES_SHEET = "Services"; // Feuille contenant les services de TOUS les coiffeurs
 const PRODUCTS_SHEET = "Produits"; // Feuille contenant les produits de TOUS les coiffeurs
+const LOGS_SHEET = "Logs";         // Feuille pour le journal d'activité
+const SLUGS_SHEET = "Slugs";       // Feuille pour les alias (URL courtes)
 
 /**
  * Gère les requêtes OPTIONS pour le support CORS.
@@ -32,6 +34,11 @@ function doOptions(e) {
  * Exemple d'appel: .../exec?compteId=ENT-12345
  */
 function doGet(e) {
+  // Vérifier si on demande une résolution d'alias (slug)
+  if (e.parameter.action === 'resolveSlug' && e.parameter.alias) {
+    return resolveSlug(e.parameter.alias);
+  }
+
   const compteId = e.parameter.compteId;
   if (!compteId) {
     return createJsonResponse({ status: "error", message: "ID de compte manquant." });
@@ -66,6 +73,18 @@ function doPost(e) {
     // pour s'assurer que seul le propriétaire du compte peut modifier ses données.
 
     switch (action) {
+      case 'getBusinessItems': // Pour charger les produits/services dans le dashboard
+        return getBusinessItems(data);
+      case 'addService': // Pour ajouter un service depuis le dashboard
+        return addItemFromDashboard(data, 'service');
+      case 'addProduct': // Pour ajouter un produit depuis le dashboard
+        return addItemFromDashboard(data, 'produit');
+      case 'getLogs': // Pour récupérer le journal d'activité
+        return getLogs(data);
+      case 'setSlug': // Pour définir un alias personnalisé
+        return setSlug(data);
+      case 'getSlug': // Pour récupérer l'alias actuel
+        return getSlug(data);
       case 'addItem':
         return addItem(data);
       case 'updateItem':
@@ -86,6 +105,50 @@ function doPost(e) {
   } catch (error) {
     return createJsonResponse({ status: "error", message: `Erreur serveur: ${error.message}` });
   }
+}
+
+/**
+ * Récupère les items pour le tableau de bord (Action: getBusinessItems).
+ * @param {object} data - { compteId }
+ */
+function getBusinessItems(data) {
+  const compteId = data.compteId;
+  if (!compteId) {
+    return createJsonResponse({ status: "error", message: "ID de compte manquant." });
+  }
+
+  const services = getDataForId(SERVICES_SHEET, compteId);
+  const products = getDataForId(PRODUCTS_SHEET, compteId);
+
+  return createJsonResponse({
+    status: "success",
+    data: {
+      services: services,
+      products: products
+    }
+  });
+}
+
+/**
+ * Adapte les données du dashboard pour la fonction addItem (Actions: addService, addProduct).
+ * Le dashboard envoie une structure imbriquée { item: {...} } que nous devons aplatir.
+ */
+function addItemFromDashboard(data, type) {
+  const itemData = data.item || {};
+  
+  // On construit l'objet plat attendu par addItem
+  const flatData = {
+    compteId: data.compteId,
+    type: type,
+    nom: itemData.nom,
+    prix: itemData.prix,
+    imageUrl: itemData.imageUrl,
+    description: itemData.description || '',
+    category: itemData.category || '',
+    characteristics: itemData.characteristics || ''
+  };
+  
+  return addItem(flatData);
 }
 
 /**
@@ -116,6 +179,7 @@ function addItem(data) {
     new Date()
   ]);
 
+  logAction(compteId, `Ajout ${type}`, `Nom: ${nom}, Prix: ${prix}`);
   return createJsonResponse({ status: "success", message: `"${nom}" ajouté avec succès.` });
 }
 
@@ -158,6 +222,7 @@ function updateItem(data) {
     sheet.getRange(rowIndex + 1, headers.indexOf("Caracteristiques") + 1).setValue(characteristics);
   }
 
+  logAction(compteId, `Modification ${type}`, `ID: ${itemId}, Nom: ${nom}`);
   return createJsonResponse({ status: "success", message: "Mise à jour réussie." });
 }
 
@@ -166,7 +231,7 @@ function updateItem(data) {
  * @param {object} data - { compteId, type, itemId }
  */
 function deleteItem(data) {
-  const { itemId, type } = data;
+  const { itemId, type, compteId } = data;
   const sheetName = (type === 'service') ? SERVICES_SHEET : PRODUCTS_SHEET;
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
   if (!sheet) return createJsonResponse({ status: "error", message: `Feuille "${sheetName}" introuvable.` });
@@ -178,6 +243,7 @@ function deleteItem(data) {
   if (rowIndex === -1) return createJsonResponse({ status: "error", message: "Item non trouvé." });
   
   sheet.deleteRow(rowIndex + 1);
+  if (compteId) logAction(compteId, `Suppression ${type}`, `ID: ${itemId}`);
   return createJsonResponse({ status: "success", message: "Item supprimé." });
 }
 
@@ -214,7 +280,9 @@ function setupSheets() {
   // Configuration des feuilles et des colonnes attendues
   const sheetsToCreate = {
     [SERVICES_SHEET]: ["CompteID", "IDItem", "Nom", "Prix", "Description", "ImageURL", "Categorie", "Caracteristiques", "Date"],
-    [PRODUCTS_SHEET]: ["CompteID", "IDItem", "Nom", "Prix", "Description", "ImageURL", "Categorie", "Caracteristiques", "Date"]
+    [PRODUCTS_SHEET]: ["CompteID", "IDItem", "Nom", "Prix", "Description", "ImageURL", "Categorie", "Caracteristiques", "Date"],
+    [LOGS_SHEET]: ["CompteID", "Date", "Action", "Details"],
+    [SLUGS_SHEET]: ["Slug", "CompteID", "Date", "Visits"]
   };
 
   let log = [];
@@ -376,6 +444,101 @@ function onOpen() {
 function manualSetup() {
   const result = setupSheets();
   SpreadsheetApp.getUi().alert(result.message);
+}
+
+/**
+ * Enregistre une action dans le journal.
+ */
+function logAction(compteId, action, details) {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(LOGS_SHEET);
+  if (sheet) {
+    sheet.appendRow([compteId, new Date(), action, details]);
+  }
+}
+
+/**
+ * Récupère les logs pour un compte spécifique.
+ */
+function getLogs(data) {
+  const compteId = data.compteId;
+  if (!compteId) return createJsonResponse({ status: "error", message: "ID de compte manquant." });
+
+  // On utilise getDataForId car la structure est compatible (CompteID en colonne 0)
+  const logs = getDataForId(LOGS_SHEET, compteId);
+  
+  // Tri décroissant par date (le plus récent en premier)
+  logs.sort((a, b) => new Date(b.Date) - new Date(a.Date));
+
+  return createJsonResponse({ status: "success", data: logs });
+}
+
+/**
+ * Définit un alias (slug) pour un compte.
+ * @param {object} data - { compteId, slug }
+ */
+function setSlug(data) {
+  const { compteId, slug } = data;
+  if (!compteId || !slug) return createJsonResponse({ status: "error", message: "Données manquantes." });
+
+  // Nettoyage du slug (minuscules, pas d'espaces, pas de caractères spéciaux sauf -)
+  const cleanSlug = slug.toLowerCase().replace(/[^a-z0-9-]/g, '-');
+  
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SLUGS_SHEET);
+  const values = sheet.getDataRange().getValues();
+  
+  // Vérifier si le slug est déjà pris par un AUTRE compte
+  const existing = values.find(row => row[0] === cleanSlug && row[1] !== compteId);
+  if (existing) {
+    return createJsonResponse({ status: "error", message: `L'identifiant "${cleanSlug}" est déjà pris.` });
+  }
+
+  // Vérifier si ce compte a déjà un slug et le mettre à jour, sinon créer
+  const rowIndex = values.findIndex(row => row[1] === compteId);
+  
+  if (rowIndex > 0) { // Mise à jour (on saute l'en-tête)
+    sheet.getRange(rowIndex + 1, 1).setValue(cleanSlug);
+    sheet.getRange(rowIndex + 1, 3).setValue(new Date());
+  } else { // Création
+    sheet.appendRow([cleanSlug, compteId, new Date()]);
+  }
+
+  return createJsonResponse({ status: "success", message: "Identifiant personnalisé enregistré.", slug: cleanSlug });
+}
+
+/**
+ * Récupère le slug d'un compte.
+ */
+function getSlug(data) {
+  const { compteId } = data;
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SLUGS_SHEET);
+  if (!sheet) return createJsonResponse({ status: "success", slug: "" });
+  
+  const row = sheet.getDataRange().getValues().find(r => r[1] === compteId);
+  return createJsonResponse({ 
+    status: "success", 
+    slug: row ? row[0] : "",
+    visits: (row && row[3]) ? row[3] : 0 
+  });
+}
+
+/**
+ * Résout un slug en ID de compte (Public).
+ */
+function resolveSlug(alias) {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SLUGS_SHEET);
+  if (!sheet) return createJsonResponse({ status: "error", message: "Système d'alias non configuré." });
+  
+  const data = sheet.getDataRange().getValues();
+  const rowIndex = data.findIndex(r => r[0] === alias);
+  
+  if (rowIndex !== -1) {
+    const row = data[rowIndex];
+    // Incrémenter le compteur de visites (Colonne 4 : Visits)
+    const currentVisits = row[3] ? parseInt(row[3]) : 0;
+    sheet.getRange(rowIndex + 1, 4).setValue(currentVisits + 1);
+    return createJsonResponse({ status: "success", compteId: row[1] });
+  }
+  return createJsonResponse({ status: "error", message: "Boutique introuvable." });
 }
 
 // --- Fonctions Utilitaires ---

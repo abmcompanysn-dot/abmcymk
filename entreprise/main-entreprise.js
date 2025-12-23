@@ -8,7 +8,7 @@
 // --- CONFIGURATION ---
 const ENTREPRISE_CONFIG = {
     // URL de l'API CENTRALE qui fournit les données publiques des entreprises
-    CENTRAL_API_URL: "https://script.google.com/macros/s/AKfycbzUC9mbsUKkfTegf9MthFVzGcXDRRctpCU9Mml4v9Erfbs4Uf_-ujaQh1m98NC9_dk6AQ/exec"
+    CENTRAL_API_URL: "https://script.google.com/macros/s/AKfycbwu6h2krfmoluUOTnkVG2dNWp8KieA93O4IrxW9i6vyV6u4pWrg0RlYMoRk5Cw1GUv8Zw/exec"
 };
 
 /**
@@ -28,7 +28,22 @@ window.openLightbox = openLightbox;
  */
 async function initializeApp() {
     const params = new URLSearchParams(window.location.search);
-    const compteId = params.get('compteId');
+    let compteId = params.get('compteId');
+    const alias = params.get('alias');
+
+    // Si on a un alias mais pas d'ID, on doit résoudre l'alias
+    if (!compteId && alias) {
+        try {
+            // On demande à l'API de trouver l'ID correspondant à l'alias
+            const resolveResponse = await fetch(`${ENTREPRISE_CONFIG.CENTRAL_API_URL}?action=resolveSlug&alias=${alias}`);
+            const resolveResult = await resolveResponse.json();
+            if (resolveResult.status === 'success') {
+                compteId = resolveResult.compteId;
+            }
+        } catch (e) {
+            console.warn("Impossible de résoudre l'alias:", e);
+        }
+    }
 
     if (!compteId) {
         displayError("Contenu indisponible", "Les informations de cette entreprise ne peuvent pas être chargées pour le moment.");
