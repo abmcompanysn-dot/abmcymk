@@ -492,7 +492,7 @@
                     </div>
                     <div class="input-group">
                         <label for="settingsSlug">Identifiant personnalisé (Lien court)</label>
-                        <input type="text" id="settingsSlug" placeholder="ex: mon-salon-elegance" pattern="[a-zA-Z0-9-]+" title="Lettres, chiffres et tirets uniquement">
+                        <input type="text" id="settingsSlug" placeholder="ex: mon-salon-elegance" pattern="[a-zA-Z0-9\-]+" title="Lettres, chiffres et tirets uniquement">
                         <small id="slug-feedback" style="font-size: 0.8em; min-height: 1em; margin-top: 4px; font-weight: 600;"></small>
                         <small style="color: #666; font-size: 0.8em;">Sera utilisé pour votre lien : .../babershop.html?alias=<b>votre-identifiant</b></small>
                     </div>
@@ -563,7 +563,7 @@
     <!-- Import de la configuration centralisée -->
     <script src="main-entreprise.js"></script>
     <!-- Import de Chart.js pour le graphique -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 
     <script>
         // URL de l'API spécifique au type (Produits/Services)
@@ -573,7 +573,7 @@
 
         // Librairie pour générer le QR Code
         const script = document.createElement('script');
-        script.src = "https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js";
+        script.src = "https://cdnjs.cloudflare.com/ajax/libs/qrcode/1.5.1/qrcode.min.js";
         document.head.appendChild(script);
 
         const loader = document.getElementById('loader');
