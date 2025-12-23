@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tableau de Bord - ABMCY MARKET</title>
+    <link rel="icon" href="https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png" type="image/png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -534,21 +535,21 @@
                     <div class="input-group">
                         <label for="currentPassword">Mot de passe actuel</label>
                         <div class="password-wrapper">
-                            <input type="password" id="currentPassword" required>
+                            <input type="password" id="currentPassword" required autocomplete="current-password">
                             <span class="toggle-password" onclick="togglePassword('currentPassword', this)">👁️</span>
                         </div>
                     </div>
                     <div class="input-group">
                         <label for="newPassword">Nouveau mot de passe</label>
                         <div class="password-wrapper">
-                            <input type="password" id="newPassword" required minlength="8" placeholder="8+ chars, Maj, Min, Chiffre, Symbole">
+                            <input type="password" id="newPassword" required minlength="8" placeholder="8+ chars, Maj, Min, Chiffre, Symbole" autocomplete="new-password">
                             <span class="toggle-password" onclick="togglePassword('newPassword', this)">👁️</span>
                         </div>
                     </div>
                     <div class="input-group">
                         <label for="confirmNewPassword">Confirmer le nouveau mot de passe</label>
                         <div class="password-wrapper">
-                            <input type="password" id="confirmNewPassword" required minlength="8">
+                            <input type="password" id="confirmNewPassword" required minlength="8" autocomplete="new-password">
                             <span class="toggle-password" onclick="togglePassword('confirmNewPassword', this)">👁️</span>
                         </div>
                     </div>
