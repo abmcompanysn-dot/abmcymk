@@ -1,6 +1,6 @@
 const CONFIG = {
     // NOUVEAU: URL de l'API CENTRALE qui gère maintenant tout (comptes, commandes, etc.)
-    ACCOUNT_API_URL:"https://script.google.com/macros/s/AKfycbxltq2LVDVTJ_j1uTc4Od9yZKg16ocpU8RA9JIfsBJNimVntOhxJ3eOY2x3lloWGtk7xA/exec",
+    ACCOUNT_API_URL:"https://script.google.com/macros/s/AKfycbx8WsziTTQllAvVfCiDoKB_SenRdDQRtjpSN3FCDS8-YDxMk-C4Ic4aHVgW7XU6Kw-S3w/exec",
     // Les URL spécifiques pour commandes, livraisons et notifications sont maintenant obsolètes
     // car tout est géré par l'API centrale (ACCOUNT_API_URL).
     
@@ -1732,42 +1732,20 @@ async function processCheckout(event) {
                                      ['wave', 'orange-money', 'free-money'].includes(customerData.paymentProvider);
 
     if (isAbmcyAggregatorPayment) {
-        const action = 'enregistrerCommandeEtNotifier';
-        const paymentNote = `Paiement via ${customerData.paymentProvider} (en attente de confirmation manuelle)`;
+        // UTILISATION DE L'ACTION DÉDIÉE (Comme Paydunya)
+        const action = 'createAbmcyAggregatorInvoice';
         const orderPayload = createOrderPayload(action, customerData, cart, total, clientId, clientName);
-        orderPayload.data.moyenPaiement = paymentNote;
+        // Le backend gérera le statut "En attente" et le moyen de paiement
 
         try {
-            // NOUVELLE LOGIQUE: On envoie la commande et on ATTEND la réponse pour avoir l'ID.
             const result = await sendOrderToBackend(orderPayload);
             
-            // La fonction sendOrderToBackend vide déjà le panier et le cache en cas de succès.
-
-            // NOUVELLE ÉTAPE: Lancer l'initiation du paiement ABMCY en arrière-plan (fire-and-forget)
-            // Cette action côté serveur doit :
-            // 1. Enregistrer la tentative dans la feuille "ABMCY Historique" avec le statut "En attente".
-            // 2. Envoyer un email (et/ou un WhatsApp) au client avec le lien de paiement.
-            const initiationPayload = {
-                action: 'initiateAbmcyPayment',
-                data: {
-                    IDCommande: result.id, // ID de la commande fraîchement créée
-                    Montant: total, // Montant total de la commande
-                    MoyenPaiement: customerData.paymentProvider, // Ex: 'wave'
-                    NomExpediteur: user ? user.Nom : clientName, // Utilise le nom du compte si connecté, sinon celui du formulaire
-                    NumeroExpediteur: user ? user.Telephone : customerData.phone, // Utilise le téléphone du compte si connecté
-                    EmailClient: user ? user.Email : customerData.email, // Utilise l'email du compte si connecté
-                    StatutLog: 'En attente',
-                    TransactionReference: '', // Laisser vide, sera rempli manuellement ou par l'API de paiement
-                    NotesAdmin: 'Initiation de paiement automatique.'
-                }
-            };
-            // On envoie la requête sans attendre la réponse pour ne pas bloquer la redirection.
-            fetch(CONFIG.ACCOUNT_API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(initiationPayload), keepalive: true });
-
-            // Rediriger immédiatement vers la page de l'agrégateur avec les infos nécessaires
-            // On ajoute maintenant l'orderId qui a été retourné par le serveur.
-            const aggregatorUrl = `abmcy_aggregator.html?orderId=${result.id}&amount=${total}&provider=${customerData.paymentProvider}`;
-            window.location.href = aggregatorUrl;
+            // Redirection vers l'URL de paiement fournie par le backend
+            if (result.success && result.payment_url) {
+                window.location.href = result.payment_url;
+            } else {
+                throw new Error("URL de paiement non reçue du serveur.");
+            }
 
         } catch (error) {
             // Gérer les erreurs si l'enregistrement de la commande échoue.
@@ -1827,7 +1805,7 @@ function createOrderPayload(action, customerData, cart, total, clientId, clientN
                     businessId: item.businessId // NOUVEAU: Transmettre l'ID de l'entreprise
                 };
             }),
-            adresseLivraison: `${customerData.address}, ${customerData.location}`,
+            adresseLivraison: customerData.location === 'retrait_magasin' ? "Point de Retrait : Boutique ABMCY" : `${customerData.address}, ${customerData.location}`,
             total: total,
             moyenPaiement: paymentNote,
             paymentProvider: customerData.paymentProvider,
@@ -1994,6 +1972,11 @@ async function getFullCatalog() {
 
     if (!result.success) {
       throw new Error(result.error || "L'API a retourné une erreur.");
+    }
+
+    // NOUVEAU: Vérification de l'intégrité des données pour éviter le crash
+    if (!result.data || !result.data.products) {
+        throw new Error("Le catalogue reçu est vide ou malformé (data.products manquant).");
     }
 
     // Stocker le résultat dans le cache de session pour les navigations futures.

@@ -305,6 +305,7 @@ function updateBusinessInfo(data, origin) {
         updateCol("Description", data.description);
         updateCol("Telephone", data.telephone);
         updateCol("Adresse", data.adresse);
+        updateCol("WaveBaseUrl", data.waveBaseUrl); // NOUVEAU: Sauvegarder le lien Wave
         if (data.logoUrl) updateCol("LogoUrl", data.logoUrl);
         if (data.coverImageUrl) updateCol("CoverImageUrl", data.coverImageUrl);
 
@@ -915,6 +916,13 @@ function createPaydunyaInvoice(data, origin) {
         const orderSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.ORDERS);
         const idCommande = "CMD-" + new Date().getTime();
 
+        // NOUVEAU: Récupérer le businessId (CompteID)
+        let businessId = '';
+        if (data.produits && data.produits.length > 0) {
+            // Si c'est une commande entreprise, l'ID est là. Si c'est direct, c'est vide.
+            businessId = data.produits[0].businessId || '';
+        }
+
         // 1. Enregistrer la commande avec un statut "En attente de paiement"
         const produitsDetails = data.produits.map(p => `${p.name} (x${p.quantity})`).join(', ');
         // AMÉLIORATION: Enregistrer la commande avec la même structure que les autres, y compris les étapes de suivi.
@@ -923,7 +931,9 @@ function createPaydunyaInvoice(data, origin) {
             idCommande, data.idClient, produitsDetails,
             data.total, "En attente de paiement", new Date(), 
             false, false, false, false, // EtapeConfirmee, EtapePreparation, EtapeExpediee, EtapeLivree
-            data.adresseLivraison, "Paydunya", data.notes || ''
+            data.adresseLivraison, "Paydunya", data.notes || '',
+            '', '', '', '', // TransactionReference, InitiationTimestamp, NomExpediteur, NumeroExpediteur (vides pour Paydunya au début)
+            businessId // NOUVEAU: CompteID (Rempli si entreprise, vide si direct)
         ]);
 
         // 2. Préparer la requête pour l'API Paydunya
@@ -1045,6 +1055,16 @@ function createAbmcyAggregatorInvoice(data, origin) {
         }
 
         const providerConfig = paymentMethods[selectedProvider];
+        
+        // NOUVEAU: Vérifier si l'entreprise a un lien Wave personnalisé
+        let baseUrlToUse = providerConfig.baseUrl;
+        if (businessId && selectedProvider === 'wave') {
+             const businessWaveUrl = getBusinessWaveUrl(businessId);
+             if (businessWaveUrl && businessWaveUrl.trim() !== "") {
+                 baseUrlToUse = businessWaveUrl;
+             }
+        }
+
         const orderSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.ORDERS);
         const idCommande = "CMD-" + new Date().getTime();
         const transactionReference = "ABMCY-" + new Date().getTime(); // Référence unique pour le suivi
@@ -1071,13 +1091,29 @@ function createAbmcyAggregatorInvoice(data, origin) {
             businessId // NOUVEAU: CompteID
         ]);
 
+        // 1.5 NOUVEAU: Enregistrer la tentative dans l'historique (Comme initiateAbmcyPayment)
+        const historySheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.ABMCY_AGGREGATOR_HISTORY);
+        if (historySheet) {
+            historySheet.appendRow([
+                new Date(), 
+                idCommande, 
+                data.total, 
+                selectedProvider, 
+                transactionReference, 
+                data.customer.name, 
+                data.customer.phone, 
+                'En attente', 
+                'Initiation via Checkout'
+            ]);
+        }
+
         // 2. NOUVEAU: Construire l'URL de redirection vers notre page intermédiaire abmcymarket.html
         // On passe les informations nécessaires en paramètres d'URL.
         const aggregatorPageUrl = "https://abmcymarket.abmcy.com/abmcy_aggregator.html";
 
         // AMÉLIORATION: Nettoyer l'URL de base pour ne garder que la partie avant les paramètres.
         // Cela évite de passer des placeholders comme {amount} à la page de l'agrégateur.
-        const cleanBaseUrl = providerConfig.baseUrl.split('?')[0];
+        const cleanBaseUrl = baseUrlToUse.split('?')[0]; // Utilise l'URL personnalisée ou celle par défaut
         const paymentUrl = `${aggregatorPageUrl}?orderId=${idCommande}&total=${data.total}&ref=${transactionReference}&provider=${selectedProvider}&baseUrl=${encodeURIComponent(cleanBaseUrl)}`;
         
         // L'ancienne logique de remplacement est maintenant gérée par la page abmcymarket.html elle-même.
@@ -1207,6 +1243,23 @@ function findCustomerEmailByOrderId(orderId, allOrders, headers) {
     const clientId = orderRow[headers.indexOf("IDClient")];
     const userRow = usersData.find(row => row[usersHeaders.indexOf("IDClient")] === clientId);
     return userRow ? userRow[usersHeaders.indexOf("Email")] : null;
+}
+
+/**
+ * NOUVEAU: Récupère l'URL Wave personnalisée d'une entreprise.
+ */
+function getBusinessWaveUrl(compteId) {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.ENTREPRISES);
+    if (!sheet) return null;
+    const data = sheet.getDataRange().getValues();
+    const headers = data[0];
+    const idIndex = headers.indexOf("NumeroCompte");
+    const waveIndex = headers.indexOf("WaveBaseUrl");
+    
+    if (waveIndex === -1) return null; // La colonne n'existe pas encore
+
+    const row = data.find(r => r[idIndex] === compteId);
+    return row ? row[waveIndex] : null;
 }
 
 /**
@@ -1457,6 +1510,21 @@ function handlePaydunyaWebhook(e) {
                     `;
                     MailApp.sendEmail(customerEmail, emailSubject, "", { htmlBody: emailBody });
                     logAction('EMAIL_CONFIRMATION_PAIEMENT', { orderId: orderId, email: customerEmail });
+                }
+
+                // --- Étape 4: Notifier le partenaire si c'est une commande entreprise ---
+                const compteIdIndex = sheetHeaders.indexOf("CompteID");
+                if (compteIdIndex > -1) {
+                    const businessId = sheetData[rowIndex][compteIdIndex];
+                    if (businessId) {
+                        const businessEmail = getBusinessEmail(businessId);
+                        if (businessEmail) {
+                             const partnerSubject = `[Partenaire] Paiement confirmé pour commande #${orderId}`;
+                             const partnerBody = `<p>La commande <strong>#${orderId}</strong> a été payée avec succès via Paydunya.</p><p>Vous pouvez procéder à la préparation.</p>`;
+                             MailApp.sendEmail(businessEmail, partnerSubject, "", { htmlBody: partnerBody });
+                             logAction('EMAIL_PARTENAIRE_PAYDUNYA', { orderId: orderId, businessId: businessId });
+                        }
+                    }
                 }
             }
         } else {
@@ -2491,7 +2559,7 @@ function setupProject() {
     [SHEET_NAMES.LOGS]: ["Timestamp", "Source", "Action", "Détails"],
     [SHEET_NAMES.CONFIG]: ["Clé", "Valeur"],
     [SHEET_NAMES.ADDRESSES]: ["IDAdresse", "IDClient", "Label", "Details", "IsDefault"], // NOUVEAU
-    [SHEET_NAMES.ENTREPRISES]: ["NumeroCompte", "NomEntreprise", "Type", "Proprietaire", "Telephone", "Adresse", "ApiTypeUrl", "LogoUrl", "Description", "CoverImageUrl", "GalerieUrls", "Email", "PasswordHash", "Salt", "ResetToken", "ResetTokenExpiry"],
+    [SHEET_NAMES.ENTREPRISES]: ["NumeroCompte", "NomEntreprise", "Type", "Proprietaire", "Telephone", "Adresse", "ApiTypeUrl", "LogoUrl", "Description", "CoverImageUrl", "GalerieUrls", "Email", "PasswordHash", "Salt", "ResetToken", "ResetTokenExpiry", "WaveBaseUrl"], // NOUVEAU: Ajout de WaveBaseUrl
     [SHEET_NAMES.ABMCY_AGGREGATOR_HISTORY]: ["Timestamp", "IDCommande", "Montant", "MoyenPaiement", "TransactionReference", "NomExpediteur", "NumeroExpediteur", "StatutLog", "NotesAdmin"], // NOUVEAU
     [SHEET_NAMES.ABMCY_Admin]: ["Clé", "Valeur"], // NOUVEAU
     [SHEET_NAMES.LIVRAISONS]: ["IDLivraison", "IDCommande", "IDClient", "Adresse", "Statut", "DateMiseAJour", "Transporteur"],
