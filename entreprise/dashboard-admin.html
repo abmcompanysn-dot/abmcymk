@@ -473,6 +473,10 @@
                 
                 BUSINESS_API_URL = info.ApiTypeUrl; // Récupérer l'URL de l'API spécifique
                 
+                if (!BUSINESS_API_URL) {
+                    throw new Error("L'URL de l'API métier n'est pas configurée. Veuillez contacter le support.");
+                }
+
                 // Remplir le formulaire de paramètres
                 populateSettingsForm(info);
 
@@ -563,13 +567,35 @@
             const form = e.target;
             const nameInput = form.querySelector('input[type="text"]');
             const priceInput = form.querySelector('input[type="number"]');
+            const fileInput = form.querySelector('input[type="file"]');
             const submitBtn = form.querySelector('button[type="submit"]');
 
             const nom = nameInput.value;
             const prix = parseFloat(priceInput.value);
+            let imageUrl = '';
 
             if (!nom || isNaN(prix)) {
                 alert("Veuillez remplir tous les champs avec des valeurs valides.");
+                return;
+            }
+
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Traitement...';
+
+            try {
+                // Upload de l'image si présente
+                if (fileInput && fileInput.files[0]) {
+                    submitBtn.textContent = 'Upload image...';
+                    if (typeof uploadImageToImgBB === 'function') {
+                        imageUrl = await uploadImageToImgBB(fileInput.files[0]);
+                    } else {
+                        console.warn("Fonction uploadImageToImgBB non trouvée.");
+                    }
+                }
+            } catch (err) {
+                alert("Erreur lors de l'upload de l'image : " + err.message);
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Ajouter';
                 return;
             }
 
@@ -578,12 +604,11 @@
                 action: type === 'service' ? 'addService' : 'addProduct',
                 data: {
                     compteId: compteId,
-                    item: { nom, prix }
+                    item: { nom, prix, imageUrl }
                 }
             };
 
-            submitBtn.disabled = true;
-            submitBtn.textContent = 'Ajout...';
+            submitBtn.textContent = 'Enregistrement...';
 
             try {
                 const response = await fetch(BUSINESS_API_URL, {
