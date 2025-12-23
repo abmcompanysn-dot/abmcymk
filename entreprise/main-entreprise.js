@@ -18,6 +18,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // Empêcher l'exécution automatique sur le tableau de bord admin (qui possède l'ID 'dashboard-content')
     if (document.getElementById('dashboard-content')) return;
     initializeApp();
+    // Mettre à jour le badge du panier au chargement
+    updateCartBadge();
 });
 
 // NOUVEAU: Fonctions pour la lightbox, accessibles globalement
@@ -73,8 +75,9 @@ async function initializeApp() {
             displayDynamicGallery(businessInfo.GalerieUrls);
         }
 
-        displayItems(services, 'services-list', 'service');
-        displayItems(products, 'products-list', 'produit');
+        // On passe compteId pour lier la vente à l'entreprise (KPI)
+        displayItems(services, 'services-list', 'service', compteId);
+        displayItems(products, 'products-list', 'produit', compteId);
 
     } catch (error) {
         console.error("Erreur d'initialisation:", error);
@@ -139,35 +142,109 @@ function displayDynamicGallery(galleryUrls) {
  * @param {Array} items - La liste des items.
  * @param {string} containerId - L'ID du conteneur où afficher les items.
  * @param {string} itemType - Le type d'item ('service' ou 'produit').
+ * @param {string} businessId - L'ID de l'entreprise pour l'attribution de la vente.
  */
-function displayItems(items, containerId, itemType) {
+function displayItems(items, containerId, itemType, businessId) {
     const container = document.getElementById(containerId);
     if (!container) return;
 
     if (!items || items.length === 0) {
-        container.innerHTML = `<p class="text-gray-500">Aucun ${itemType} disponible pour le moment.</p>`;
+        container.innerHTML = `<p class="text-gray-500 col-span-full text-center">Aucun ${itemType} disponible pour le moment.</p>`;
         return;
     }
 
     container.innerHTML = items.map(item => {
         // Gestion de l'image : utilise l'image du produit ou une image par défaut si absente
         const imageUrl = item.ImageURL || 'https://via.placeholder.com/150?text=Pas+d+image';
-        const hasImage = item.ImageURL && item.ImageURL.length > 0;
+        const name = item.Nom || item.NomService || item.NomProduit;
+        const price = item.Prix || 0;
+        const id = item.IDItem || item.IDProduit || item.IDService || Date.now(); // Fallback ID
 
         return `
-        <div class="border-b py-4 flex gap-4 items-start">
-            ${hasImage ? `<div class="w-20 h-20 flex-shrink-0 bg-gray-100 rounded-md overflow-hidden cursor-pointer" onclick="openLightbox('${imageUrl}', '${item.Nom}')"><img src="${imageUrl}" class="w-full h-full object-cover" alt="${item.Nom}"></div>` : ''}
-            <div class="flex-grow">
-                <div class="flex justify-between items-start">
-                    <h3 class="font-semibold text-gray-800 text-lg">${item.Nom || item.NomService || item.NomProduit}</h3>
-                    <p class="font-bold text-gold whitespace-nowrap ml-2">${(item.Prix || 0).toLocaleString('fr-FR')} F CFA</p>
+        <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300 flex flex-col h-full border border-gray-100">
+            <div class="relative h-48 overflow-hidden cursor-pointer group" onclick="openLightbox('${imageUrl}', '${name.replace(/'/g, "\\'")}')">
+                <img src="${imageUrl}" alt="${name}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110">
+                <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-opacity"></div>
+            </div>
+            <div class="p-4 flex-grow flex flex-col justify-between">
+                <div>
+                    <div class="flex justify-between items-start mb-2">
+                        <h3 class="font-bold text-gray-800 text-lg leading-tight">${name}</h3>
+                    </div>
+                    ${item.Categorie ? `<span class="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full mb-2 inline-block">${item.Categorie}</span>` : ''}
+                    <p class="text-sm text-gray-600 line-clamp-2 mb-3">${item.Description || ''}</p>
                 </div>
-                ${item.Categorie ? `<span class="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full mt-1 inline-block">${item.Categorie}</span>` : ''}
-                ${item.Description ? `<p class="text-sm text-gray-600 mt-2 leading-relaxed">${item.Description}</p>` : ''}
-                ${item.Caracteristiques ? `<p class="text-xs text-gray-500 mt-1 italic">Caractéristiques: ${item.Caracteristiques}</p>` : ''}
+                
+                <div class="mt-auto pt-3 border-t border-gray-100 flex items-center justify-between">
+                    <span class="text-gold font-bold text-xl">${price.toLocaleString('fr-FR')} F</span>
+                    <button 
+                        onclick="addToCart('${id}', '${name.replace(/'/g, "\\'")}', ${price}, '${imageUrl}', '${itemType}', '${businessId}')"
+                        class="bg-black text-white p-2 rounded-full hover:bg-gold hover:text-black transition-colors duration-300 shadow-md flex items-center justify-center w-10 h-10"
+                        title="Ajouter au panier">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
+                    </button>
+                </div>
             </div>
         </div>
     `}).join('');
+}
+
+/**
+ * Ajoute un produit au panier global (localStorage).
+ * C'est ici que se fait l'intégration avec le système de paiement global.
+ */
+function addToCart(id, name, price, image, type, businessId) {
+    let cart = JSON.parse(localStorage.getItem('cart')) || [];
+    
+    const existingItemIndex = cart.findIndex(item => item.id === id);
+
+    if (existingItemIndex > -1) {
+        cart[existingItemIndex].quantity += 1;
+    } else {
+        cart.push({
+            id: id,
+            name: name,
+            price: price,
+            image: image,
+            quantity: 1,
+            type: type,
+            businessId: businessId // CRUCIAL pour les KPI : permet de savoir à qui revient la vente
+        });
+    }
+
+    localStorage.setItem('cart', JSON.stringify(cart));
+    updateCartBadge();
+    
+    // Petit feedback visuel
+    const btn = event.currentTarget;
+    const originalHTML = btn.innerHTML;
+    btn.innerHTML = `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>`;
+    btn.classList.add('bg-green-500', 'text-white');
+    btn.classList.remove('bg-black');
+    
+    setTimeout(() => {
+        btn.innerHTML = originalHTML;
+        btn.classList.remove('bg-green-500', 'text-white');
+        btn.classList.add('bg-black');
+    }, 1000);
+}
+
+/**
+ * Met à jour le badge du panier dans l'en-tête.
+ */
+function updateCartBadge() {
+    const cart = JSON.parse(localStorage.getItem('cart')) || [];
+    const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
+    
+    const badges = document.querySelectorAll('.cart-badge');
+    badges.forEach(badge => {
+        badge.textContent = totalItems;
+        if (totalItems > 0) {
+            badge.classList.remove('hidden');
+        } else {
+            badge.classList.add('hidden');
+        }
+    });
 }
 
 /**
