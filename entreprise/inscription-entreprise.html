@@ -110,8 +110,7 @@
                 <div class="input-group">
                     <label for="typeEntreprise">Type d'entreprise</label>
                     <select id="typeEntreprise" name="typeEntreprise" required>
-                        <option value="coiffeur">Coiffeur / Salon de coiffure</option>
-                        <!-- Vous pourrez ajouter d'autres options ici plus tard -->
+                        <option value="">Chargement des métiers...</option>
                     </select>
                 </div>
                 <button type="submit" class="submit-btn">Créer mon espace</button>
@@ -163,7 +162,11 @@
     <script>
         const messageDiv = document.getElementById('message');
         
-        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzXrHv6q7RrBGqRQO2a_HWzvTKYCet9hSJ14hRVGKGqoIOO1JsQ5AKxPzmEw2W-GmaFfA/exec"; 
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzUC9mbsUKkfTegf9MthFVzGcXDRRctpCU9Mml4v9Erfbs4Uf_-ujaQh1m98NC9_dk6AQ/exec"; 
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadBusinessTypes();
+        });
 
         function switchView(viewId) {
             document.getElementById('register-section').classList.add('hidden');
@@ -171,6 +174,30 @@
             document.getElementById('forgot-section').classList.add('hidden');
             document.getElementById(viewId + '-section').classList.remove('hidden');
             messageDiv.textContent = '';
+        }
+
+        async function loadBusinessTypes() {
+            const select = document.getElementById('typeEntreprise');
+            try {
+                // Appel à l'API pour récupérer les types d'entreprises configurés (Coiffeur, Restaurant, etc.)
+                const response = await fetch(`${SCRIPT_URL}?action=getBusinessTypes`);
+                const result = await response.json();
+                
+                if (result.success && result.data) {
+                    select.innerHTML = '<option value="">Choisir un métier...</option>';
+                    Object.keys(result.data).forEach(type => {
+                        const option = document.createElement('option');
+                        option.value = type; // La valeur envoyée sera la clé (ex: "Coiffeur")
+                        option.textContent = type;
+                        select.appendChild(option);
+                    });
+                } else {
+                    select.innerHTML = '<option value="">Erreur de chargement</option>';
+                }
+            } catch (e) {
+                console.error("Erreur chargement types:", e);
+                select.innerHTML = '<option value="">Erreur de connexion</option>';
+            }
         }
 
         async function handleAuth(action, data, btn) {

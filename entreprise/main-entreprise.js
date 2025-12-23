@@ -8,7 +8,7 @@
 // --- CONFIGURATION ---
 const ENTREPRISE_CONFIG = {
     // URL de l'API CENTRALE qui fournit les données publiques des entreprises
-    CENTRAL_API_URL: "https://script.google.com/macros/s/AKfycbzXrHv6q7RrBGqRQO2a_HWzvTKYCet9hSJ14hRVGKGqoIOO1JsQ5AKxPzmEw2W-GmaFfA/exec"
+    CENTRAL_API_URL: "https://script.google.com/macros/s/AKfycbzUC9mbsUKkfTegf9MthFVzGcXDRRctpCU9Mml4v9Erfbs4Uf_-ujaQh1m98NC9_dk6AQ/exec"
 };
 
 /**

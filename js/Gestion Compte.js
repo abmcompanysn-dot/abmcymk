@@ -37,10 +37,14 @@ const ALLOWED_ORIGINS = {
 // NOUVEAU: Configuration des URLs d'API spécifiques par type d'entreprise.
 // C'est ici que le système "récupère l'API" pour l'associer au compte.
 const BUSINESS_TYPE_APIS = {
-    "Coiffeur": "https://script.google.com/macros/s/AKfycbyqZjV7fovVrTsw4Y7xFd5X5Zlco5bwPGyG86Sk7W31SD24nPwguk1POos8Pi5s60sRPA/exec", // ⚠️ REMPLACEZ CECI par l'URL déployée de votre script 'api_type_coiffeur.js'
+    "Coiffeur": "https://script.google.com/macros/s/AKfycbxhByNk-raaXrbsC-0oWXpchItEtnWCunLVOobHv4ujvvB-hv-rA0aDDpyY1cb-mgfg4A/exec", // ⚠️ REMPLACEZ CECI par l'URL déployée de votre script 'api_type_coiffeur.js'
     "Restaurant": "", // À définir plus tard
     "Boutique": ""    // À définir plus tard
 };
+
+// NOUVEAU: Images par défaut pour les entreprises (Logo et Couverture)
+const DEFAULT_BUSINESS_LOGO = "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png";
+const DEFAULT_BUSINESS_COVER = "https://via.placeholder.com/1200x400?text=Banniere+Par+Defaut";
 
 // --- POINTS D'ENTRÉE DE L'API WEB (doGet, doPost, doOptions) ---
 
@@ -81,6 +85,11 @@ function doGet(e) {
     if (action === 'getBusinessPublicData') {
         // Cette action est publique, pas besoin de vérifier l'origine ici.
         return getBusinessPublicData(e.parameter.compteId);
+    }
+
+    // NOUVEAU: Action pour récupérer les types d'entreprises disponibles (pour rendre le formulaire dynamique)
+    if (action === 'getBusinessTypes') {
+        return createJsonResponse({ success: true, data: BUSINESS_TYPE_APIS }, origin);
     }
     
     // Réponse par défaut pour un simple test de l'API
@@ -151,6 +160,8 @@ function doPost(e) {
                 return requestBusinessPasswordReset(data, origin);
             case 'resetBusinessPassword': // NOUVEAU
                 return resetBusinessPassword(data, origin);
+            case 'changeBusinessPassword': // NOUVEAU: Changement de mot de passe depuis le dashboard
+                return changeBusinessPassword(data, origin);
             case 'connecterClient':
                 return connecterClient(data, origin);
             case 'getOrderById': // NOUVEAU
@@ -361,10 +372,14 @@ function creerCompteEntreprise(data, origin) {
         // NOUVEAU: Récupère automatiquement l'URL de l'API en fonction du type choisi (ex: Coiffeur)
         const apiTypeUrl = BUSINESS_TYPE_APIS[data.typeEntreprise] || "";
 
+        // NOUVEAU: Gestion des valeurs par défaut pour le logo, la couverture et la description
+        const logoUrl = data.logoUrl || DEFAULT_BUSINESS_LOGO;
+        const coverImageUrl = data.coverImageUrl || DEFAULT_BUSINESS_COVER;
+        const description = data.description || `Bienvenue chez ${data.nomEntreprise}`;
+
         // Colonnes: NumeroCompte, NomEntreprise, Type, Proprietaire, Telephone, Adresse, ApiTypeUrl, LogoUrl, Description, CoverImageUrl, GalerieUrls, Email, PasswordHash, Salt
-        // On remplit ce qu'on a, le reste sera vide pour l'instant
         const newRow = [
-            compteId, data.nomEntreprise, data.typeEntreprise, "", "", "", apiTypeUrl, "", "", "", "", data.email, passwordHash, salt
+            compteId, data.nomEntreprise, data.typeEntreprise, "", "", "", apiTypeUrl, logoUrl, description, coverImageUrl, "", data.email, passwordHash, salt
         ];
         
         // S'assurer que la ligne correspond aux colonnes (gestion dynamique simplifiée ici, on suppose l'ordre de setupProject)
@@ -518,6 +533,53 @@ function resetBusinessPassword(data, origin) {
 
         return createJsonResponse({ success: true, message: "Mot de passe réinitialisé avec succès." }, origin);
     } catch (error) {
+        return createJsonResponse({ success: false, error: error.message }, origin);
+    }
+}
+
+/**
+ * NOUVEAU: Change le mot de passe d'une entreprise connectée.
+ * @param {object} data - { compteId, currentPassword, newPassword }
+ */
+function changeBusinessPassword(data, origin) {
+    try {
+        if (!data.compteId || !data.currentPassword || !data.newPassword) {
+            throw new Error("Données incomplètes.");
+        }
+
+        // Validation de la force du mot de passe
+        if (!validatePassword(data.newPassword)) {
+            throw new Error("Le nouveau mot de passe doit contenir au moins 8 caractères, une majuscule, une minuscule, un chiffre et un symbole.");
+        }
+
+        const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.ENTREPRISES);
+        const allData = sheet.getDataRange().getValues();
+        const headers = allData[0];
+        const idIndex = headers.indexOf("NumeroCompte");
+        const hashIndex = headers.indexOf("PasswordHash");
+        const saltIndex = headers.indexOf("Salt");
+
+        const rowIndex = allData.findIndex(row => row[idIndex] === data.compteId);
+        if (rowIndex === -1) return createJsonResponse({ success: false, error: "Compte introuvable." }, origin);
+
+        const storedHash = allData[rowIndex][hashIndex];
+        const salt = allData[rowIndex][saltIndex];
+
+        // Vérifier l'ancien mot de passe
+        if (hashPassword(data.currentPassword, salt).passwordHash !== storedHash) {
+            return createJsonResponse({ success: false, error: "Le mot de passe actuel est incorrect." }, origin);
+        }
+
+        // Mettre à jour avec le nouveau mot de passe
+        const { passwordHash: newHash, salt: newSalt } = hashPassword(data.newPassword);
+        const rowToUpdate = rowIndex + 1;
+        
+        sheet.getRange(rowToUpdate, hashIndex + 1).setValue(newHash);
+        sheet.getRange(rowToUpdate, saltIndex + 1).setValue(newSalt);
+
+        return createJsonResponse({ success: true, message: "Mot de passe modifié avec succès." }, origin);
+    } catch (error) {
+        logError('changeBusinessPassword', error);
         return createJsonResponse({ success: false, error: error.message }, origin);
     }
 }

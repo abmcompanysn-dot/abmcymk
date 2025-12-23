@@ -39,8 +39,10 @@
         .sidebar-header {
             padding: 0 1.5rem;
             margin-bottom: 2rem;
-            font-size: 1.5rem;
+            font-size: 1.2rem;
             font-weight: 600;
+            display: flex;
+            align-items: center;
         }
         .sidebar-nav ul {
             list-style: none;
@@ -184,7 +186,10 @@
 <body>
 
     <aside class="sidebar">
-        <div class="sidebar-header">ABMCY</div>
+        <div class="sidebar-header">
+            <img id="sidebar-logo" src="" alt="" style="width: 30px; height: 30px; border-radius: 50%; margin-right: 10px; display: none; object-fit: cover;">
+            <span>ABMCY</span>
+        </div>
         <nav class="sidebar-nav">
             <ul>
                 <li><a href="#" onclick="showSection('dashboard')" id="nav-dashboard" class="active">Tableau de Bord</a></li>
@@ -295,6 +300,26 @@
                     </div>
 
                     <button type="submit" class="submit-btn" style="margin-top: 1rem;">Enregistrer les modifications</button>
+                </form>
+            </section>
+
+            <!-- NOUVEAU: Section Changement de mot de passe -->
+            <section class="section">
+                <h2>Sécurité</h2>
+                <form id="changePasswordForm" class="form-grid" style="grid-template-columns: 1fr;">
+                    <div class="input-group">
+                        <label for="currentPassword">Mot de passe actuel</label>
+                        <input type="password" id="currentPassword" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="newPassword">Nouveau mot de passe</label>
+                        <input type="password" id="newPassword" required minlength="8" placeholder="8+ chars, Maj, Min, Chiffre, Symbole">
+                    </div>
+                    <div class="input-group">
+                        <label for="confirmNewPassword">Confirmer le nouveau mot de passe</label>
+                        <input type="password" id="confirmNewPassword" required minlength="8">
+                    </div>
+                    <button type="submit" class="submit-btn" style="margin-top: 1rem; background-color: #6c757d;">Changer le mot de passe</button>
                 </form>
             </section>
         </div>
@@ -431,6 +456,13 @@
                 document.getElementById('previewLogo').src = info.LogoUrl;
                 document.getElementById('previewLogo').style.display = 'block';
                 document.getElementById('currentLogoUrl').value = info.LogoUrl;
+
+                // Mise à jour du logo dans la sidebar pour vérification visuelle immédiate
+                const sidebarLogo = document.getElementById('sidebar-logo');
+                if (sidebarLogo && info.LogoUrl) {
+                    sidebarLogo.src = info.LogoUrl;
+                    sidebarLogo.style.display = 'inline-block';
+                }
             }
             
             if (info.CoverImageUrl) {
@@ -602,6 +634,51 @@
             } finally {
                 btn.disabled = false;
                 btn.textContent = 'Enregistrer les modifications';
+            }
+        });
+
+        // NOUVEAU: Gestion du changement de mot de passe
+        document.getElementById('changePasswordForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const currentPwd = document.getElementById('currentPassword').value;
+            const newPwd = document.getElementById('newPassword').value;
+            const confirmPwd = document.getElementById('confirmNewPassword').value;
+            const btn = e.target.querySelector('button');
+
+            if (newPwd !== confirmPwd) {
+                alert("Les nouveaux mots de passe ne correspondent pas.");
+                return;
+            }
+
+            btn.disabled = true;
+            btn.textContent = 'Modification en cours...';
+
+            try {
+                const response = await fetch(CENTRAL_API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain' },
+                    body: JSON.stringify({
+                        action: 'changeBusinessPassword',
+                        data: {
+                            compteId: compteId,
+                            currentPassword: currentPwd,
+                            newPassword: newPwd
+                        }
+                    })
+                });
+                const result = await response.json();
+
+                if (result.success) {
+                    alert("Mot de passe modifié avec succès !");
+                    e.target.reset();
+                } else {
+                    throw new Error(result.error);
+                }
+            } catch (error) {
+                alert("Erreur : " + error.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Changer le mot de passe';
             }
         });
 
