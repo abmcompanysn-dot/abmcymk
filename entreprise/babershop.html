@@ -29,7 +29,7 @@
         .dropdown-menu { display: none; }
         .hero {
             position: relative;
-            height: 40vh;
+            height: 50vh;
             background-size: cover;
             background-position: center;
             color: white;
@@ -64,6 +64,10 @@
         .lightbox-close:hover {
             transform: rotate(90deg) scale(1.1);
         }
+        /* Styles pour les onglets */
+        .tab-btn { padding-bottom: 0.5rem; font-weight: 600; color: #6b7280; border-bottom: 2px solid transparent; transition: all 0.3s; }
+        .tab-btn.active { color: var(--gold-color); border-color: var(--gold-color); }
+        .tab-btn:hover { color: var(--text-color); }
     </style>
 </head>
 <body>
@@ -120,12 +124,16 @@
                     <p id="business-address" class="text-sm text-gray-600"></p>
                 </div>
             </div>
-            <section class="bg-white p-6 rounded-lg shadow-md mb-8">
-                <h2 class="text-2xl font-bold mb-4">À propos de nous</h2>
-                <p id="business-description" class="text-gray-600 leading-relaxed"></p>
-            </section>
         </div>
 
+        <!-- Navigation par onglets -->
+        <div class="flex justify-center space-x-8 mb-8 border-b border-gray-200">
+            <button id="btn-gallery" class="tab-btn active text-lg" onclick="switchTab('gallery')">Galerie</button>
+            <button id="btn-services" class="tab-btn text-lg" onclick="switchTab('services')">Services & Produits</button>
+        </div>
+
+        <!-- Contenu Onglet Galerie -->
+        <div id="tab-gallery">
         <!-- NOUVEAU: Section Galerie / Catalogue -->
         <section id="static-gallery-section" class="bg-white p-6 rounded-lg shadow-md mb-8">
             <h2 class="text-2xl font-bold mb-4">Notre Catalogue de Coiffures</h2>
@@ -449,7 +457,10 @@
                 </div>
             </div>
         </section>
+        </div>
 
+        <!-- Contenu Onglet Services & Produits -->
+        <div id="tab-services" class="hidden">
         <!-- NOUVEAU: Ce conteneur cache également les services/produits -->
         <div id="dynamic-content-2" class="hidden">
             <!-- Section pour les Services -->
@@ -468,6 +479,13 @@
                 </div>
             </section>
         </div>
+        </div>
+
+        <!-- Section À propos (déplacée en bas) -->
+        <section id="about-section" class="bg-white p-6 rounded-lg shadow-md mt-8 hidden">
+            <h2 class="text-2xl font-bold mb-4">À propos de nous</h2>
+            <p id="business-description" class="text-gray-600 leading-relaxed"></p>
+        </section>
     </main>
 
     <!-- NOUVEAU: Structure pour la Lightbox (visionneuse d'images) -->
@@ -491,5 +509,36 @@
 
     <!-- Le script est maintenant externe et dans le bon dossier -->
     <script src="main-entreprise.js" defer></script>
+    <script>
+        // Script pour gérer les onglets
+        function switchTab(tabName) {
+            const galleryTab = document.getElementById('tab-gallery');
+            const servicesTab = document.getElementById('tab-services');
+            const galleryBtn = document.getElementById('btn-gallery');
+            const servicesBtn = document.getElementById('btn-services');
+
+            if (tabName === 'gallery') {
+                galleryTab.classList.remove('hidden');
+                servicesTab.classList.add('hidden');
+                galleryBtn.classList.add('active');
+                servicesBtn.classList.remove('active');
+            } else {
+                galleryTab.classList.add('hidden');
+                servicesTab.classList.remove('hidden');
+                servicesBtn.classList.add('active');
+                galleryBtn.classList.remove('active');
+            }
+        }
+
+        // Observer pour afficher la section À propos quand le contenu dynamique est chargé
+        const observer = new MutationObserver(function(mutations) {
+            mutations.forEach(function(mutation) {
+                if (mutation.target.id === 'dynamic-content' && !mutation.target.classList.contains('hidden')) {
+                    document.getElementById('about-section').classList.remove('hidden');
+                }
+            });
+        });
+        observer.observe(document.getElementById('dynamic-content'), { attributes: true, attributeFilter: ['class'] });
+    </script>
 </body>
 </html>
