@@ -93,7 +93,7 @@
         /* --- Forms --- */
         .form-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr auto;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 1rem;
             align-items: flex-end;
         }
@@ -385,8 +385,20 @@
                         <input type="number" id="servicePrice" required>
                     </div>
                     <div class="input-group">
+                        <label for="serviceCategory">Catégorie</label>
+                        <input type="text" id="serviceCategory" placeholder="ex: Coupe, Soin...">
+                    </div>
+                    <div class="input-group">
+                        <label for="serviceCharacteristics">Caractéristiques</label>
+                        <input type="text" id="serviceCharacteristics" placeholder="ex: Tendance, Bio...">
+                    </div>
+                    <div class="input-group">
                         <label for="serviceImage">Image (Optionnel)</label>
                         <input type="file" id="serviceImage" accept="image/*">
+                    </div>
+                    <div class="input-group" style="grid-column: 1 / -1;">
+                        <label for="serviceDescription">Description</label>
+                        <textarea id="serviceDescription" rows="2" style="width: 100%; padding: 0.7rem; border: 1px solid #ccc; border-radius: 6px; font-family: inherit;"></textarea>
                     </div>
                     <button type="submit" class="submit-btn">Ajouter</button>
                 </form>
@@ -408,8 +420,20 @@
                         <input type="number" id="productPrice" required>
                     </div>
                     <div class="input-group">
+                        <label for="productCategory">Catégorie</label>
+                        <input type="text" id="productCategory" placeholder="ex: Shampoing, Accessoire...">
+                    </div>
+                    <div class="input-group">
+                        <label for="productCharacteristics">Caractéristiques</label>
+                        <input type="text" id="productCharacteristics" placeholder="ex: Hydratant, 200ml...">
+                    </div>
+                    <div class="input-group">
                         <label for="productImage">Image (Optionnel)</label>
                         <input type="file" id="productImage" accept="image/*">
+                    </div>
+                    <div class="input-group" style="grid-column: 1 / -1;">
+                        <label for="productDescription">Description</label>
+                        <textarea id="productDescription" rows="2" style="width: 100%; padding: 0.7rem; border: 1px solid #ccc; border-radius: 6px; font-family: inherit;"></textarea>
                     </div>
                     <button type="submit" class="submit-btn">Ajouter</button>
                 </form>
@@ -852,13 +876,21 @@
         async function handleAddItem(e, type) {
             e.preventDefault();
             const form = e.target;
-            const nameInput = form.querySelector('input[type="text"]');
-            const priceInput = form.querySelector('input[type="number"]');
-            const fileInput = form.querySelector('input[type="file"]');
+            const prefix = type === 'service' ? 'service' : 'product';
+            
+            const nameInput = document.getElementById(`${prefix}Name`);
+            const priceInput = document.getElementById(`${prefix}Price`);
+            const fileInput = document.getElementById(`${prefix}Image`);
+            const categoryInput = document.getElementById(`${prefix}Category`);
+            const characteristicsInput = document.getElementById(`${prefix}Characteristics`);
+            const descriptionInput = document.getElementById(`${prefix}Description`);
             const submitBtn = form.querySelector('button[type="submit"]');
 
             const nom = nameInput.value;
             const prix = parseFloat(priceInput.value);
+            const category = categoryInput ? categoryInput.value : '';
+            const characteristics = characteristicsInput ? characteristicsInput.value : '';
+            const description = descriptionInput ? descriptionInput.value : '';
             let imageUrl = '';
 
             if (!nom || isNaN(prix)) {
@@ -891,7 +923,7 @@
                 action: type === 'service' ? 'addService' : 'addProduct',
                 data: {
                     compteId: compteId,
-                    item: { nom, prix, imageUrl }
+                    item: { nom, prix, imageUrl, category, characteristics, description }
                 }
             };
 

@@ -12,6 +12,7 @@ const SERVICES_SHEET = "Services"; // Feuille contenant les services de TOUS les
 const PRODUCTS_SHEET = "Produits"; // Feuille contenant les produits de TOUS les coiffeurs
 const LOGS_SHEET = "Logs";         // Feuille pour le journal d'activité
 const SLUGS_SHEET = "Slugs";       // Feuille pour les alias (URL courtes)
+const STATS_SHEET = "Stats_Visites"; // Feuille pour l'historique des visites
 
 /**
  * Gère les requêtes OPTIONS pour le support CORS.
@@ -85,6 +86,8 @@ function doPost(e) {
         return setSlug(data);
       case 'getSlug': // Pour récupérer l'alias actuel
         return getSlug(data);
+      case 'getVisitStats': // Pour récupérer les stats graphiques
+        return getVisitStats(data);
       case 'addItem':
         return addItem(data);
       case 'updateItem':
@@ -100,7 +103,7 @@ function doPost(e) {
       case 'creerCompteEntreprise':
         return createJsonResponse({ status: "error", message: "Veuillez utiliser l'API Centrale (Gestion Compte) pour créer un compte entreprise." });
       default:
-        return createJsonResponse({ status: "error", message: "Action non reconnue." });
+        return createJsonResponse({ status: "error", message: `Action non reconnue: '${action}'. Assurez-vous d'avoir déployé la dernière version du script.` });
     }
   } catch (error) {
     return createJsonResponse({ status: "error", message: `Erreur serveur: ${error.message}` });
@@ -282,7 +285,8 @@ function setupSheets() {
     [SERVICES_SHEET]: ["CompteID", "IDItem", "Nom", "Prix", "Description", "ImageURL", "Categorie", "Caracteristiques", "Date"],
     [PRODUCTS_SHEET]: ["CompteID", "IDItem", "Nom", "Prix", "Description", "ImageURL", "Categorie", "Caracteristiques", "Date"],
     [LOGS_SHEET]: ["CompteID", "Date", "Action", "Details"],
-    [SLUGS_SHEET]: ["Slug", "CompteID", "Date", "Visits"]
+    [SLUGS_SHEET]: ["Slug", "CompteID", "Date", "Visits"],
+    [STATS_SHEET]: ["CompteID", "Date"]
   };
 
   let log = [];
@@ -536,9 +540,63 @@ function resolveSlug(alias) {
     // Incrémenter le compteur de visites (Colonne 4 : Visits)
     const currentVisits = row[3] ? parseInt(row[3]) : 0;
     sheet.getRange(rowIndex + 1, 4).setValue(currentVisits + 1);
+
+    // Enregistrer la visite dans l'historique pour le graphique
+    const statsSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(STATS_SHEET);
+    if (statsSheet) {
+      statsSheet.appendRow([row[1], new Date()]);
+    }
+
     return createJsonResponse({ status: "success", compteId: row[1] });
   }
   return createJsonResponse({ status: "error", message: "Boutique introuvable." });
+}
+
+/**
+ * Récupère les statistiques de visites des 7 derniers jours.
+ */
+function getVisitStats(data) {
+  const { compteId } = data;
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(STATS_SHEET);
+  // Si la feuille n'existe pas encore, renvoyer des données vides
+  if (!sheet) return createJsonResponse({ status: "success", labels: [], data: [] });
+
+  const values = sheet.getDataRange().getValues();
+  // Filtrer les logs pour ce compte (on saute l'en-tête)
+  const logs = values.slice(1).filter(r => r[0] === compteId);
+
+  // Préparer les 7 derniers jours
+  const stats = {};
+  const labels = [];
+  const today = new Date();
+  
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(today.getDate() - i);
+    const dateKey = d.toISOString().split('T')[0]; // Format YYYY-MM-DD
+    stats[dateKey] = 0;
+    labels.push(dateKey);
+  }
+
+  // Compter les visites
+  logs.forEach(row => {
+    try {
+      const d = new Date(row[1]);
+      const dateKey = d.toISOString().split('T')[0];
+      if (stats.hasOwnProperty(dateKey)) {
+        stats[dateKey]++;
+      }
+    } catch (e) { /* ignorer dates invalides */ }
+  });
+
+  // Formater pour Chart.js
+  const chartData = labels.map(key => stats[key]);
+  const chartLabels = labels.map(key => {
+    const parts = key.split('-');
+    return `${parts[2]}/${parts[1]}`; // Format DD/MM
+  });
+
+  return createJsonResponse({ status: "success", labels: chartLabels, data: chartData });
 }
 
 // --- Fonctions Utilitaires ---
