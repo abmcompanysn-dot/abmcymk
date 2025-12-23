@@ -181,9 +181,50 @@
             border: 1px solid #ddd;
             display: none; /* Caché par défaut */
         }
+
+        /* --- Responsive & Mobile --- */
+        .mobile-toggle {
+            display: none;
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            z-index: 1001;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        .item-thumb {
+            width: 60px;
+            height: 60px;
+            object-fit: cover;
+            border-radius: 6px;
+            margin-right: 1rem;
+            border: 1px solid #eee;
+        }
+        
+        .item-info {
+            display: flex;
+            align-items: center;
+        }
+
+        @media (max-width: 768px) {
+            .sidebar { position: fixed; left: -260px; top: 0; bottom: 0; z-index: 1000; transition: left 0.3s ease; box-shadow: 2px 0 10px rgba(0,0,0,0.1); }
+            .sidebar.open { left: 0; }
+            .main-content { padding: 1rem; padding-top: 4rem; }
+            .mobile-toggle { display: block; }
+            .form-grid { grid-template-columns: 1fr; }
+            .list-item { flex-direction: column; align-items: flex-start; gap: 1rem; }
+            .item-actions { align-self: flex-end; }
+        }
     </style>
 </head>
 <body>
+    <button class="mobile-toggle" onclick="toggleSidebar()">☰ Menu</button>
 
     <aside class="sidebar">
         <div class="sidebar-header">
@@ -221,6 +262,10 @@
                         <label for="servicePrice">Prix (€)</label>
                         <input type="number" id="servicePrice" required>
                     </div>
+                    <div class="input-group">
+                        <label for="serviceImage">Image (Optionnel)</label>
+                        <input type="file" id="serviceImage" accept="image/*">
+                    </div>
                     <button type="submit" class="submit-btn">Ajouter</button>
                 </form>
                 <div id="servicesList" class="items-list">
@@ -239,6 +284,10 @@
                     <div class="input-group">
                         <label for="productPrice">Prix (€)</label>
                         <input type="number" id="productPrice" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="productImage">Image (Optionnel)</label>
+                        <input type="file" id="productImage" accept="image/*">
                     </div>
                     <button type="submit" class="submit-btn">Ajouter</button>
                 </form>
@@ -349,6 +398,10 @@
 
         let compteId = null;
 
+        function toggleSidebar() {
+            document.querySelector('.sidebar').classList.toggle('open');
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
             // 1. Récupérer l'ID du compte depuis l'URL
             const params = new URLSearchParams(window.location.search);
@@ -381,9 +434,11 @@
             if (sectionId === 'dashboard') {
                 dashboardContent.style.display = 'block';
                 document.getElementById('nav-dashboard').classList.add('active');
+                if(window.innerWidth <= 768) toggleSidebar(); // Fermer le menu sur mobile après clic
             } else if (sectionId === 'settings') {
                 settingsContent.style.display = 'block';
                 document.getElementById('nav-settings').classList.add('active');
+                if(window.innerWidth <= 768) toggleSidebar();
             }
         }
 
@@ -483,11 +538,17 @@
                 const name = item.Nom || item.NomService || item.NomProduit;
                 const price = item.Prix;
                 const itemId = item.IDItem;
+                const imageUrl = item.ImageUrl || item.Image || ''; 
+                const imgHtml = imageUrl ? `<img src="${imageUrl}" class="item-thumb" alt="${name}">` : '';
+
                 const itemDiv = document.createElement('div');
                 itemDiv.className = 'list-item';
                 itemDiv.innerHTML = `
-                    <div class="item-details">
-                        ${name} <span class="item-price">${price}€</span>
+                    <div class="item-info">
+                        ${imgHtml}
+                        <div class="item-details">
+                            ${name} <span class="item-price">${price}€</span>
+                        </div>
                     </div>
                     <div class="item-actions">
                         <button class="delete-btn" onclick="handleDeleteItem('${itemId}', '${type}')">Supprimer</button>
