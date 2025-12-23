@@ -1,6 +1,6 @@
 const CONFIG = {
     // NOUVEAU: URL de l'API CENTRALE qui gère maintenant tout (comptes, commandes, etc.)
-    ACCOUNT_API_URL:"https://script.google.com/macros/s/AKfycbw4Ikc5p4Y-sGTooANMmSVtXXAlUvU2u0de4wE0V1OuL06cRiZa6R7Dcnfgd-K60pyF/exec",
+    ACCOUNT_API_URL:"https://script.google.com/macros/s/AKfycbxltq2LVDVTJ_j1uTc4Od9yZKg16ocpU8RA9JIfsBJNimVntOhxJ3eOY2x3lloWGtk7xA/exec",
     // Les URL spécifiques pour commandes, livraisons et notifications sont maintenant obsolètes
     // car tout est géré par l'API centrale (ACCOUNT_API_URL).
     
@@ -389,7 +389,7 @@ function populateNavLinks(catalog) {
  * @returns {Array} Le tableau des articles du panier.
  */
 function getCart() {
-    return JSON.parse(localStorage.getItem('abmcyCart')) || [];
+    return JSON.parse(localStorage.getItem('cart')) || [];
 }
 
 /**
@@ -397,7 +397,7 @@ function getCart() {
  * @param {Array} cart - Le tableau des articles du panier.
  */
 function saveCart(cart) {
-    localStorage.setItem('abmcyCart', JSON.stringify(cart));
+    localStorage.setItem('cart', JSON.stringify(cart));
     updateCartBadges();
 }
 
@@ -525,35 +525,61 @@ function renderCartPage() {
     const cartContainer = document.getElementById('cart-page-items');
     
     if (cart.length === 0) {
-        cartContainer.innerHTML = '<p class="p-6 text-center text-gray-500">Votre panier est vide.</p>';
-        const summary = document.getElementById('cart-summary');
-        if (summary) summary.style.display = 'none';
+        cartContainer.innerHTML = '<div class="bg-white rounded-lg shadow p-6 text-center text-gray-500">Votre panier est vide.</div>';
+        // Cacher le résumé de commande s'il existe
+        const summaryWrapper = document.getElementById('cart-summary-wrapper');
+        if (summaryWrapper) summaryWrapper.classList.add('hidden');
         return;
     }
 
-    // NOUVEAU: Affichage des variantes dans le panier
-    const variantHTML = (variants) => {
-        if (!variants || Object.keys(variants).length === 0) return '';
-        return `<p class="text-xs text-gray-500">${Object.entries(variants).map(([key, value]) => `${key}: ${value}`).join(', ')}</p>`;
-    };
-    const cartHTML = cart.map((item, index) => `
-        <div class="flex items-center p-4 border-b">
-            <div class="w-16 h-16 bg-gray-200 rounded mr-4 overflow-hidden">
-                <img src="${item.imageUrl || CONFIG.DEFAULT_PRODUCT_IMAGE}" alt="${item.name}" class="w-full h-full object-cover" loading="lazy">
-            </div>
-            <div class="flex-grow">
-                <h4 class="font-semibold">${item.name}</h4>
-                <p class="text-sm text-gold">${item.price.toLocaleString('fr-FR')} F CFA</p>
-                ${variantHTML(item.variants)}
-            </div>
-            <div class="flex items-center">
-                <input type="number" value="${item.quantity}" min="1" onchange="changeQuantity(${index}, this.value)" class="w-16 text-center border rounded p-1 mx-4">
-                <button onclick="removeFromCart(${index})" class="text-red-500 hover:text-red-700">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                </button>
-            </div>
-        </div>
-    `).join('');
+    // NOUVEAU: Regrouper les articles par vendeur pour un affichage professionnel
+    const groupedCart = cart.reduce((acc, item) => {
+        const businessId = item.businessId || 'ABMCY_MARKET'; // Groupe par défaut pour les articles de la boutique principale
+        if (!acc[businessId]) {
+            acc[businessId] = {
+                businessName: item.businessName || 'ABMCY Market',
+                businessAddress: item.businessAddress || 'Nos entrepôts',
+                items: []
+            };
+        }
+        acc[businessId].items.push(item);
+        return acc;
+    }, {});
+
+    const cartHTML = Object.values(groupedCart).map(group => {
+        const itemsHTML = group.items.map(item => {
+            const originalIndex = cart.findIndex(cartItem => (cartItem.key && cartItem.key === item.key) || (cartItem.id && cartItem.id === item.id));
+            const imageUrl = item.imageUrl || item.image || CONFIG.DEFAULT_PRODUCT_IMAGE;
+            const variantHTML = (variants) => {
+                if (!variants || Object.keys(variants).length === 0) return '';
+                return `<p class="text-xs text-gray-500">${Object.entries(variants).map(([key, value]) => `${key}: ${value}`).join(', ')}</p>`;
+            };
+
+            return `
+                <div class="flex items-center p-4 border-b last:border-b-0">
+                    <img src="${imageUrl}" alt="${item.name}" class="w-16 h-16 object-cover rounded-md mr-4">
+                    <div class="flex-grow">
+                        <h4 class="font-semibold text-sm">${item.name}</h4>
+                        <p class="text-sm text-gold">${item.price.toLocaleString('fr-FR')} F CFA</p>
+                        ${variantHTML(item.variants)}
+                    </div>
+                    <div class="flex items-center">
+                        <input type="number" value="${item.quantity}" min="1" onchange="changeQuantity(${originalIndex}, this.value)" class="w-16 text-center border rounded p-1 mx-4">
+                        <button onclick="removeFromCart(${originalIndex})" class="text-red-500 hover:text-red-700" title="Supprimer l'article">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                        </button>
+                    </div>
+                </div>`;
+        }).join('');
+
+        return `
+            <div class="mb-6 bg-white rounded-lg shadow-sm">
+                <div class="p-3 border-b bg-gray-50 rounded-t-lg">
+                    <h3 class="font-bold text-gray-700 text-sm">Vendu par : ${group.businessName}</h3>
+                </div>
+                ${itemsHTML}
+            </div>`;
+    }).join('');
 
     cartContainer.innerHTML = cartHTML;
     updateCartSummary();
@@ -1792,7 +1818,14 @@ function createOrderPayload(action, customerData, cart, total, clientId, clientN
                         .join(', ');
                     finalName += ` (${variantString})`;
                 }
-                return { name: finalName, quantity: item.quantity, price: item.price, productId: item.productId, delaiLivraison: item.delaiLivraison };
+                return { 
+                    name: finalName, 
+                    quantity: item.quantity, 
+                    price: item.price, 
+                    productId: item.productId, 
+                    delaiLivraison: item.delaiLivraison,
+                    businessId: item.businessId // NOUVEAU: Transmettre l'ID de l'entreprise
+                };
             }),
             adresseLivraison: `${customerData.address}, ${customerData.location}`,
             total: total,

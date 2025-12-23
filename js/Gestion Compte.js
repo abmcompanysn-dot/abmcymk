@@ -218,6 +218,10 @@ function doPost(e) {
                 return updateUserAddress(data, origin);
             case 'getOrdersByClientId':
                 return getOrdersByClientId(data, origin);
+            case 'getPartnerOrders': // NOUVEAU: Pour le dashboard partenaire
+                return getPartnerOrders(data, origin);
+            case 'updatePartnerOrderStatus': // NOUVEAU: Pour le dashboard partenaire
+                return updatePartnerOrderStatus(data, origin);
             case 'createPaydunyaInvoice': // NOUVEAU: Action pour créer une facture Paydunya
                 return createPaydunyaInvoice(data, origin);
             // NOUVEAU: Action pour le paiement à la livraison
@@ -841,6 +845,13 @@ function enregistrerCommande(data, origin) {
         const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.ORDERS);
         const idCommande = "CMD-" + new Date().getTime();
 
+        // NOUVEAU: Déterminer si la commande appartient à une entreprise partenaire
+        let businessId = '';
+        if (data.produits && data.produits.length > 0) {
+            // On prend le businessId du premier produit (supposant une commande par boutique ou mixte gérée par le principal)
+            businessId = data.produits[0].businessId || '';
+        }
+
         // Convertir les produits (qui sont des objets) en une chaîne lisible
         const produitsDetails = data.produits.map(p => `${p.name} (x${p.quantity})`).join(', ');
 
@@ -866,8 +877,10 @@ function enregistrerCommande(data, origin) {
         sheet.appendRow([
             idCommande, data.idClient, produitsDetails,
             data.total, statutInitial, new Date(), etapeConfirmee, etapePreparation, etapeExpediee, etapeLivree,
-            data.adresseLivraison, data.moyenPaiement, // NOUVEAU: Ajout de la date de livraison estimée
-            data.notes || ''
+            data.adresseLivraison, data.moyenPaiement,
+            data.notes || '',
+            '', '', '', '', // TransactionReference, InitiationTimestamp, NomExpediteur, NumeroExpediteur (vides pour COD)
+            businessId // NOUVEAU: CompteID
         ]);
 
         logAction('enregistrerCommande', { id: idCommande, client: data.idClient });
@@ -878,7 +891,8 @@ function enregistrerCommande(data, origin) {
             total: data.total, 
             clientId: data.idClient,
             customerEmail: data.customer.email, // NOUVEAU: Retourner l'email du client
-            dateLivraisonEstimee: formattedDateLivraison // NOUVEAU: Retourner la date calculée
+            dateLivraisonEstimee: formattedDateLivraison, // NOUVEAU: Retourner la date calculée
+            businessId: businessId // NOUVEAU: Retourner l'ID entreprise pour l'email
         }, origin);
     } catch (error) {
         logError(JSON.stringify({ action: 'enregistrerCommande', data }), error);
@@ -1035,6 +1049,12 @@ function createAbmcyAggregatorInvoice(data, origin) {
         const idCommande = "CMD-" + new Date().getTime();
         const transactionReference = "ABMCY-" + new Date().getTime(); // Référence unique pour le suivi
 
+        // NOUVEAU: Récupérer le businessId
+        let businessId = '';
+        if (data.produits && data.produits.length > 0) {
+            businessId = data.produits[0].businessId || '';
+        }
+
         // 1. Enregistrer la commande avec un statut "En attente de paiement ABMCY"
         const produitsDetails = data.produits.map(p => `${p.name} (x${p.quantity})`).join(', ');
         const initiationTimestamp = new Date().toISOString(); // Timestamp de début du timer
@@ -1046,7 +1066,9 @@ function createAbmcyAggregatorInvoice(data, origin) {
             false, false, false, false, // EtapeConfirmee, EtapePreparation, EtapeExpediee, EtapeLivree
             data.adresseLivraison, selectedProvider, data.notes || '',
             transactionReference, // Nouvelle colonne pour la référence
-            initiationTimestamp // Nouvelle colonne pour le timestamp d'initiation
+            initiationTimestamp, // Nouvelle colonne pour le timestamp d'initiation
+            '', '', // NomExpediteur, NumeroExpediteur (remplis plus tard)
+            businessId // NOUVEAU: CompteID
         ]);
 
         // 2. NOUVEAU: Construire l'URL de redirection vers notre page intermédiaire abmcymarket.html
@@ -1068,7 +1090,7 @@ function createAbmcyAggregatorInvoice(data, origin) {
         const adminNotificationData = { id: idCommande, clientId: data.idClient, total: data.total, customerEmail: data.customer.email };
         const originalOrderData = { produits: data.produits };
         // Le type 'abmcy_pending' déclenchera l'ajout du lien de confirmation
-        sendOrderConfirmationEmail(adminNotificationData, originalOrderData, 'abmcy_pending');
+        sendOrderConfirmationEmail({ ...adminNotificationData, businessId: businessId }, originalOrderData, 'abmcy_pending');
 
 
         logAction('createAbmcyAggregatorInvoice', { id: idCommande, provider: selectedProvider, url: paymentUrl });
@@ -1338,6 +1360,16 @@ function sendOrderConfirmationEmail(orderData, originalData, type) {
         MailApp.sendEmail(ADMIN_EMAIL, adminSubject, "", { htmlBody: adminBodyHTML });
         logAction('sendAdminConfirmationEmail', { orderId: orderData.id, type: type });
 
+        // NOUVEAU: Envoyer une copie à l'entreprise partenaire si applicable
+        if (orderData.businessId) {
+            const businessEmail = getBusinessEmail(orderData.businessId);
+            if (businessEmail) {
+                const partnerSubject = `[Partenaire] Nouvelle commande #${orderData.id}`;
+                MailApp.sendEmail(businessEmail, partnerSubject, "", { htmlBody: adminBodyHTML });
+                logAction('sendPartnerConfirmationEmail', { orderId: orderData.id, businessId: orderData.businessId, email: businessEmail });
+            }
+        }
+
         // 2. Envoyer l'email de confirmation au client
         if (orderData.customerEmail) {
             const customerSubject = `Confirmation de votre commande #${orderData.id}`;
@@ -1436,6 +1468,106 @@ function handlePaydunyaWebhook(e) {
     }
 }
 
+/**
+ * NOUVEAU: Récupère l'email d'une entreprise partenaire.
+ */
+function getBusinessEmail(compteId) {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.ENTREPRISES);
+    if (!sheet) return null;
+    const data = sheet.getDataRange().getValues();
+    const headers = data[0];
+    const idIndex = headers.indexOf("NumeroCompte");
+    const emailIndex = headers.indexOf("Email");
+    
+    const row = data.find(r => r[idIndex] === compteId);
+    return row ? row[emailIndex] : null;
+}
+
+/**
+ * NOUVEAU: Récupère les commandes pour un partenaire spécifique.
+ */
+function getPartnerOrders(data, origin) {
+    try {
+        const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.ORDERS);
+        const allData = sheet.getDataRange().getValues();
+        const headers = allData.shift();
+        
+        const compteIdIndex = headers.indexOf("CompteID");
+        const idIndex = headers.indexOf("IDCommande");
+        const dateIndex = headers.indexOf("Date");
+        const totalIndex = headers.indexOf("MontantTotal");
+        const statusIndex = headers.indexOf("Statut");
+        const paymentIndex = headers.indexOf("MoyenPaiement");
+        const detailsIndex = headers.indexOf("DetailsProduits");
+        const clientIndex = headers.indexOf("IDClient");
+        const addressIndex = headers.indexOf("AdresseLivraison");
+        const notesIndex = headers.indexOf("Notes");
+
+        // Récupérer les infos clients pour enrichir la réponse
+        const usersSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.USERS);
+        const usersData = usersSheet.getDataRange().getValues();
+        const uHeaders = usersData.shift();
+        const uIdIndex = uHeaders.indexOf("IDClient");
+        const uNameIndex = uHeaders.indexOf("Nom");
+        const uEmailIndex = uHeaders.indexOf("Email");
+        const uPhoneIndex = uHeaders.indexOf("Telephone");
+
+        const partnerOrders = allData.filter(row => row[compteIdIndex] === data.compteId);
+        
+        const formattedOrders = partnerOrders.map(row => {
+            const clientId = row[clientIndex];
+            const userRow = usersData.find(u => u[uIdIndex] === clientId);
+            
+            // Parser les détails produits (format simple: "Produit A (x2), Produit B (x1)")
+            const itemsString = row[detailsIndex];
+            const items = itemsString.split(', ').map(s => {
+                const match = s.match(/(.+) \(x(\d+)\)/);
+                return match ? { name: match[1], quantity: parseInt(match[2]), price: 0 } : { name: s, quantity: 1, price: 0 };
+            });
+
+            return {
+                id: row[idIndex],
+                date: row[dateIndex],
+                total: row[totalIndex],
+                status: row[statusIndex],
+                paymentMethod: row[paymentIndex] === 'Paydunya' || row[paymentIndex] === 'wave' ? 'online' : 'cod',
+                items: items,
+                customer: {
+                    firstname: userRow ? userRow[uNameIndex].split(' ')[0] : 'Inconnu',
+                    lastname: userRow ? userRow[uNameIndex].split(' ').slice(1).join(' ') : '',
+                    email: userRow ? userRow[uEmailIndex] : '',
+                    phone: userRow ? userRow[uPhoneIndex] : '',
+                    address: row[addressIndex],
+                    notes: row[notesIndex]
+                }
+            };
+        }).reverse();
+        
+        return createJsonResponse({ success: true, data: formattedOrders }, origin);
+    } catch (e) {
+        return createJsonResponse({ success: false, error: e.message }, origin);
+    }
+}
+
+/**
+ * NOUVEAU: Met à jour le statut d'une commande partenaire.
+ */
+function updatePartnerOrderStatus(data, origin) {
+    try {
+        const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.ORDERS);
+        const allData = sheet.getDataRange().getValues();
+        const idIndex = allData[0].indexOf("IDCommande");
+        const statusIndex = allData[0].indexOf("Statut");
+        
+        const rowIndex = allData.findIndex(row => row[idIndex] === data.orderId);
+        if (rowIndex === -1) return createJsonResponse({ success: false, error: "Commande non trouvée" }, origin);
+        
+        sheet.getRange(rowIndex + 1, statusIndex + 1).setValue(data.status);
+        return createJsonResponse({ success: true }, origin);
+    } catch (e) {
+        return createJsonResponse({ success: false, error: e.message }, origin);
+    }
+}
 
 /**
  * Récupère les commandes d'un client spécifique.
@@ -2355,7 +2487,7 @@ function setupProject() {
 
   const sheetsToCreate = {
     [SHEET_NAMES.USERS]: ["IDClient", "Nom", "Email", "PasswordHash", "Salt", "Telephone", "Adresse", "DateInscription", "Statut", "Role", "ResetToken", "ResetTokenExpiry"], // CORRECTION: Ajout des colonnes pour la réinitialisation
-    [SHEET_NAMES.ORDERS]: ["IDCommande", "IDClient", "DetailsProduits", "MontantTotal", "Statut", "Date", "EtapeConfirmee", "EtapePreparation", "EtapeExpediee", "EtapeLivree", "AdresseLivraison", "MoyenPaiement", "Notes", "TransactionReference", "InitiationTimestamp", "NomExpediteur", "NumeroExpediteur"], // NOUVEAU: Ajout de colonnes
+    [SHEET_NAMES.ORDERS]: ["IDCommande", "IDClient", "DetailsProduits", "MontantTotal", "Statut", "Date", "EtapeConfirmee", "EtapePreparation", "EtapeExpediee", "EtapeLivree", "AdresseLivraison", "MoyenPaiement", "Notes", "TransactionReference", "InitiationTimestamp", "NomExpediteur", "NumeroExpediteur", "CompteID"], // NOUVEAU: Ajout de CompteID
     [SHEET_NAMES.LOGS]: ["Timestamp", "Source", "Action", "Détails"],
     [SHEET_NAMES.CONFIG]: ["Clé", "Valeur"],
     [SHEET_NAMES.ADDRESSES]: ["IDAdresse", "IDClient", "Label", "Details", "IsDefault"], // NOUVEAU

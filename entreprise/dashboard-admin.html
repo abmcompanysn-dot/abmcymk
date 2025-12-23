@@ -355,7 +355,7 @@
         <nav class="sidebar-nav">
             <ul>
                 <li><a href="#" onclick="showSection('dashboard')" id="nav-dashboard" class="active">Tableau de Bord</a></li>
-                <!-- <li><a href="#">Clients</a></li> -->
+                <li><a href="#" onclick="showSection('orders')" id="nav-orders">Commandes & Clients</a></li>
                 <li><a href="#" onclick="showSection('logs')" id="nav-logs">Journal d'activité</a></li>
                 <li><a href="#" onclick="showSection('settings')" id="nav-settings">Paramètres</a></li>
                 <li><a href="#" onclick="logout()" id="nav-logout" style="color: #dc3545;">Déconnexion</a></li>
@@ -484,6 +484,107 @@
             </section>
         </div>
 
+        <!-- NOUVEAU: Section Commandes & Clients -->
+        <div id="orders-content" style="display: none;">
+            <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem; border-bottom: 1px solid #eee; padding-bottom: 1rem; overflow-x: auto;">
+                <button onclick="switchOrderTab('overview')" id="tab-overview" class="submit-btn" style="background-color: var(--primary-color);">Vue d'ensemble</button>
+                <button onclick="switchOrderTab('orders')" id="tab-orders-list" class="submit-btn" style="background-color: #6c757d;">Commandes</button>
+                <button onclick="switchOrderTab('clients')" id="tab-clients-list" class="submit-btn" style="background-color: #6c757d;">Clients</button>
+            </div>
+
+            <!-- Sous-section Vue d'ensemble (Stats) -->
+            <section id="overview-section" class="section">
+                <h2>Performances</h2>
+                <div class="stats-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
+                    <div class="stat-card" style="background: #fff; padding: 1.5rem; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); border-left: 4px solid var(--accent-color);">
+                        <h3 style="margin: 0 0 0.5rem 0; font-size: 0.9rem; color: #666;">Chiffre d'Affaires</h3>
+                        <p id="stat-revenue" style="font-size: 1.8rem; font-weight: bold; color: #333; margin: 0;">0 F</p>
+                    </div>
+                    <div class="stat-card" style="background: #fff; padding: 1.5rem; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); border-left: 4px solid var(--success-color);">
+                        <h3 style="margin: 0 0 0.5rem 0; font-size: 0.9rem; color: #666;">Commandes</h3>
+                        <p id="stat-orders" style="font-size: 1.8rem; font-weight: bold; color: #333; margin: 0;">0</p>
+                    </div>
+                    <div class="stat-card" style="background: #fff; padding: 1.5rem; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); border-left: 4px solid #fd7e14;">
+                        <h3 style="margin: 0 0 0.5rem 0; font-size: 0.9rem; color: #666;">Clients Uniques</h3>
+                        <p id="stat-clients" style="font-size: 1.8rem; font-weight: bold; color: #333; margin: 0;">0</p>
+                    </div>
+                    <div class="stat-card" style="background: #fff; padding: 1.5rem; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); border-left: 4px solid #6f42c1;">
+                        <h3 style="margin: 0 0 0.5rem 0; font-size: 0.9rem; color: #666;">Panier Moyen</h3>
+                        <p id="stat-aov" style="font-size: 1.8rem; font-weight: bold; color: #333; margin: 0;">0 F</p>
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem;">
+                    <div style="background: #fff; padding: 1.5rem; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.05);">
+                        <h3 style="margin-top: 0; margin-bottom: 1rem; font-size: 1.1rem;">Évolution des Ventes</h3>
+                        <div style="height: 300px;"><canvas id="salesChart"></canvas></div>
+                    </div>
+                    <div style="background: #fff; padding: 1.5rem; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.05);">
+                        <h3 style="margin-top: 0; margin-bottom: 1rem; font-size: 1.1rem;">Statut des Commandes</h3>
+                        <div style="height: 300px; display: flex; justify-content: center;"><canvas id="statusChart"></canvas></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Sous-section Commandes -->
+            <section id="orders-section" class="section" style="display: none;">
+                <h2>Gestion des Commandes</h2>
+                <div style="display: flex; flex-wrap: wrap; gap: 1rem; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <div style="display: flex; gap: 0.5rem; flex-grow: 1;">
+                        <input type="text" id="orderSearch" placeholder="Rechercher (ID, Client)..." onkeyup="filterOrders()" style="padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px; width: 100%; max-width: 300px;">
+                        <select id="orderStatusFilter" onchange="filterOrders()" style="padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px;">
+                            <option value="">Tous les statuts</option>
+                            <option value="En attente">En attente</option>
+                            <option value="En cours">En cours</option>
+                            <option value="Livrée">Livrée</option>
+                            <option value="Annulée">Annulée</option>
+                        </select>
+                    </div>
+                    <button onclick="fetchOrders()" class="submit-btn" style="padding: 0.5rem 1rem; font-size: 0.9rem;">Rafraîchir</button>
+                </div>
+                <div style="overflow-x: auto;">
+                    <table class="logs-table" id="ordersTable">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Date</th>
+                                <th>Client</th>
+                                <th>Montant</th>
+                                <th>Paiement</th>
+                                <th>Statut</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ordersTableBody">
+                            <!-- Les commandes seront injectées ici -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Sous-section Clients -->
+            <section id="clients-section" class="section" style="display: none;">
+                <h2>Liste des Clients</h2>
+                <p>Clients ayant passé commande chez vous.</p>
+                <div style="overflow-x: auto;">
+                    <table class="logs-table">
+                        <thead>
+                            <tr>
+                                <th>Nom</th>
+                                <th>Email</th>
+                                <th>Téléphone</th>
+                                <th>Ville/Adresse</th>
+                                <th>Commandes</th>
+                            </tr>
+                        </thead>
+                        <tbody id="clientsTableBody">
+                            <!-- Les clients seront injectés ici -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+
         <!-- NOUVEAU: Section Journal d'activité (Logs) -->
         <div id="logs-content" style="display: none;">
             <section class="section">
@@ -583,6 +684,44 @@
         </div>
     </main>
 
+    <!-- Modal Détails Commande -->
+    <div id="order-modal" style="display: none; position: fixed; inset: 0; z-index: 2000; align-items: center; justify-content: center; background: rgba(0,0,0,0.5);">
+        <div style="background: white; border-radius: 12px; padding: 2rem; width: 90%; max-width: 700px; max-height: 90vh; overflow-y: auto; position: relative; box-shadow: 0 10px 25px rgba(0,0,0,0.2);">
+            <button onclick="closeOrderModal()" style="position: absolute; top: 1rem; right: 1rem; background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #666;">&times;</button>
+            <h3 style="margin-top: 0; margin-bottom: 1.5rem; font-size: 1.5rem; color: var(--primary-color);">Détails de la Commande <span id="modalOrderId" style="color: var(--accent-color);"></span></h3>
+            
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 2rem; margin-bottom: 2rem;">
+                <div>
+                    <h4 style="border-bottom: 2px solid #f4f4f9; padding-bottom: 0.5rem; margin-bottom: 1rem;">Informations Client</h4>
+                    <p><strong>Nom:</strong> <span id="modalClientName"></span></p>
+                    <p><strong>Email:</strong> <span id="modalClientEmail"></span></p>
+                    <p><strong>Téléphone:</strong> <span id="modalClientPhone"></span></p>
+                    <p><strong>Adresse:</strong> <span id="modalClientAddress"></span></p>
+                    <p><strong>Note:</strong> <span id="modalClientNote" style="font-style: italic;"></span></p>
+                </div>
+                <div>
+                    <h4 style="border-bottom: 2px solid #f4f4f9; padding-bottom: 0.5rem; margin-bottom: 1rem;">Info Commande</h4>
+                    <p><strong>Date:</strong> <span id="modalOrderDate"></span></p>
+                    <p><strong>Montant Total:</strong> <span id="modalOrderTotal" style="color: var(--success-color); font-weight: bold;"></span></p>
+                    <p><strong>Type Paiement:</strong> <span id="modalPaymentType" class="badge" style="background-color: #6c757d;"></span></p>
+                    <div style="margin-top: 1.5rem;">
+                        <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Statut Actuel</label>
+                        <select id="modalOrderStatus" style="width: 100%; padding: 0.7rem; border: 1px solid #ccc; border-radius: 6px; margin-bottom: 0.5rem;">
+                            <option value="En attente">En attente</option>
+                            <option value="En cours">En cours</option>
+                            <option value="Livrée">Livrée</option>
+                            <option value="Annulée">Annulée</option>
+                        </select>
+                        <button onclick="updateOrderStatus()" class="submit-btn" style="width: 100%;">Mettre à jour le statut</button>
+                    </div>
+                </div>
+            </div>
+
+            <h4 style="border-bottom: 2px solid #f4f4f9; padding-bottom: 0.5rem; margin-bottom: 1rem;">Articles Commandés</h4>
+            <div id="modalOrderItems" style="display: flex; flex-direction: column; gap: 0.8rem;"></div>
+        </div>
+    </div>
+
     <!-- Import des fonctions admin (ImgBB) -->
     <script src="admin_functions.js"></script>
     <!-- Import de la configuration centralisée -->
@@ -605,6 +744,7 @@
         const dashboardContent = document.getElementById('dashboard-content');
         const settingsContent = document.getElementById('settings-content');
         const logsContent = document.getElementById('logs-content');
+        const ordersContent = document.getElementById('orders-content');
         const servicesListDiv = document.getElementById('servicesList');
         const productsListDiv = document.getElementById('productsList');
 
@@ -666,11 +806,13 @@
             dashboardContent.style.display = 'none';
             settingsContent.style.display = 'none';
             logsContent.style.display = 'none';
+            ordersContent.style.display = 'none';
             
             // Désactiver les liens
             document.getElementById('nav-dashboard').classList.remove('active');
             document.getElementById('nav-settings').classList.remove('active');
             document.getElementById('nav-logs').classList.remove('active');
+            document.getElementById('nav-orders').classList.remove('active');
 
             // Afficher la section demandée
             if (sectionId === 'dashboard') {
@@ -685,6 +827,11 @@
             } else if (sectionId === 'settings') {
                 settingsContent.style.display = 'block';
                 document.getElementById('nav-settings').classList.add('active');
+                if(window.innerWidth <= 768) toggleSidebar();
+            } else if (sectionId === 'orders') {
+                ordersContent.style.display = 'block';
+                document.getElementById('nav-orders').classList.add('active');
+                fetchOrders();
                 if(window.innerWidth <= 768) toggleSidebar();
             }
         }
@@ -870,6 +1017,286 @@
                 }
             } catch (error) {
                 tbody.innerHTML = `<tr><td colspan="3" style="color:red;">Erreur: ${error.message}</td></tr>`;
+            }
+        }
+
+        // --- Gestion des Commandes & Clients ---
+        let currentOrders = [];
+        let currentOrderId = null;
+        let salesChartInstance = null;
+        let statusChartInstance = null;
+
+        function switchOrderTab(tab) {
+            const overviewSection = document.getElementById('overview-section');
+            const ordersSection = document.getElementById('orders-section');
+            const clientsSection = document.getElementById('clients-section');
+            
+            const btnOverview = document.getElementById('tab-overview');
+            const btnOrders = document.getElementById('tab-orders-list');
+            const btnClients = document.getElementById('tab-clients-list');
+
+            // Reset
+            overviewSection.style.display = 'none';
+            ordersSection.style.display = 'none';
+            clientsSection.style.display = 'none';
+            btnOverview.style.backgroundColor = '#6c757d';
+            btnOrders.style.backgroundColor = '#6c757d';
+            btnClients.style.backgroundColor = '#6c757d';
+
+            if (tab === 'overview') {
+                overviewSection.style.display = 'block';
+                btnOverview.style.backgroundColor = 'var(--primary-color)';
+                updateDashboardCharts();
+            } else if (tab === 'orders') {
+                ordersSection.style.display = 'block';
+                btnOrders.style.backgroundColor = 'var(--primary-color)';
+            } else if (tab === 'clients') {
+                clientsSection.style.display = 'block';
+                btnClients.style.backgroundColor = 'var(--primary-color)';
+                renderClients(); // Générer la liste des clients à partir des commandes
+            }
+        }
+
+        async function fetchOrders() {
+            const tbody = document.getElementById('ordersTableBody');
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">Chargement des commandes...</td></tr>';
+
+            try {
+                const response = await fetch(CENTRAL_API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain' },
+                    body: JSON.stringify({
+                        action: 'getPartnerOrders',
+                        data: { compteId: compteId }
+                    })
+                });
+                const result = await response.json();
+
+                if (result.success) {
+                    currentOrders = result.data;
+                    calculateStats(); // Calculer les stats dès réception
+                    renderOrdersTable(currentOrders);
+                } else {
+                    throw new Error(result.error || "Erreur lors de la récupération des commandes.");
+                }
+            } catch (error) {
+                tbody.innerHTML = `<tr><td colspan="7" style="color:red; text-align:center;">Erreur: ${error.message}</td></tr>`;
+            }
+        }
+
+        function calculateStats() {
+            if (!currentOrders || currentOrders.length === 0) return;
+
+            // 1. KPIs
+            const totalRevenue = currentOrders.reduce((sum, order) => sum + (parseFloat(order.total) || 0), 0);
+            const totalOrders = currentOrders.length;
+            const uniqueClients = new Set(currentOrders.map(o => o.customer.email)).size;
+            const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+
+            document.getElementById('stat-revenue').textContent = totalRevenue.toLocaleString('fr-FR') + ' F';
+            document.getElementById('stat-orders').textContent = totalOrders;
+            document.getElementById('stat-clients').textContent = uniqueClients;
+            document.getElementById('stat-aov').textContent = Math.round(averageOrderValue).toLocaleString('fr-FR') + ' F';
+
+            // 2. Charts Data
+            updateDashboardCharts();
+        }
+
+        function updateDashboardCharts() {
+            if (!currentOrders || currentOrders.length === 0) return;
+            
+            // Sales over time
+            const salesByDate = {};
+            currentOrders.forEach(order => {
+                const date = new Date(order.date).toLocaleDateString('fr-FR'); // DD/MM/YYYY
+                salesByDate[date] = (salesByDate[date] || 0) + (parseFloat(order.total) || 0);
+            });
+            
+            // Sort dates
+            const sortedDates = Object.keys(salesByDate).sort((a, b) => {
+                const [da, ma, ya] = a.split('/');
+                const [db, mb, yb] = b.split('/');
+                return new Date(`${ya}-${ma}-${da}`) - new Date(`${yb}-${mb}-${db}`);
+            });
+            
+            const salesData = sortedDates.map(d => salesByDate[d]);
+
+            // Status distribution
+            const statusCounts = {};
+            currentOrders.forEach(order => {
+                const status = order.status || 'Inconnu';
+                statusCounts[status] = (statusCounts[status] || 0) + 1;
+            });
+
+            // Render Sales Chart
+            const ctxSales = document.getElementById('salesChart').getContext('2d');
+            if (salesChartInstance) salesChartInstance.destroy();
+            
+            salesChartInstance = new Chart(ctxSales, {
+                type: 'line',
+                data: {
+                    labels: sortedDates,
+                    datasets: [{
+                        label: 'Ventes (F CFA)',
+                        data: salesData,
+                        borderColor: '#007bff',
+                        backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+
+            // Render Status Chart
+            const ctxStatus = document.getElementById('statusChart').getContext('2d');
+            if (statusChartInstance) statusChartInstance.destroy();
+
+            statusChartInstance = new Chart(ctxStatus, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(statusCounts),
+                    datasets: [{
+                        data: Object.values(statusCounts),
+                        backgroundColor: ['#ffc107', '#007bff', '#28a745', '#dc3545', '#6c757d']
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
+
+        function renderOrdersTable(orders) {
+            const tbody = document.getElementById('ordersTableBody');
+            tbody.innerHTML = '';
+            if (orders.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">Aucune commande trouvée.</td></tr>';
+                return;
+            }
+
+            orders.forEach(order => {
+                const date = new Date(order.date).toLocaleDateString('fr-FR');
+                let statusColor = '#6c757d'; // gris
+                if (order.status === 'En cours') statusColor = '#007bff'; // bleu
+                if (order.status === 'Livrée') statusColor = '#28a745'; // vert
+                if (order.status === 'Annulée') statusColor = '#dc3545'; // rouge
+
+                const row = `<tr>
+                    <td><span style="font-family: monospace; font-weight: bold;">${order.id}</span></td>
+                    <td>${date}</td>
+                    <td>${order.customer.firstname} ${order.customer.lastname}</td>
+                    <td style="font-weight: bold;">${order.total.toLocaleString('fr-FR')} F</td>
+                    <td>${order.paymentMethod === 'cod' ? 'À la livraison' : 'En ligne'}</td>
+                    <td><span class="badge" style="background-color: ${statusColor};">${order.status}</span></td>
+                    <td><button onclick="openOrderModal('${order.id}')" style="background: none; border: 1px solid var(--accent-color); color: var(--accent-color); padding: 0.3rem 0.8rem; border-radius: 4px; cursor: pointer;">Détails</button></td>
+                </tr>`;
+                tbody.innerHTML += row;
+            });
+        }
+
+        function filterOrders() {
+            const searchTerm = document.getElementById('orderSearch').value.toLowerCase();
+            const statusFilter = document.getElementById('orderStatusFilter').value;
+
+            const filtered = currentOrders.filter(order => {
+                const matchesSearch = order.id.toLowerCase().includes(searchTerm) || 
+                                      (order.customer.firstname + ' ' + order.customer.lastname).toLowerCase().includes(searchTerm);
+                const matchesStatus = statusFilter === '' || order.status === statusFilter;
+                return matchesSearch && matchesStatus;
+            });
+
+            renderOrdersTable(filtered);
+        }
+
+        function renderClients() {
+            const tbody = document.getElementById('clientsTableBody');
+            tbody.innerHTML = '';
+            
+            // Extraire les clients uniques
+            const clientsMap = new Map();
+            currentOrders.forEach(order => {
+                const email = order.customer.email;
+                if (!clientsMap.has(email)) {
+                    clientsMap.set(email, {
+                        ...order.customer,
+                        orderCount: 0
+                    });
+                }
+                clientsMap.get(email).orderCount++;
+            });
+
+            if (clientsMap.size === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Aucun client trouvé.</td></tr>';
+                return;
+            }
+
+            clientsMap.forEach(client => {
+                const row = `<tr>
+                    <td>${client.firstname} ${client.lastname}</td>
+                    <td>${client.email}</td>
+                    <td>${client.phone}</td>
+                    <td>${client.address || '-'}</td>
+                    <td style="text-align:center;"><span class="badge" style="background-color: var(--accent-color);">${client.orderCount}</span></td>
+                </tr>`;
+                tbody.innerHTML += row;
+            });
+        }
+
+        function openOrderModal(orderId) {
+            const order = currentOrders.find(o => o.id === orderId);
+            if (!order) return;
+
+            currentOrderId = orderId;
+            document.getElementById('modalOrderId').textContent = order.id;
+            document.getElementById('modalClientName').textContent = `${order.customer.firstname} ${order.customer.lastname}`;
+            document.getElementById('modalClientEmail').textContent = order.customer.email;
+            document.getElementById('modalClientPhone').textContent = order.customer.phone;
+            document.getElementById('modalClientAddress').textContent = order.customer.address || 'Non spécifiée';
+            document.getElementById('modalClientNote').textContent = order.customer.notes || 'Aucune';
+            
+            document.getElementById('modalOrderDate').textContent = new Date(order.date).toLocaleString('fr-FR');
+            document.getElementById('modalOrderTotal').textContent = `${order.total.toLocaleString('fr-FR')} F CFA`;
+            document.getElementById('modalPaymentType').textContent = order.paymentMethod === 'cod' ? 'Paiement à la livraison' : 'Paiement en ligne';
+            document.getElementById('modalOrderStatus').value = order.status;
+
+            const itemsContainer = document.getElementById('modalOrderItems');
+            itemsContainer.innerHTML = '';
+            order.items.forEach(item => {
+                itemsContainer.innerHTML += `
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; background: #f8f9fa; border-radius: 6px;">
+                        <span>${item.name} (x${item.quantity})</span>
+                        <span style="font-weight: bold;">${(item.price * item.quantity).toLocaleString('fr-FR')} F</span>
+                    </div>
+                `;
+            });
+
+            document.getElementById('order-modal').style.display = 'flex';
+        }
+
+        function closeOrderModal() {
+            document.getElementById('order-modal').style.display = 'none';
+        }
+
+        async function updateOrderStatus() {
+            const newStatus = document.getElementById('modalOrderStatus').value;
+            try {
+                const response = await fetch(CENTRAL_API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain' },
+                    body: JSON.stringify({
+                        action: 'updatePartnerOrderStatus',
+                        data: { compteId: compteId, orderId: currentOrderId, status: newStatus }
+                    })
+                });
+                const result = await response.json();
+                if (result.success) {
+                    alert("Statut mis à jour !");
+                    closeOrderModal();
+                    fetchOrders();
+                } else {
+                    throw new Error(result.error);
+                }
+            } catch (error) {
+                alert("Erreur : " + error.message);
             }
         }
 

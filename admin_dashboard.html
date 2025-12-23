@@ -85,6 +85,38 @@
       color: #721c24;
       border: 1px solid #f5c6cb;
     }
+    /* Styles pour les onglets */
+    .tab-nav {
+      display: flex;
+      border-bottom: 1px solid #dee2e6;
+      margin-bottom: 1.5rem;
+      overflow-x: auto;
+    }
+    .tab-btn {
+      padding: 0.75rem 1.5rem;
+      font-weight: 600;
+      color: #6c757d;
+      background: none;
+      border: none;
+      border-bottom: 3px solid transparent;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .tab-btn:hover {
+      color: #007bff;
+    }
+    .tab-btn.active {
+      color: #007bff;
+      border-bottom-color: #007bff;
+    }
+    .tab-content {
+      display: none;
+    }
+    .tab-content.active {
+      display: block;
+      animation: fadeIn 0.3s;
+    }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
   </style>
 </head>
 <body>
@@ -94,6 +126,16 @@
       <button id="export-csv-btn" class="btn btn-primary text-sm">Exporter les commandes (CSV)</button>
     </div>
 
+    <!-- Navigation par onglets -->
+    <div class="tab-nav">
+      <button class="tab-btn active" onclick="switchTab('dashboard')">Tableau de bord</button>
+      <button class="tab-btn" onclick="switchTab('clients')">Clients & Suivi</button>
+      <button class="tab-btn" onclick="switchTab('account')">Gestion de Compte</button>
+      <button class="tab-btn" onclick="switchTab('admin')">Admin. Générale</button>
+    </div>
+
+    <!-- Onglet 1: Tableau de bord (Contenu existant) -->
+    <div id="tab-dashboard" class="tab-content active space-y-8">
     <!-- NOUVEAU: Section des statistiques -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
       <div class="card p-4 text-center">
@@ -123,6 +165,56 @@
         <p class="text-gray-500">Chargement des transactions...</p>
       </div>
     </div>
+    </div>
+
+    <!-- Onglet 2: Clients & Suivi -->
+    <div id="tab-clients" class="tab-content space-y-8">
+      <div class="card p-6">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-xl font-semibold text-gray-700">Suivi des Clients</h2>
+          <button class="btn btn-primary text-sm">+ Ajouter un client</button>
+        </div>
+        <div class="mb-4">
+          <input type="text" placeholder="Rechercher un client..." class="form-input">
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm text-left">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="p-3 font-semibold">Nom</th>
+                <th class="p-3 font-semibold">Email</th>
+                <th class="p-3 font-semibold">Commandes</th>
+                <th class="p-3 font-semibold">Total Dépensé</th>
+                <th class="p-3 font-semibold">Dernière activité</th>
+                <th class="p-3 font-semibold">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="clients-list-container">
+              <tr>
+                <td class="p-3" colspan="6" class="text-center text-gray-500">Chargement des clients...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Onglet 3: Gestion de Compte -->
+    <div id="tab-account" class="tab-content space-y-8">
+      <div class="card p-6">
+        <h2 class="text-xl font-semibold mb-4 text-gray-700">Informations de l'Entreprise</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <div class="form-group">
+            <label class="form-label">Nom de l'entreprise</label>
+            <input type="text" class="form-input" value="Mon Entreprise" disabled>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Email de contact</label>
+            <input type="email" class="form-input" value="contact@entreprise.com">
+          </div>
+        </div>
+        <button class="btn btn-primary">Mettre à jour les infos</button>
+      </div>
 
     <!-- Section de configuration des paiements -->
     <div class="card p-6">
@@ -160,6 +252,32 @@
         <button type="submit" id="save-button" class="btn btn-primary w-full">Enregistrer les modifications</button>
       </form>
     </div>
+    </div>
+
+    <!-- Onglet 4: Admin Générale (Gestion du site) -->
+    <div id="tab-admin" class="tab-content space-y-8">
+      <div class="card p-6">
+        <h2 class="text-xl font-semibold mb-4 text-gray-700">Gestion des Pages du Site</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="p-4 border rounded hover:bg-gray-50 cursor-pointer transition">
+            <h3 class="font-bold text-lg mb-2">Page d'Accueil</h3>
+            <p class="text-sm text-gray-600">Modifier les bannières, les textes d'accueil et les sections mises en avant.</p>
+          </div>
+          <div class="p-4 border rounded hover:bg-gray-50 cursor-pointer transition">
+            <h3 class="font-bold text-lg mb-2">Catalogue Produits</h3>
+            <p class="text-sm text-gray-600">Ajouter, modifier ou supprimer des produits et des catégories.</p>
+          </div>
+          <div class="p-4 border rounded hover:bg-gray-50 cursor-pointer transition">
+            <h3 class="font-bold text-lg mb-2">Galerie Photos</h3>
+            <p class="text-sm text-gray-600">Gérer les photos de la galerie de l'entreprise.</p>
+          </div>
+          <div class="p-4 border rounded hover:bg-gray-50 cursor-pointer transition">
+            <h3 class="font-bold text-lg mb-2">Paramètres SEO</h3>
+            <p class="text-sm text-gray-600">Optimiser le référencement du site (Titres, Descriptions).</p>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <div id="status" class="hidden"></div>
   </div>
@@ -170,6 +288,18 @@
     const statusDiv = document.getElementById('status');
     const paydunyaActiveCheckbox = document.getElementById('paydunya-active');
     let salesChartInstance = null;
+
+    // Fonction pour changer d'onglet
+    function switchTab(tabId) {
+      // Cacher tous les contenus
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+      // Désactiver tous les boutons
+      document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+      
+      // Activer l'onglet sélectionné
+      document.getElementById('tab-' + tabId).classList.add('active');
+      event.currentTarget.classList.add('active');
+    }
 
     // Fonction pour afficher les messages de statut
     function showStatus(message, isError = false) {
