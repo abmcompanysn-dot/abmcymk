@@ -746,7 +746,7 @@
                     dashboardContent.style.display = 'block';
 
                     // 3. Récupérer le slug actuel
-                    const slugResponse = await fetch(BUSINESS_API_URL, {
+                    const slugResponse = await fetch(CENTRAL_API_URL, { // Utiliser l'API Centrale
                         method: 'POST',
                         mode: 'cors',
                         headers: { 'Content-Type': 'text/plain' },
@@ -1015,7 +1015,7 @@
                 const slugVal = document.getElementById('settingsSlug').value;
                 if (slugVal && slugVal !== currentSlug) { // Ne sauvegarder que si la valeur a changé
                     try {
-                        const slugResponse = await fetch(BUSINESS_API_URL, {
+                        const slugResponse = await fetch(CENTRAL_API_URL, { // Utiliser l'API Centrale
                             method: 'POST',
                             headers: { 'Content-Type': 'text/plain' },
                             body: JSON.stringify({ action: 'setSlug', data: { compteId: compteId, slug: slugVal } })
@@ -1027,6 +1027,16 @@
                         document.getElementById('settingsSlug').value = currentSlug;
                         slugFeedback.style.color = 'var(--success-color)';
                         slugFeedback.textContent = 'Identifiant enregistré !';
+
+                        // NOUVEAU: Synchronisation avec l'API Business (Les deux APIs)
+                        try {
+                            await fetch(BUSINESS_API_URL, {
+                                method: 'POST',
+                                mode: 'cors',
+                                headers: { 'Content-Type': 'text/plain' },
+                                body: JSON.stringify({ action: 'setSlug', data: { compteId: compteId, slug: currentSlug } })
+                            });
+                        } catch (syncError) { console.warn("Erreur sync slug business:", syncError); }
                     } catch (slugError) {
                         slugFeedback.style.color = 'var(--danger-color)';
                         slugFeedback.textContent = slugError.message;
@@ -1187,7 +1197,7 @@
 
         async function loadVisitChart() {
             try {
-                const response = await fetch(BUSINESS_API_URL, {
+                const response = await fetch(CENTRAL_API_URL, { // Utiliser l'API Centrale
                     method: 'POST',
                     mode: 'cors',
                     headers: { 'Content-Type': 'text/plain' },

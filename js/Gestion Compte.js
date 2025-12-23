@@ -23,7 +23,9 @@ const SHEET_NAMES = {
     ABMCY_AGGREGATOR_HISTORY: "ABMCY_Aggregator_History", // NOUVEAU: Pour l'historique des tentatives de paiement
     // NOUVEAU: Ajout des feuilles des autres modules
     LIVRAISONS: "Livraisons",
-    NOTIFICATIONS: "Notifications"
+    NOTIFICATIONS: "Notifications",
+    SLUGS: "Slugs",       // NOUVEAU: Pour les alias (URL courtes)
+    STATS_VISITES: "Stats_Visites" // NOUVEAU: Pour l'historique des visites
 };
 
 // Origines autorisées à accéder à cette API.
@@ -37,7 +39,7 @@ const ALLOWED_ORIGINS = {
 // NOUVEAU: Configuration des URLs d'API spécifiques par type d'entreprise.
 // C'est ici que le système "récupère l'API" pour l'associer au compte.
 const BUSINESS_TYPE_APIS = {
-    "Coiffeur": "https://script.google.com/macros/s/AKfycbxU677jsmVZ6Gz-KbAfLpI0VMy6E6o3ZfsGvf4VIC12f5GaOLczpmisXg8WkT7WcJFPeg/exec", // ⚠️ REMPLACEZ CECI par l'URL déployée de votre script 'api_type_coiffeur.js'
+    "Coiffeur": "https://script.google.com/macros/s/AKfycbx1ZH4kQ7uEaH_HqHunZl_Zg5TDV6v5vuTgi6pmzT57xkoJHbI_n7MuSQgwbPu-fDRufw/exec", // ⚠️ REMPLACEZ CECI par l'URL déployée de votre script 'api_type_coiffeur.js'
     "Restaurant": "", // À définir plus tard
     "Boutique": ""    // À définir plus tard
 };
@@ -60,6 +62,11 @@ function doGet(e) {
 
     if (action === 'getAppLogs') {
         return getAppLogs(e.parameter, origin);
+    }
+
+    // NOUVEAU: Résolution d'alias (slug)
+    if (action === 'resolveSlug') {
+        return resolveSlug(e.parameter.alias, origin);
     }
 
     // NOUVEAU: Action fusionnée depuis Gestion Livraisons
@@ -243,6 +250,12 @@ function doPost(e) {
                 logAction('paydunia-webhook', e.parameter);
                 handlePaydunyaWebhook(e); // On passe l'événement complet 'e'
                 return createJsonResponse({ success: true }, origin);
+            case 'setSlug': // NOUVEAU: Définir un alias
+                return setSlug(data, origin);
+            case 'getSlug': // NOUVEAU: Récupérer un alias
+                return getSlug(data, origin);
+            case 'getVisitStats': // NOUVEAU: Récupérer les stats
+                return getVisitStats(data, origin);
             default:
                 logAction('doPost', { error: 'Action non reconnue', action: action });
                 return createJsonResponse({ success: false, error: `Action non reconnue: ${action}` }, origin);
@@ -2152,6 +2165,114 @@ function validatePassword(password) {
 }
 
 /**
+ * NOUVEAU: Définit un alias (slug) pour un compte.
+ * @param {object} data - { compteId, slug }
+ */
+function setSlug(data, origin) {
+  const { compteId, slug } = data;
+  if (!compteId || !slug) return createJsonResponse({ success: false, error: "Données manquantes." }, origin);
+
+  // Nettoyage du slug
+  const cleanSlug = slug.toLowerCase().replace(/[^a-z0-9-]/g, '-');
+  
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.SLUGS);
+  const values = sheet.getDataRange().getValues();
+  
+  // Vérifier si le slug est déjà pris par un AUTRE compte
+  const existing = values.find(row => row[0] === cleanSlug && row[1] !== compteId);
+  if (existing) {
+    return createJsonResponse({ success: false, status: "error", message: `L'identifiant "${cleanSlug}" est déjà pris.` }, origin);
+  }
+
+  // Vérifier si ce compte a déjà un slug et le mettre à jour, sinon créer
+  const rowIndex = values.findIndex(row => row[1] === compteId);
+  
+  if (rowIndex > 0) { // Mise à jour (on saute l'en-tête)
+    sheet.getRange(rowIndex + 1, 1).setValue(cleanSlug);
+    sheet.getRange(rowIndex + 1, 3).setValue(new Date());
+  } else { // Création
+    sheet.appendRow([cleanSlug, compteId, new Date(), 0]);
+  }
+
+  return createJsonResponse({ success: true, status: "success", message: "Identifiant personnalisé enregistré.", slug: cleanSlug }, origin);
+}
+
+/**
+ * NOUVEAU: Récupère le slug d'un compte.
+ */
+function getSlug(data, origin) {
+  const { compteId } = data;
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.SLUGS);
+  if (!sheet) return createJsonResponse({ success: true, status: "success", slug: "" }, origin);
+  
+  const row = sheet.getDataRange().getValues().find(r => r[1] === compteId);
+  return createJsonResponse({ 
+    success: true,
+    status: "success", 
+    slug: row ? row[0] : "",
+    visits: (row && row[3]) ? row[3] : 0 
+  }, origin);
+}
+
+/**
+ * NOUVEAU: Résout un slug en ID de compte (Public).
+ */
+function resolveSlug(alias, origin) {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.SLUGS);
+  if (!sheet) return createJsonResponse({ success: false, status: "error", message: "Système d'alias non configuré." }, origin);
+  
+  const data = sheet.getDataRange().getValues();
+  const rowIndex = data.findIndex(r => r[0] === alias);
+  
+  if (rowIndex !== -1) {
+    const row = data[rowIndex];
+    // Incrémenter le compteur de visites (Colonne 4 : Visits)
+    const currentVisits = row[3] ? parseInt(row[3]) : 0;
+    sheet.getRange(rowIndex + 1, 4).setValue(currentVisits + 1);
+
+    // Enregistrer la visite dans l'historique pour le graphique
+    const statsSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.STATS_VISITES);
+    if (statsSheet) {
+      statsSheet.appendRow([row[1], new Date()]);
+    }
+
+    return createJsonResponse({ success: true, status: "success", compteId: row[1] }, origin);
+  }
+  return createJsonResponse({ success: false, status: "error", message: "Boutique introuvable." }, origin);
+}
+
+/**
+ * NOUVEAU: Récupère les statistiques de visites des 7 derniers jours.
+ */
+function getVisitStats(data, origin) {
+  const { compteId } = data;
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.STATS_VISITES);
+  if (!sheet) return createJsonResponse({ success: true, status: "success", labels: [], data: [] }, origin);
+
+  const values = sheet.getDataRange().getValues();
+  const logs = values.slice(1).filter(r => r[0] === compteId);
+
+  const stats = {};
+  const labels = [];
+  const today = new Date();
+  
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(today.getDate() - i);
+    const dateKey = d.toISOString().split('T')[0];
+    stats[dateKey] = 0;
+    labels.push(dateKey);
+  }
+
+  logs.forEach(row => { try { const d = new Date(row[1]); const k = d.toISOString().split('T')[0]; if (stats.hasOwnProperty(k)) stats[k]++; } catch (e) {} });
+
+  const chartData = labels.map(key => stats[key]);
+  const chartLabels = labels.map(key => { const p = key.split('-'); return `${p[2]}/${p[1]}`; });
+
+  return createJsonResponse({ success: true, status: "success", labels: chartLabels, data: chartData }, origin);
+}
+
+/**
  * Crée un menu personnalisé à l'ouverture de la feuille de calcul.
  */
 function onOpen() {
@@ -2243,6 +2364,8 @@ function setupProject() {
     [SHEET_NAMES.ABMCY_Admin]: ["Clé", "Valeur"], // NOUVEAU
     [SHEET_NAMES.LIVRAISONS]: ["IDLivraison", "IDCommande", "IDClient", "Adresse", "Statut", "DateMiseAJour", "Transporteur"],
     [SHEET_NAMES.NOTIFICATIONS]: ["IDNotification", "IDCommande", "Type", "Message", "Statut", "Date"],
+    [SHEET_NAMES.SLUGS]: ["Slug", "CompteID", "Date", "Visits"], // NOUVEAU
+    [SHEET_NAMES.STATS_VISITES]: ["CompteID", "Date"] // NOUVEAU
   };
 
   // 1. Supprimer les feuilles non utilisées
