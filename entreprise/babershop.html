@@ -128,12 +128,12 @@
 
         <!-- Navigation par onglets -->
         <div class="flex justify-center space-x-8 mb-8 border-b border-gray-200">
-            <button id="btn-gallery" class="tab-btn active text-lg" onclick="switchTab('gallery')">Galerie</button>
-            <button id="btn-services" class="tab-btn text-lg" onclick="switchTab('services')">Services & Produits</button>
+            <button id="btn-gallery" class="tab-btn text-lg" onclick="switchTab('gallery')">Galerie</button>
+            <button id="btn-services" class="tab-btn active text-lg" onclick="switchTab('services')">Services & Produits</button>
         </div>
 
         <!-- Contenu Onglet Galerie -->
-        <div id="tab-gallery">
+        <div id="tab-gallery" class="hidden">
         <!-- NOUVEAU: Section Galerie / Catalogue -->
         <section id="static-gallery-section" class="bg-white p-6 rounded-lg shadow-md mb-8">
             <h2 class="text-2xl font-bold mb-4">Notre Catalogue de Coiffures</h2>
@@ -460,7 +460,7 @@
         </div>
 
         <!-- Contenu Onglet Services & Produits -->
-        <div id="tab-services" class="hidden">
+        <div id="tab-services">
         <!-- NOUVEAU: Ce conteneur cache également les services/produits -->
         <div id="dynamic-content-2" class="hidden">
             <!-- Section pour les Services -->
