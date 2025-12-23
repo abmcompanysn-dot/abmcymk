@@ -208,19 +208,26 @@
 
         async function loadBusinessTypes() {
             const select = document.getElementById('typeEntreprise');
+            select.innerHTML = '<option value="">Chargement des métiers...</option>';
+            
             try {
                 // Appel à l'API pour récupérer les types d'entreprises configurés (Coiffeur, Restaurant, etc.)
                 const response = await fetch(`${SCRIPT_URL}?action=getBusinessTypes`);
                 const result = await response.json();
                 
                 if (result.success && result.data) {
-                    select.innerHTML = '<option value="">Choisir un métier...</option>';
-                    Object.keys(result.data).forEach(type => {
-                        const option = document.createElement('option');
-                        option.value = type; // La valeur envoyée sera la clé (ex: "Coiffeur")
-                        option.textContent = type;
-                        select.appendChild(option);
-                    });
+                    const types = Object.keys(result.data);
+                    if (types.length > 0) {
+                        select.innerHTML = '<option value="">Choisir un métier...</option>';
+                        types.forEach(type => {
+                            const option = document.createElement('option');
+                            option.value = type; // La valeur envoyée sera la clé (ex: "Coiffeur")
+                            option.textContent = type;
+                            select.appendChild(option);
+                        });
+                    } else {
+                        select.innerHTML = '<option value="">Aucun service disponible pour le moment</option>';
+                    }
                 } else {
                     select.innerHTML = '<option value="">Erreur de chargement</option>';
                 }

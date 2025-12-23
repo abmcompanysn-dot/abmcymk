@@ -37,7 +37,7 @@ const ALLOWED_ORIGINS = {
 // NOUVEAU: Configuration des URLs d'API spécifiques par type d'entreprise.
 // C'est ici que le système "récupère l'API" pour l'associer au compte.
 const BUSINESS_TYPE_APIS = {
-    "Coiffeur": "https://script.google.com/macros/s/AKfycbxhByNk-raaXrbsC-0oWXpchItEtnWCunLVOobHv4ujvvB-hv-rA0aDDpyY1cb-mgfg4A/exec", // ⚠️ REMPLACEZ CECI par l'URL déployée de votre script 'api_type_coiffeur.js'
+    "Coiffeur": "https://script.google.com/macros/s/AKfycbxU677jsmVZ6Gz-KbAfLpI0VMy6E6o3ZfsGvf4VIC12f5GaOLczpmisXg8WkT7WcJFPeg/exec", // ⚠️ REMPLACEZ CECI par l'URL déployée de votre script 'api_type_coiffeur.js'
     "Restaurant": "", // À définir plus tard
     "Boutique": ""    // À définir plus tard
 };
@@ -89,7 +89,14 @@ function doGet(e) {
 
     // NOUVEAU: Action pour récupérer les types d'entreprises disponibles (pour rendre le formulaire dynamique)
     if (action === 'getBusinessTypes') {
-        return createJsonResponse({ success: true, data: BUSINESS_TYPE_APIS }, origin);
+        // Filtrer pour ne renvoyer que les types qui ont une URL configurée et valide
+        const availableTypes = {};
+        for (const [type, url] of Object.entries(BUSINESS_TYPE_APIS)) {
+            if (url && url.trim() !== "") {
+                availableTypes[type] = url;
+            }
+        }
+        return createJsonResponse({ success: true, data: availableTypes }, origin);
     }
     
     // Réponse par défaut pour un simple test de l'API

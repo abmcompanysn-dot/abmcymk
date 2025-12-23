@@ -5,7 +5,7 @@ const CONFIG = {
     // car tout est géré par l'API centrale (ACCOUNT_API_URL).
     
     // URL du script central pour le catalogue de produits.
-    CENTRAL_API_URL: "https://script.google.com/macros/s/AKfycbzHSJAAuqjgfc38JzlAUrIpLw-F9jyZeiqHbIPslqssNJE8Dl472G0dSoanUexmjxC0/exec",
+    CENTRAL_API_URL: "https://script.google.com/macros/s/AKfycbxC5NVAc-PJhQHLXQAnSPmoU1Mv_5p6n9RvgNOklevfGkV0GBtbychE3Cc7KZkhdSLkcQ/exec",
     
     // Autres configurations
     DEFAULT_PRODUCT_IMAGE: "logo/l.svg",

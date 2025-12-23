@@ -426,10 +426,14 @@
                     <div class="qr-wrapper">
                         <div id="qrCodeContainer"></div>
                         <p style="margin-top: 0.8rem; font-size: 0.85rem; color: #666; font-weight: 500;">Scannez pour visiter</p>
+                        <button onclick="downloadQrCode()" style="margin-top: 0.5rem; font-size: 0.8rem; color: var(--accent-color); background: none; border: none; cursor: pointer; text-decoration: underline;">Télécharger PNG</button>
                     </div>
                     
                     <div class="link-details">
-                        <label style="display:block; margin-bottom:0.8rem; font-weight:600; color:#333;">Lien public officiel</label>
+                        <label style="display:block; margin-bottom:0.8rem; font-weight:600; color:#333;">
+                            Lien public officiel
+                            <button onclick="editSlug()" style="all: unset; cursor: pointer; color: var(--accent-color); font-size: 0.8em; margin-left: 10px; font-weight: normal;">(Modifier)</button>
+                        </label>
                         <div class="link-box">
                             <input type="text" id="publicLinkInput" readonly>
                             <button class="copy-btn" onclick="copyLink()">Copier</button>
@@ -489,6 +493,7 @@
                     <div class="input-group">
                         <label for="settingsSlug">Identifiant personnalisé (Lien court)</label>
                         <input type="text" id="settingsSlug" placeholder="ex: mon-salon-elegance" pattern="[a-zA-Z0-9-]+" title="Lettres, chiffres et tirets uniquement">
+                        <small id="slug-feedback" style="font-size: 0.8em; min-height: 1em; margin-top: 4px; font-weight: 600;"></small>
                         <small style="color: #666; font-size: 0.8em;">Sera utilisé pour votre lien : .../babershop.html?alias=<b>votre-identifiant</b></small>
                     </div>
                     <div class="input-group">
@@ -594,6 +599,22 @@
                 input.type = "password";
                 icon.textContent = "👁️";
             }
+        }
+
+        function editSlug() {
+            // S'assurer que la section des paramètres est visible
+            showSection('settings');
+            
+            const slugInput = document.getElementById('settingsSlug');
+            slugInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            slugInput.focus();
+            
+            // Mettre en surbrillance l'input pour attirer l'attention
+            slugInput.style.transition = 'all 0.3s';
+            slugInput.style.boxShadow = '0 0 0 3px rgba(0, 123, 255, 0.3)';
+            setTimeout(() => {
+                slugInput.style.boxShadow = '';
+            }, 2000);
         }
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -941,8 +962,10 @@
         document.getElementById('settingsForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const btn = e.target.querySelector('button');
+            const slugFeedback = document.getElementById('slug-feedback');
             btn.disabled = true;
             btn.textContent = 'Sauvegarde en cours...';
+            slugFeedback.textContent = '';
 
             try {
                 // 1. Upload des images si nouvelles
@@ -957,13 +980,24 @@
 
                 // 1.5 Sauvegarder le slug (alias)
                 const slugVal = document.getElementById('settingsSlug').value;
-                if (slugVal) {
-                    await fetch(BUSINESS_API_URL, { // On utilise l'API métier pour le slug
-                        method: 'POST',
-                        headers: { 'Content-Type': 'text/plain' },
-                        body: JSON.stringify({ action: 'setSlug', data: { compteId: compteId, slug: slugVal } })
-                    });
-                    currentSlug = slugVal; // Mettre à jour localement
+                if (slugVal && slugVal !== currentSlug) { // Ne sauvegarder que si la valeur a changé
+                    try {
+                        const slugResponse = await fetch(BUSINESS_API_URL, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'text/plain' },
+                            body: JSON.stringify({ action: 'setSlug', data: { compteId: compteId, slug: slugVal } })
+                        });
+                        const slugResult = await slugResponse.json();
+                        if (slugResult.status !== 'success') throw new Error(slugResult.message);
+                        
+                        currentSlug = slugResult.slug; // Mettre à jour avec la version nettoyée
+                        document.getElementById('settingsSlug').value = currentSlug;
+                        slugFeedback.style.color = 'var(--success-color)';
+                        slugFeedback.textContent = 'Identifiant enregistré !';
+                    } catch (slugError) {
+                        slugFeedback.style.color = 'var(--danger-color)';
+                        slugFeedback.textContent = slugError.message;
+                    }
                 }
 
                 // 2. Préparer les données
@@ -1102,6 +1136,19 @@
             } else {
                 copyLink();
                 alert("Lien copié dans le presse-papier !");
+            }
+        }
+
+        function downloadQrCode() {
+            const container = document.getElementById('qrCodeContainer');
+            const canvas = container.querySelector('canvas');
+            if (canvas) {
+                const link = document.createElement('a');
+                link.download = 'QRCode-Boutique.png';
+                link.href = canvas.toDataURL();
+                link.click();
+            } else {
+                alert("Le QR Code n'est pas encore généré.");
             }
         }
 
