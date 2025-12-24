@@ -1975,8 +1975,13 @@ async function getFullCatalog() {
     }
 
     // NOUVEAU: Vérification de l'intégrité des données pour éviter le crash
-    if (!result.data || !result.data.products) {
-        throw new Error("Le catalogue reçu est vide ou malformé (data.products manquant).");
+    if (!result.data) {
+        throw new Error("Le catalogue reçu est vide (data manquant).");
+    }
+    // Si les produits sont manquants, on initialise un tableau vide pour éviter le crash
+    if (!result.data.products) {
+        console.warn("Catalogue: 'products' manquant dans la réponse, initialisation à [].");
+        result.data.products = [];
     }
 
     // Stocker le résultat dans le cache de session pour les navigations futures.

@@ -13,8 +13,7 @@ const DEFAULT_LOGO_URL = "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-
 // Liste des origines autorisées pour CORS.
 const ALLOWED_ORIGINS_FRONTEND = [
   "https://abmcymarket.vercel.app", // URL de production
-  "http://127.0.0.1:5500"          // URL de développement local
-];
+  "http://127.0.0.1:5500"
 
 // NOUVEAU: Configuration centrale des attributs par catégorie, copiée depuis le template.
 const CATEGORY_CONFIG = {
@@ -134,10 +133,8 @@ function doOptions(e) {
  */
 function doGet(e) {
   // CORRECTION: Déclarer 'origin' ici pour qu'il soit accessible dans les blocs try et catch.
-  const origin = e.headers ? e.headers.Origin : null;
-  try {
+  const origin = e.headers ? (e.headers.Origin || e.headers.origin) : null;t
     const action = e.parameter.action;
-
     // CORRECTION: Gérer l'invalidation du cache appelée par les feuilles de catégorie
     if (action === 'invalidateCache') {
       const cache = PropertiesService.getScriptProperties();
@@ -423,9 +420,11 @@ function archiveAllOutOfStock() {
  */
 function createJsonResponse(data, origin) {
   // CORRECTION DÉFINITIVE : On crée l'objet, on définit son type, et on retourne.
-  // L'en-tête CORS est géré par la fonction doOptions et la réponse globale.
   const output = ContentService.createTextOutput(JSON.stringify(data));
   output.setMimeType(ContentService.MimeType.JSON);
+  if (origin && ALLOWED_ORIGINS_FRONTEND.includes(origin)) {
+    output.addHeader('Access-Control-Allow-Origin', origin);
+  
   return output;
 }
 
