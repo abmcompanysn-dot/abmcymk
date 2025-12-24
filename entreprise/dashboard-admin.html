@@ -1573,7 +1573,14 @@
 
         function setupQrCodeAndLink() {
             // Construit l'URL de la page publique (babershop.html)
-            let publicUrl = `${window.location.origin}${window.location.pathname.replace('dashboard-admin.html', 'babershop.html')}`;
+            let path = window.location.pathname;
+            // CORRECTION: Gérer les URLs avec ou sans extension .html (Clean URLs) pour générer le bon lien public
+            if (path.includes('dashboard-admin.html')) {
+                path = path.replace('dashboard-admin.html', 'babershop.html');
+            } else {
+                path = path.replace('dashboard-admin', 'babershop');
+            }
+            let publicUrl = `${window.location.origin}${path}`;
             
             // Si on a un slug, on l'utilise pour une URL plus jolie
             if (currentSlug) {

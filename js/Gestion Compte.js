@@ -85,7 +85,7 @@ function doGet(e) {
           .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
     }
     // NOUVEAU: Action pour servir la page de confirmation manuelle ABMCY
-    if (action === 'showAbmcyAdmin') {
+    if (action === 'showAbmcyAdmin' || action === 'showAbmcyagregator') { // Ajout de l'alias pour votre lien
       return HtmlService.createHtmlOutputFromFile('abmcy_admin')
           .setTitle('Tableau de Bord Admin - ABMCY MARKET')
           .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
