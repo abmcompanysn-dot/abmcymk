@@ -222,6 +222,8 @@ function doPost(e) {
                 return getPartnerOrders(data, origin);
             case 'updatePartnerOrderStatus': // NOUVEAU: Pour le dashboard partenaire
                 return updatePartnerOrderStatus(data, origin);
+            case 'processPartnerOrder': // NOUVEAU: Pour traiter une commande partenaire
+                return processPartnerOrder(data, origin);
             case 'createPaydunyaInvoice': // NOUVEAU: Action pour créer une facture Paydunya
                 return createPaydunyaInvoice(data, origin);
             // NOUVEAU: Action pour le paiement à la livraison
@@ -1380,6 +1382,30 @@ function initiateAbmcyPayment(data, origin) {
  */
 function sendOrderConfirmationEmail(orderData, originalData, type) {
     try {
+        // NOUVEAU: Récupération des infos de l'entreprise partenaire pour personnaliser l'email
+        let businessLogo = "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png";
+        let businessName = "ABMCY MARKET";
+        let partnerEmail = null;
+
+        if (orderData.businessId) {
+            const bizDetails = getBusinessDetails(orderData.businessId);
+            if (bizDetails) {
+                if (bizDetails.logo) businessLogo = bizDetails.logo;
+                if (bizDetails.name) businessName = bizDetails.name;
+                partnerEmail = bizDetails.email;
+            }
+        }
+
+        // NOUVEAU: En-tête d'email commun avec logo dynamique
+        const emailHeader = `
+            <div style="text-align: center; padding: 20px; background-color: #f8f9fa; border-bottom: 3px solid #D4AF37;">
+                <img src="${businessLogo}" alt="${businessName}" style="max-height: 80px; width: auto;">
+                <p style="margin: 5px 0; font-size: 14px; color: #666;">Propulsé par ABMCY MARKET</p>
+            </div>
+            <div style="padding: 20px;">
+        `;
+        const emailFooter = `</div>`;
+
         // 1. Envoyer l'email à l'administrateur
         let adminSubject, adminBodyHTML;
         const adminConfirmationUrl = ScriptApp.getService().getUrl() + "?action=showAbmcyAdmin";
@@ -1387,17 +1413,21 @@ function sendOrderConfirmationEmail(orderData, originalData, type) {
         if (type === 'abmcy_pending') {
             adminSubject = `⏳ Paiement initié pour commande #${orderData.id}`;
             adminBodyHTML = `
+                ${emailHeader}
                 <p>Un paiement a été initié via l'agrégateur ABMCY pour la commande <strong>#${orderData.id}</strong>.</p>
                 <p><strong>Montant :</strong> ${orderData.total.toLocaleString('fr-FR')} F CFA</p>
                 <p>Veuillez vérifier la réception des fonds avant de confirmer manuellement.</p>
                 <a href="${adminConfirmationUrl}" style="display: inline-block; padding: 10px 15px; background-color: #28a745; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;">Confirmer le paiement</a>
+                ${emailFooter}
             `;
         } else { // 'cod' ou autre
             adminSubject = `Nouvelle commande #${orderData.id} (Paiement à la livraison)`;
             // NOUVEAU: Email admin beaucoup plus détaillé
             const productDetailsHTML = originalData.produits.map(p => `<li>${p.name} (x${p.quantity}) - ${p.price.toLocaleString('fr-FR')} F CFA</li>`).join('');
             adminBodyHTML = `
+                ${emailHeader}
                 <h2>Nouvelle commande #${orderData.id}</h2>
+                <p><strong>Vendeur :</strong> ${businessName}</p>
                 <p><strong>Client :</strong> ${originalData.customer.name} (${originalData.customer.email}, Tél: ${originalData.customer.phone})</p>
                 <p><strong>Montant Total :</strong> <strong style="color: #D4AF37;">${orderData.total.toLocaleString('fr-FR')} F CFA</strong></p>
                 <p><strong>Moyen de paiement :</strong> ${originalData.moyenPaiement}</p>
@@ -1408,19 +1438,27 @@ function sendOrderConfirmationEmail(orderData, originalData, type) {
                 <ul>${productDetailsHTML}</ul>
                 <hr>
                 <p><strong>Note du client :</strong> ${originalData.notes || 'Aucune'}</p>
+                ${emailFooter}
             `;
         }
         MailApp.sendEmail(ADMIN_EMAIL, adminSubject, "", { htmlBody: adminBodyHTML });
         logAction('sendAdminConfirmationEmail', { orderId: orderData.id, type: type });
 
         // NOUVEAU: Envoyer une copie à l'entreprise partenaire si applicable
-        if (orderData.businessId) {
-            const businessEmail = getBusinessEmail(orderData.businessId);
-            if (businessEmail) {
-                const partnerSubject = `[Partenaire] Nouvelle commande #${orderData.id}`;
-                MailApp.sendEmail(businessEmail, partnerSubject, "", { htmlBody: adminBodyHTML });
-                logAction('sendPartnerConfirmationEmail', { orderId: orderData.id, businessId: orderData.businessId, email: businessEmail });
-            }
+        if (partnerEmail) {
+            const partnerSubject = `[Partenaire] Nouvelle commande #${orderData.id}`;
+            MailApp.sendEmail(partnerEmail, partnerSubject, "", { htmlBody: adminBodyHTML });
+            logAction('sendPartnerConfirmationEmail', { orderId: orderData.id, businessId: orderData.businessId, email: partnerEmail });
+        }
+
+        // NOUVEAU: Génération de la facture PDF
+        let invoiceBlob = null;
+        try {
+            const businessInfo = { name: businessName, logo: businessLogo, email: partnerEmail, address: "Dakar, Sénégal" }; // Adresse par défaut ou à récupérer
+            invoiceBlob = generateInvoicePdfBlob(orderData, originalData, businessInfo);
+        } catch (pdfError) {
+            logError('generateInvoicePdfBlob', pdfError);
+            // On continue même si le PDF échoue pour envoyer l'email quand même
         }
 
         // 2. Envoyer l'email de confirmation au client
@@ -1428,21 +1466,145 @@ function sendOrderConfirmationEmail(orderData, originalData, type) {
             const customerSubject = `Confirmation de votre commande #${orderData.id}`;
             const productDetailsHTML = originalData.produits.map(p => `<li>${p.name} (x${p.quantity}) - ${p.price.toLocaleString('fr-FR')} F CFA</li>`).join('');
             const customerBodyHTML = `
+                ${emailHeader}
                 <h2>Bonjour,</h2>
-                <p>Merci pour votre commande sur ABMCY MARKET !</p>
+                <p>Merci pour votre commande chez <strong>${businessName}</strong> !</p>
                 <p>Nous avons bien reçu votre commande <strong>#${orderData.id}</strong> et nous la préparons pour l'expédition.</p>
                 <p><strong>Date de livraison estimée :</strong> ${new Date(orderData.dateLivraisonEstimee).toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p><h3>Récapitulatif de votre commande :</h3>
                 <ul>${productDetailsHTML}</ul>
                 <p><strong>Total : ${orderData.total.toLocaleString('fr-FR')} F CFA</strong></p>
                 <p>Vous pouvez suivre l'avancement de votre commande à tout moment ici : <a href="https://abmcymarket.abmcy.com/suivi-commande.html?orderId=${orderData.id}">Suivre ma commande</a></p>
-                <p>L'équipe ABMCY MARKET.</p>
+                <p>L'équipe ${businessName} & ABMCY MARKET.</p>
+                ${emailFooter}
             `;
-            MailApp.sendEmail(orderData.customerEmail, customerSubject, "", { htmlBody: customerBodyHTML });
+            
+            const emailOptions = { htmlBody: customerBodyHTML };
+            if (invoiceBlob) emailOptions.attachments = [invoiceBlob];
+
+            MailApp.sendEmail(orderData.customerEmail, customerSubject, "", emailOptions);
             logAction('sendCustomerConfirmationEmail', { orderId: orderData.id, email: orderData.customerEmail });
         }
     } catch (error) {
         logError('sendOrderConfirmationEmail', error);
     }
+}
+
+/**
+ * NOUVEAU: Génère un Blob PDF de la facture à partir des données de commande.
+ */
+function generateInvoicePdfBlob(orderData, originalData, businessInfo) {
+    // Calcul des sous-totaux
+    const subtotal = originalData.produits.reduce((sum, p) => sum + (p.price * p.quantity), 0);
+    const shippingCost = orderData.total - subtotal;
+    const dateStr = new Date().toLocaleDateString('fr-FR');
+
+    // Construction du HTML pour le PDF
+    // Note: Le CSS doit être inline pour une conversion PDF fiable dans Apps Script
+    const htmlContent = `
+    <html>
+    <head>
+        <style>
+            body { font-family: 'Helvetica', sans-serif; color: #333; padding: 20px; }
+            .header { width: 100%; border-bottom: 2px solid #D4AF37; padding-bottom: 20px; margin-bottom: 20px; }
+            .logo { max-height: 60px; }
+            .company-info { float: right; text-align: right; font-size: 12px; }
+            .invoice-title { font-size: 24px; font-weight: bold; color: #D4AF37; margin-top: 20px; }
+            .details-col { width: 48%; display: inline-block; vertical-align: top; font-size: 14px; }
+            .table { width: 100%; border-collapse: collapse; margin-top: 30px; }
+            .table th { background-color: #f8f9fa; border-bottom: 2px solid #ddd; padding: 10px; text-align: left; font-size: 12px; }
+            .table td { border-bottom: 1px solid #eee; padding: 10px; font-size: 12px; }
+            .totals { margin-top: 20px; text-align: right; }
+            .total-row { font-size: 14px; padding: 5px 0; }
+            .grand-total { font-size: 18px; font-weight: bold; color: #D4AF37; border-top: 2px solid #ddd; padding-top: 10px; margin-top: 5px; }
+            .footer { margin-top: 50px; text-align: center; font-size: 10px; color: #777; border-top: 1px solid #eee; padding-top: 10px; }
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <img src="${businessInfo.logo}" class="logo" alt="Logo">
+            <div class="company-info">
+                <strong>${businessInfo.name}</strong><br>
+                ${businessInfo.address}<br>
+                ${businessInfo.email || ''}
+            </div>
+            <div style="clear:both;"></div>
+        </div>
+
+        <div class="invoice-title">FACTURE #${orderData.id}</div>
+        <p>Date: ${dateStr}</p>
+
+        <div style="margin-top: 20px;">
+            <div class="details-col">
+                <strong>Facturé à :</strong><br>
+                ${originalData.customer.name}<br>
+                ${originalData.customer.email}<br>
+                ${originalData.customer.phone}
+            </div>
+            <div class="details-col">
+                <strong>Livraison à :</strong><br>
+                ${originalData.adresseLivraison}<br>
+                <br>
+                <strong>Mode de paiement :</strong> ${originalData.moyenPaiement}
+            </div>
+        </div>
+
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Produit</th>
+                    <th style="text-align: center;">Qté</th>
+                    <th style="text-align: right;">Prix Unit.</th>
+                    <th style="text-align: right;">Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${originalData.produits.map(p => `
+                <tr>
+                    <td>${p.name}</td>
+                    <td style="text-align: center;">${p.quantity}</td>
+                    <td style="text-align: right;">${p.price.toLocaleString('fr-FR')} F</td>
+                    <td style="text-align: right;">${(p.price * p.quantity).toLocaleString('fr-FR')} F</td>
+                </tr>`).join('')}
+            </tbody>
+        </table>
+
+        <div class="totals">
+            <div class="total-row">Sous-total : ${subtotal.toLocaleString('fr-FR')} F CFA</div>
+            <div class="total-row">Livraison : ${shippingCost > 0 ? shippingCost.toLocaleString('fr-FR') + ' F CFA' : 'Offerte'}</div>
+            <div class="grand-total">Total : ${orderData.total.toLocaleString('fr-FR')} F CFA</div>
+        </div>
+
+        <div class="footer">Merci de votre confiance ! - ${businessInfo.name}</div>
+    </body>
+    </html>`;
+
+    // Conversion HTML -> PDF
+    const blob = Utilities.newBlob(htmlContent, MimeType.HTML).getAs(MimeType.PDF);
+    blob.setName(`Facture_${orderData.id}.pdf`);
+    return blob;
+}
+
+/**
+ * NOUVEAU: Récupère les détails d'une entreprise (Email, Logo, Nom).
+ */
+function getBusinessDetails(compteId) {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.ENTREPRISES);
+    if (!sheet) return null;
+    const data = sheet.getDataRange().getValues();
+    const headers = data[0];
+    const idIndex = headers.indexOf("NumeroCompte");
+    const emailIndex = headers.indexOf("Email");
+    const logoIndex = headers.indexOf("LogoUrl");
+    const nameIndex = headers.indexOf("NomEntreprise");
+    
+    const row = data.find(r => r[idIndex] === compteId);
+    if (!row) return null;
+
+    return {
+        email: emailIndex > -1 ? row[emailIndex] : null,
+        logo: logoIndex > -1 ? row[logoIndex] : null,
+        name: nameIndex > -1 ? row[nameIndex] : null
+    };
 }
 
 /**
@@ -1635,6 +1797,18 @@ function updatePartnerOrderStatus(data, origin) {
     } catch (e) {
         return createJsonResponse({ success: false, error: e.message }, origin);
     }
+}
+
+/**
+ * NOUVEAU: Traite une commande partenaire.
+ */
+function processPartnerOrder(data, origin) {
+    const orderResult = enregistrerCommande(data, origin);
+    const orderData = JSON.parse(orderResult.getContent());
+    if (orderData.success) { 
+        sendOrderConfirmationEmail(orderData, data, "cod"); 
+    }
+    return orderResult;
 }
 
 /**
@@ -2509,8 +2683,14 @@ function getConfig() {
     PAYDUNYA_PRIVATE_KEY: "VOTRE_PRIVATE_KEY",
     PAYDUNYA_PUBLIC_KEY: "VOTRE_PUBLIC_KEY",
     PAYDUNYA_TOKEN: "VOTRE_TOKEN",
-    ABMCY_AGGREGATOR_ACTIVE: "false", // NOUVEAU: Par défaut désactivé
-    ABMCY_PAYMENT_METHODS: "{}" // NOUVEAU: JSON vide par défaut
+    ABMCY_AGGREGATOR_ACTIVE: "true", // NOUVEAU: Par défaut activé
+    ABMCY_PAYMENT_METHODS: JSON.stringify({
+        "wave": {
+            "name": "Wave",
+            "logo": "https://www.wave.com/img/nav-logo.png",
+            "baseUrl": "https://pay.wave.com/m/M_sn_J3jR9Wg9ilPF/c/sn/"
+        }
+    }) // NOUVEAU: Wave par défaut
   };
 
   try {
@@ -2534,8 +2714,8 @@ function getConfig() {
       PAYDUNYA_PRIVATE_KEY: config.PAYDUNYA_PRIVATE_KEY || defaultConfig.PAYDUNYA_PRIVATE_KEY,
       PAYDUNYA_PUBLIC_KEY: config.PAYDUNYA_PUBLIC_KEY || defaultConfig.PAYDUNYA_PUBLIC_KEY,
       PAYDUNYA_TOKEN: config.PAYDUNYA_TOKEN || defaultConfig.PAYDUNYA_TOKEN,
-      ABMCY_AGGREGATOR_ACTIVE: config.ABMCY_AGGREGATOR_ACTIVE === 'true', // NOUVEAU
-      ABMCY_PAYMENT_METHODS: config.ABMCY_PAYMENT_METHODS ? JSON.parse(config.ABMCY_PAYMENT_METHODS) : defaultConfig.ABMCY_PAYMENT_METHODS // NOUVEAU
+      ABMCY_AGGREGATOR_ACTIVE: String(config.ABMCY_AGGREGATOR_ACTIVE !== undefined ? config.ABMCY_AGGREGATOR_ACTIVE : defaultConfig.ABMCY_AGGREGATOR_ACTIVE).toLowerCase() === 'true', // NOUVEAU: Conversion robuste
+      ABMCY_PAYMENT_METHODS: config.ABMCY_PAYMENT_METHODS ? JSON.parse(config.ABMCY_PAYMENT_METHODS) : JSON.parse(defaultConfig.ABMCY_PAYMENT_METHODS) // NOUVEAU: Parsing correct du défaut
     };
 
     cache.put(CACHE_KEY, JSON.stringify(finalConfig), 600); // Cache pendant 10 minutes
