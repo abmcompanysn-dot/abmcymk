@@ -1,6 +1,6 @@
 const CONFIG = {
     // NOUVEAU: URL de l'API CENTRALE qui gère maintenant tout (comptes, commandes, etc.)
-    ACCOUNT_API_URL:"https://script.google.com/macros/s/AKfycbwCJjoxMPW0KoB5vvv6Pex9syJ7exF3NyQpcycsCOYJl88XkBkwlfkqoJ0m8tSmpW6zMw/exec",
+    ACCOUNT_API_URL:"https://script.google.com/macros/s/AKfycbwkN4lQE8zw-jdJLgAvBYZBk64jzBY2d0qqKX3VvPCGNygPDY4S9etGxTxhexeoIBUw3A/exec",
     // Les URL spécifiques pour commandes, livraisons et notifications sont maintenant obsolètes
     // car tout est géré par l'API centrale (ACCOUNT_API_URL).
     

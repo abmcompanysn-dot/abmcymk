@@ -48,6 +48,8 @@ const BUSINESS_TYPE_APIS = {
 const DEFAULT_BUSINESS_LOGO = "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png";
 const DEFAULT_BUSINESS_COVER = "https://via.placeholder.com/1200x400?text=Banniere+Par+Defaut";
 
+const CACHE_KEY_CONFIG = 'script_config_v2'; // NOUVEAU: Clé de cache globale pour la configuration
+
 // --- POINTS D'ENTRÉE DE L'API WEB (doGet, doPost, doOptions) ---
 
 /**
@@ -1046,6 +1048,7 @@ function createAbmcyAggregatorInvoice(data, origin) {
     try {
         const config = getConfig();
         if (!config.ABMCY_AGGREGATOR_ACTIVE) {
+            logAction('createAbmcyAggregatorInvoice', { error: 'Aggregator inactive', configValue: config.ABMCY_AGGREGATOR_ACTIVE });
             throw new Error("L'agrégateur de paiement ABMCY n'est pas actif.");
         }
 
@@ -1898,7 +1901,7 @@ function savePaymentSettings(data, origin) {
         });
 
         // Invalider le cache pour que les prochaines lectures prennent en compte les changements
-        CacheService.getScriptCache().remove('script_config');
+        CacheService.getScriptCache().remove(CACHE_KEY_CONFIG); // CORRECTION: Utiliser la clé globale pour invalider le cache
         logAction('savePaymentSettings', { user: 'admin' });
         return createJsonResponse({ success: true, message: "Paramètres sauvegardés." }, origin);
     } catch (error) {
@@ -2667,8 +2670,7 @@ function onOpen() {
  */
 function getConfig() {
   const cache = CacheService.getScriptCache();
-  const CACHE_KEY = 'script_config';
-  const cachedConfig = cache.get(CACHE_KEY);
+  const cachedConfig = cache.get(CACHE_KEY_CONFIG); // CORRECTION: Utiliser la clé globale
   if (cachedConfig) {
     return JSON.parse(cachedConfig);
   }
@@ -2701,7 +2703,8 @@ function getConfig() {
     const data = configSheet.getDataRange().getValues();
     const config = {};
     data.forEach(row => {
-      if (row[0] && row[1]) { config[row[0]] = row[1]; }
+      // CORRECTION: Accepter les valeurs booléennes false (ne pas utiliser la véracité simple)
+      if (row[0] && row[1] !== "" && row[1] !== undefined) { config[row[0]] = row[1]; }
     });
 
     const finalConfig = {
@@ -2718,7 +2721,7 @@ function getConfig() {
       ABMCY_PAYMENT_METHODS: config.ABMCY_PAYMENT_METHODS ? JSON.parse(config.ABMCY_PAYMENT_METHODS) : JSON.parse(defaultConfig.ABMCY_PAYMENT_METHODS) // NOUVEAU: Parsing correct du défaut
     };
 
-    cache.put(CACHE_KEY, JSON.stringify(finalConfig), 600); // Cache pendant 10 minutes
+    cache.put(CACHE_KEY_CONFIG, JSON.stringify(finalConfig), 600); // Cache pendant 10 minutes
     return finalConfig;
   } catch (e) {
     return defaultConfig;
