@@ -45,7 +45,7 @@ const BUSINESS_TYPE_APIS = {
 };
 
 // NOUVEAU: Images par défaut pour les entreprises (Logo et Couverture)
-const DEFAULT_BUSINESS_LOGO = "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png";
+const DEFAULT_BUSINESS_LOGO = "https://i.postimg.cc/5tQq2dm7/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png";
 const DEFAULT_BUSINESS_COVER = "https://via.placeholder.com/1200x400?text=Banniere+Par+Defaut";
 
 const CACHE_KEY_CONFIG = 'script_config_v2'; // NOUVEAU: Clé de cache globale pour la configuration
@@ -245,8 +245,6 @@ function doPost(e) {
                 return manuallyConfirmAbmcyPayment(data, origin);
             case 'partnerConfirmPayment': // NOUVEAU: Pour la confirmation par le partenaire (sans mot de passe admin)
                 return partnerConfirmPayment(data, origin);
-             case 'partnerConfirmPayment': // NOUVEAU: Pour la confirmation par le partenaire (sans mot de passe admin)
-                return partnerConfirmPayment(data, origin);    
             case 'manuallyExpireAbmcyPayment': // NOUVEAU: Pour l'expiration manuelle
                 return manuallyExpireAbmcyPayment(data, origin);
             case 'initiateAbmcyPayment': // NOUVEAU: Pour enregistrer la tentative de paiement et notifier le client
@@ -1138,7 +1136,14 @@ function createAbmcyAggregatorInvoice(data, origin) {
 
         // NOUVEAU: Envoyer un email de notification à l'admin avec le lien de confirmation
         const adminNotificationData = { id: idCommande, clientId: data.idClient, total: data.total, customerEmail: data.customer.email };
-        const originalOrderData = { produits: data.produits };
+        // CORRECTION: Passer toutes les données nécessaires pour la génération du PDF (Client, Adresse, etc.)
+        const originalOrderData = { 
+            produits: data.produits,
+            customer: data.customer,
+            adresseLivraison: data.adresseLivraison,
+            moyenPaiement: selectedProvider,
+            notes: data.notes
+        };
         // Le type 'abmcy_pending' déclenchera l'ajout du lien de confirmation
         sendOrderConfirmationEmail({ ...adminNotificationData, businessId: businessId }, originalOrderData, 'abmcy_pending');
 
@@ -1255,8 +1260,26 @@ function findCustomerEmailByOrderId(orderId, allOrders, headers) {
     const orderRow = allOrders.find(row => row[headers.indexOf("IDCommande")] === orderId);
     if (!orderRow) return null;
     const clientId = orderRow[headers.indexOf("IDClient")];
+    
+    // 1. Chercher dans la base utilisateurs (Clients inscrits)
     const userRow = usersData.find(row => row[usersHeaders.indexOf("IDClient")] === clientId);
     return userRow ? userRow[usersHeaders.indexOf("Email")] : null;
+    if (userRow) {
+        return userRow[usersHeaders.indexOf("Email")];
+    }
+
+    // 2. Si non trouvé (Invité), chercher dans les Notes de la commande
+    const notesIndex = headers.indexOf("Notes");
+    if (notesIndex > -1) {
+        const notes = orderRow[notesIndex];
+        // Format attendu dans les notes: "Email: client@example.com"
+        const emailMatch = notes.match(/Email:\s*([^\n\r]+)/);
+        if (emailMatch && emailMatch[1]) {
+            return emailMatch[1].trim();
+        }
+    }
+
+    return null;
 }
 
 /**
@@ -1446,7 +1469,7 @@ function initiateAbmcyPayment(data, origin) {
 function sendOrderConfirmationEmail(orderData, originalData, type) {
     try {
         // NOUVEAU: Récupération des infos de l'entreprise partenaire pour personnaliser l'email
-        let businessLogo = "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png";
+        let businessLogo = "https://i.postimg.cc/5tQq2dm7/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png";
         let businessName = "ABMCY MARKET";
         let partnerEmail = null;
 
@@ -1508,33 +1531,13 @@ function sendOrderConfirmationEmail(orderData, originalData, type) {
         logAction('sendAdminConfirmationEmail', { orderId: orderData.id, type: type });
 
         // NOUVEAU: Envoyer une copie à l'entreprise partenaire si applicable
-        if (partnerEmail) {
+        // CORRECTION: Le partenaire ne doit pas recevoir de demande de confirmation pour l'agrégateur ABMCY (type 'abmcy_pending')
+        if (partnerEmail && type !== 'abmcy_pending') {
             const partnerSubject = `[Partenaire] Nouvelle commande #${orderData.id}`;
             
             
            // NOUVEAU: Personnalisation du corps de l'email pour le partenaire
             let partnerBodyHTML = adminBodyHTML;
-
-            if (type === 'abmcy_pending') {
-                const confirmationLink = `https://abmcymarket.abmcy.com/entreprise/confirmation-paiement-partenaire.html?orderId=${orderData.id}&compteId=${orderData.businessId}`;
-                
-                partnerBodyHTML = `
-                    ${emailHeader}
-                    <h2>Nouvelle commande #${orderData.id}</h2>
-                    <p><strong>Client :</strong> ${originalData.customer.name}</p>
-                    <p><strong>Montant :</strong> <strong style="color: #D4AF37;">${orderData.total.toLocaleString('fr-FR')} F CFA</strong></p>
-                    <p>Le client a initié un paiement via Wave (ou Mobile Money) sur votre lien.</p>
-                    <div style="background-color: #e9ecef; padding: 15px; border-radius: 5px; margin: 20px 0; text-align: center;">
-                        <p style="margin-top: 0;">Veuillez vérifier la réception des fonds sur votre compte.</p>
-                        <a href="${confirmationLink}" style="display: inline-block; padding: 12px 20px; background-color: #28a745; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;">Confirmer la réception du paiement</a>
-                        <p style="font-size: 12px; color: #666; margin-bottom: 0; margin-top: 10px;">Cette action notifiera le client et validera la commande.</p>
-                    </div>
-                    <hr>
-                    <h3>Détails de la commande :</h3>
-                    <ul>${productDetailsHTML}</ul>
-                    ${emailFooter}
-                `;
-            }
 
             MailApp.sendEmail(partnerEmail, partnerSubject, "", { htmlBody: partnerBodyHTML });
             logAction('sendPartnerConfirmationEmail', { orderId: orderData.id, businessId: orderData.businessId, email: partnerEmail });
@@ -2975,7 +2978,7 @@ function setupProject() {
   // NOUVEAU: Remplir la feuille Entreprises avec des exemples
   const entreprisesSheet = ss.getSheetByName(SHEET_NAMES.ENTREPRISES);
   if (entreprisesSheet && entreprisesSheet.getLastRow() < 2) { // Ne remplir que si la feuille est vide (sauf en-têtes)
-    const defaultLogo = "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png";
+    const defaultLogo = "https://i.postimg.cc/5tQq2dm7/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png";
     const entreprisesExemples = [
       { type: "Coiffeur", nom: "Salon de Coiffure Chic" },
       { type: "Restaurant", nom: "Le Gourmet Dakarois" },
