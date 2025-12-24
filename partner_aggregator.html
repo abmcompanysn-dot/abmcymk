@@ -1,0 +1,104 @@
+<!-- c:\Users\Admin\OneDrive\Pictures\im\Desktop\no mini projet\abmcymk\partner_aggregator.html -->
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Paiement Partenaire - ABMCY MARKET</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root { --gold-color: #D4AF37; }
+        .font-montserrat { font-family: 'Montserrat', sans-serif; }
+        .text-gold { color: var(--gold-color); }
+        .bg-gold { background-color: var(--gold-color); }
+    </style>
+</head>
+<body class="bg-gray-100 font-montserrat flex items-center justify-center min-h-screen p-4">
+
+    <main id="payment-container" class="w-full max-w-md mx-auto">
+        <div class="bg-white p-8 rounded-lg shadow-lg text-center">
+            
+            <a href="index.html" class="inline-block mb-6">
+                <img src="logo/l.svg" alt="ABMCY MARKET Logo" class="h-10 mx-auto">
+            </a>
+
+            <div class="mb-6">
+                <span class="bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded">Paiement Direct Partenaire</span>
+            </div>
+
+            <h1 class="text-2xl font-bold text-gray-800 mb-2">Finalisez votre paiement</h1>
+            <p class="text-gray-600 mb-6">Vous payez directement le vendeur partenaire.</p>
+            
+            <div class="bg-gray-50 p-6 rounded-md mb-8 border border-blue-200">
+                <p class="text-sm text-gray-500">Montant à payer</p>
+                <p id="order-amount" class="text-4xl font-bold text-gold my-2">Chargement...</p>
+                <p class="text-xs text-gray-500">Commande N° <span id="order-id" class="font-mono">...</span></p>
+            </div>
+            
+            <div id="provider-logo-container" class="flex items-center justify-center mb-6 h-10">
+                <!-- Logo injecté ici -->
+            </div>
+
+            <a id="pay-button" href="#" class="w-full block bg-blue-600 text-white font-bold py-4 px-4 rounded-lg hover:bg-blue-700 transition text-lg shadow-md transform hover:-translate-y-0.5">
+                Payer maintenant
+            </a>
+            
+            <div id="status-message" class="mt-4 text-sm font-semibold text-red-500"></div>
+            
+            <div class="mt-8 text-xs text-gray-400">
+                <p>En cliquant, vous serez redirigé vers l'application de paiement du partenaire. Une fois le paiement effectué, revenez sur le site pour voir votre confirmation.</p>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const params = new URLSearchParams(window.location.search);
+            const orderId = params.get('orderId');
+            const amount = params.get('amount');
+            const provider = params.get('provider');
+            const baseUrl = params.get('baseUrl'); // URL spécifique du partenaire
+
+            const orderAmountEl = document.getElementById('order-amount');
+            const orderIdEl = document.getElementById('order-id');
+            const payButton = document.getElementById('pay-button');
+            const logoContainer = document.getElementById('provider-logo-container');
+            const statusMessage = document.getElementById('status-message');
+
+            if (!orderId || !amount || !provider) {
+                statusMessage.textContent = "Informations de paiement incomplètes.";
+                payButton.classList.add('hidden');
+                return;
+            }
+
+            orderAmountEl.textContent = `${Number(amount).toLocaleString('fr-FR')} F CFA`;
+            orderIdEl.textContent = `#${orderId}`;
+
+            let paymentUrl = '#';
+            let logoHtml = '';
+
+            if (provider === 'wave') {
+                logoHtml = '<img src="https://www.wave.com/img/nav-logo.png" alt="Wave" class="h-8">';
+                payButton.classList.add('bg-blue-500', 'hover:bg-blue-600');
+                
+                if (baseUrl && baseUrl.trim() !== "") {
+                    // Construction de l'URL Wave avec le lien du partenaire
+                    // On s'assure que l'URL se termine correctement avant d'ajouter le montant
+                    const separator = baseUrl.includes('?') ? '&' : '?';
+                    paymentUrl = `${decodeURIComponent(baseUrl)}${separator}amount=${amount}`;
+                } else {
+                    // Fallback si pas d'URL partenaire (ne devrait pas arriver ici normalement)
+                    paymentUrl = `https://pay.wave.com/m/M_sn_J3jR9Wg9ilPF/c/sn/?amount=${amount}`;
+                }
+            } else {
+                statusMessage.textContent = "Méthode de paiement non supportée pour ce partenaire.";
+                payButton.classList.add('hidden');
+            }
+
+            payButton.href = paymentUrl;
+            logoContainer.innerHTML = logoHtml;
+        });
+    </script>
+</body>
+</html>

@@ -239,6 +239,8 @@ function doPost(e) {
             // L'action 'getAbmcyPaymentStatus' est maintenant fusionnée dans 'getOrderById' pour éviter la redondance.
             case 'getPendingAbmcyPayments': // NOUVEAU: Pour la page admin de confirmation manuelle
                 return getPendingAbmcyPayments(origin);
+            case 'getAbmcyAggregatorHistory': // NOUVEAU: Pour l'onglet historique du tableau de bord
+                return getAbmcyAggregatorHistory(origin);
             case 'logAbmcyPaymentAttempt': // NOUVEAU: Pour enregistrer les infos de l'expéditeur
                 return logAbmcyPaymentAttempt(data, origin);
             case 'manuallyConfirmAbmcyPayment': // NOUVEAU: Pour la confirmation manuelle
@@ -1076,10 +1078,13 @@ function createAbmcyAggregatorInvoice(data, origin) {
         
         // NOUVEAU: Vérifier si l'entreprise a un lien Wave personnalisé
         let baseUrlToUse = providerConfig.baseUrl;
+        let isPartnerAggregator = false; // Flag pour savoir si c'est un agrégateur partenaire
+
         if (businessId && selectedProvider === 'wave') {
              const businessWaveUrl = getBusinessWaveUrl(businessId);
              if (businessWaveUrl && businessWaveUrl.trim() !== "") {
                  baseUrlToUse = businessWaveUrl;
+                 isPartnerAggregator = true;
              }
         }
 
@@ -1099,7 +1104,7 @@ function createAbmcyAggregatorInvoice(data, origin) {
             data.adresseLivraison, selectedProvider, data.notes || '',
             transactionReference, // Nouvelle colonne pour la référence
             initiationTimestamp, // Nouvelle colonne pour le timestamp d'initiation
-            '', '', // NomExpediteur, NumeroExpediteur (remplis plus tard)
+            data.customer.name, data.customer.phone, // CORRECTION: Enregistrer le nom et le numéro dès la création pour le tableau de bord
             businessId // NOUVEAU: CompteID
         ]);
 
@@ -1120,8 +1125,10 @@ function createAbmcyAggregatorInvoice(data, origin) {
         }
 
         // 2. NOUVEAU: Construire l'URL de redirection vers notre page intermédiaire abmcymarket.html
-        // On passe les informations nécessaires en paramètres d'URL.
-        const aggregatorPageUrl = "https://abmcymarket.abmcy.com/abmcy_aggregator.html";
+        // Si c'est un partenaire avec son propre lien, on redirige vers partner_aggregator.html
+        const aggregatorPageUrl = isPartnerAggregator 
+            ? "https://abmcymarket.abmcy.com/partner_aggregator.html" 
+            : "https://abmcymarket.abmcy.com/abmcy_aggregator.html";
 
         // AMÉLIORATION: Nettoyer l'URL de base pour ne garder que la partie avant les paramètres.
         // Cela évite de passer des placeholders comme {amount} à la page de l'agrégateur.
@@ -1131,7 +1138,7 @@ function createAbmcyAggregatorInvoice(data, origin) {
         // L'ancienne logique de remplacement est maintenant gérée par la page abmcymarket.html elle-même.
         
         // NOUVEAU: Envoyer l'email de "Paiement en attente" au client avec l'URL de la page d'instructions
-        const emailData = { customerEmail: data.customer.email, orderId: idCommande, total: data.total, paymentUrl: paymentUrl, paymentProvider: providerConfig.name };
+        const emailData = { customerEmail: data.customer.email, orderId: idCommande, total: data.total, paymentUrl: paymentUrl, paymentProvider: providerConfig.name, businessId: businessId };
         sendAbmcyStatusEmail(emailData, 'pending');
 
         // NOUVEAU: Envoyer un email de notification à l'admin avec le lien de confirmation
@@ -1211,11 +1218,11 @@ function sendAbmcyStatusEmail(data, statusType) {
         return;
     }
 
-    let subject, body;
+    let subject, content;
 
     if (statusType === 'pending') {
         subject = `Votre commande #${data.orderId} est en attente de paiement`;
-        body = `
+        content = `
             <h2>Bonjour,</h2>
             <p>Votre commande <strong>#${data.orderId}</strong> a bien été enregistrée et est en attente de votre paiement.</p>
             <p>Pour finaliser votre commande, veuillez effectuer le paiement de <strong>${data.total.toLocaleString('fr-FR')} F CFA</strong> via <strong>${data.paymentProvider}</strong>.</p>
@@ -1229,20 +1236,23 @@ function sendAbmcyStatusEmail(data, statusType) {
             <p>Merci de votre confiance,<br>L'équipe ABMCY MARKET.</p>
         `;
     } else if (statusType === 'confirmed') {
-        subject = `Paiement confirmé pour votre commande #${data.orderId}`;
-        body = `
-            <h2>Bonjour,</h2>
-            <p>Bonne nouvelle ! Nous avons bien reçu votre paiement pour la commande <strong>#${data.orderId}</strong>.</p>
-            <p>Votre commande est maintenant confirmée et nous allons commencer à la préparer pour l'expédition.</p>
-            <p>Vous pouvez suivre son statut à tout moment sur notre site.</p>
-            <p>Merci de votre confiance,<br>L'équipe ABMCY MARKET.</p>
+        subject = `Confirmation de paiement - Commande #${data.orderId}`;
+        content = `
+            <h2 style="color: #28a745; text-align: center;">Paiement Confirmé</h2>
+            <p>Bonjour,</p>
+            <p>Nous avons le plaisir de vous confirmer la bonne réception de votre paiement d'un montant de <strong>${data.total.toLocaleString('fr-FR')} F CFA</strong> pour la commande <strong>#${data.orderId}</strong>.</p>
+            <p>Votre commande est désormais validée et en cours de préparation.</p>
+            <p>Vous pouvez suivre son avancement ici : <a href="https://abmcymarket.abmcy.com/suivi-commande.html?orderId=${data.orderId}" style="color: #D4AF37; font-weight: bold;">Suivre ma commande</a></p>
+            <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
+            <p style="font-size: 12px; color: #777; text-align: center;">Merci de votre confiance.</p>
         `;
     } else {
         return; // Type de statut non reconnu
     }
 
     try {
-        MailApp.sendEmail(data.customerEmail, subject, "", { htmlBody: body });
+        const htmlBody = getEmailTemplate(content, data.businessId);
+        MailApp.sendEmail(data.customerEmail, subject, "", { htmlBody: htmlBody });
         logAction('sendAbmcyStatusEmail', { orderId: data.orderId, email: data.customerEmail, status: statusType });
     } catch (error) {
         logError('sendAbmcyStatusEmail', error);
@@ -1324,6 +1334,31 @@ function getPendingAbmcyPayments(origin) {
 }
 
 /**
+ * NOUVEAU: Récupère l'historique complet de l'agrégateur ABMCY.
+ * Pour l'onglet "Historique" du tableau de bord.
+ */
+function getAbmcyAggregatorHistory(origin) {
+    try {
+        const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.ABMCY_AGGREGATOR_HISTORY);
+        if (!sheet) return createJsonResponse({ success: true, data: [] }, origin);
+        
+        const data = sheet.getDataRange().getValues();
+        const headers = data.shift();
+        
+        const history = data.map(row => {
+            return headers.reduce((obj, header, i) => {
+                obj[header] = row[i];
+                return obj;
+            }, {});
+        }).reverse(); // Le plus récent en premier
+        
+        return createJsonResponse({ success: true, data: history }, origin);
+    } catch (e) {
+        return createJsonResponse({ success: false, error: e.message }, origin);
+    }
+}
+
+/**
  * NOUVEAU: Confirme un paiement via le lien partenaire (sans mot de passe admin).
  */
 function partnerConfirmPayment(data, origin) {
@@ -1357,18 +1392,45 @@ function manuallyConfirmAbmcyPayment(data, origin) {
         // Envoi des emails (Client + Partenaire)
         const customerEmail = findCustomerEmailByOrderId(data.orderId, allData, headers);
         const total = allData[rowIndex][totalIndex];
+        const businessId = allData[rowIndex][compteIdIndex];
         
         if (customerEmail) {
-            sendAbmcyStatusEmail({ customerEmail: customerEmail, orderId: data.orderId, total: total }, 'confirmed');
+            sendAbmcyStatusEmail({ customerEmail: customerEmail, orderId: data.orderId, total: total, businessId: businessId }, 'confirmed');
         }
 
         // Notifier le partenaire
-        const businessId = allData[rowIndex][compteIdIndex];
         if (businessId) {
             const businessEmail = getBusinessEmail(businessId);
             if (businessEmail) {
-                MailApp.sendEmail(businessEmail, `[Partenaire] Paiement confirmé #${data.orderId}`, "Le paiement a été validé manuellement par l'admin.");
+                const partnerSubject = `[Partenaire] Paiement Reçu - Commande #${data.orderId}`;
+                const partnerContent = `
+                    <h2 style="color: #28a745;">Paiement Validé</h2>
+                    <p>Cher Partenaire,</p>
+                    <p>Le paiement pour la commande <strong>#${data.orderId}</strong> a été confirmé par l'administration.</p>
+                    <p><strong>Montant total de la commande :</strong> ${total.toLocaleString('fr-FR')} F CFA</p>
+                    <div style="background-color: #f8f9fa; padding: 15px; border-left: 4px solid #28a745; margin: 20px 0;">
+                        <p style="margin: 0; font-weight: bold;">Vous pouvez procéder à la préparation et à la livraison.</p>
+                    </div>
+                `;
+                const partnerBody = getEmailTemplate(partnerContent, null); // Utilise le branding ABMCY pour le partenaire
+                MailApp.sendEmail(businessEmail, partnerSubject, "", { htmlBody: partnerBody });
             }
+        }
+
+        // NOUVEAU: Enregistrer la confirmation dans l'historique
+        const historySheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.ABMCY_AGGREGATOR_HISTORY);
+        if (historySheet) {
+             historySheet.appendRow([
+                new Date(), 
+                data.orderId, 
+                total, 
+                "Manuel", 
+                "CONFIRMATION_MANUELLE", 
+                "Admin", 
+                "", 
+                "Confirmé", 
+                "Validé manuellement"
+            ]);
         }
 
         logAction('manuallyConfirmAbmcyPayment', { orderId: data.orderId, admin: 'manual' });
@@ -1482,36 +1544,31 @@ function sendOrderConfirmationEmail(orderData, originalData, type) {
             }
         }
 
-        // NOUVEAU: En-tête d'email commun avec logo dynamique
-        const emailHeader = `
-            <div style="text-align: center; padding: 20px; background-color: #f8f9fa; border-bottom: 3px solid #D4AF37;">
-                <img src="${businessLogo}" alt="${businessName}" style="max-height: 80px; width: auto;">
-                <p style="margin: 5px 0; font-size: 14px; color: #666;">Propulsé par ABMCY MARKET</p>
-            </div>
-            <div style="padding: 20px;">
-        `;
-        const emailFooter = `</div>`;
-
         // 1. Envoyer l'email à l'administrateur
-        let adminSubject, adminBodyHTML;
+        let adminSubject, adminContent;
         const adminConfirmationUrl = ScriptApp.getService().getUrl() + "?action=showAbmcyAdmin";
 
         if (type === 'abmcy_pending') {
             adminSubject = `⏳ Paiement initié pour commande #${orderData.id}`;
-            adminBodyHTML = `
-                ${emailHeader}
+            adminContent = `
                 <p>Un paiement a été initié via l'agrégateur ABMCY pour la commande <strong>#${orderData.id}</strong>.</p>
                 <p><strong>Montant :</strong> ${orderData.total.toLocaleString('fr-FR')} F CFA</p>
                 <p>Veuillez vérifier la réception des fonds avant de confirmer manuellement.</p>
                 <a href="${adminConfirmationUrl}" style="display: inline-block; padding: 10px 15px; background-color: #28a745; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;">Confirmer le paiement</a>
-                ${emailFooter}
+            `;
+        } else if (type === 'partner_aggregator_pending') {
+            // NOUVEAU: Notification Admin pour paiement partenaire (Info seulement)
+            adminSubject = `[Info] Paiement Partenaire initié - Commande #${orderData.id}`;
+            adminContent = `
+                <p>Un paiement a été initié directement vers le compte Wave du partenaire pour la commande <strong>#${orderData.id}</strong>.</p>
+                <p><strong>Montant :</strong> ${orderData.total.toLocaleString('fr-FR')} F CFA</p>
+                <p>Le partenaire a reçu un email pour confirmer la réception des fonds.</p>
             `;
         } else { // 'cod' ou autre
             adminSubject = `Nouvelle commande #${orderData.id} (Paiement à la livraison)`;
             // NOUVEAU: Email admin beaucoup plus détaillé
             const productDetailsHTML = originalData.produits.map(p => `<li>${p.name} (x${p.quantity}) - ${p.price.toLocaleString('fr-FR')} F CFA</li>`).join('');
-            adminBodyHTML = `
-                ${emailHeader}
+            adminContent = `
                 <h2>Nouvelle commande #${orderData.id}</h2>
                 <p><strong>Vendeur :</strong> ${businessName}</p>
                 <p><strong>Client :</strong> ${originalData.customer.name} (${originalData.customer.email}, Tél: ${originalData.customer.phone})</p>
@@ -1524,23 +1581,37 @@ function sendOrderConfirmationEmail(orderData, originalData, type) {
                 <ul>${productDetailsHTML}</ul>
                 <hr>
                 <p><strong>Note du client :</strong> ${originalData.notes || 'Aucune'}</p>
-                ${emailFooter}
             `;
         }
-        MailApp.sendEmail(ADMIN_EMAIL, adminSubject, "", { htmlBody: adminBodyHTML });
+        const adminBody = getEmailTemplate(adminContent, orderData.businessId);
+        MailApp.sendEmail(ADMIN_EMAIL, adminSubject, "", { htmlBody: adminBody });
         logAction('sendAdminConfirmationEmail', { orderId: orderData.id, type: type });
 
         // NOUVEAU: Envoyer une copie à l'entreprise partenaire si applicable
-        // CORRECTION: Le partenaire ne doit pas recevoir de demande de confirmation pour l'agrégateur ABMCY (type 'abmcy_pending')
-        if (partnerEmail && type !== 'abmcy_pending') {
+        if (partnerEmail) {
             const partnerSubject = `[Partenaire] Nouvelle commande #${orderData.id}`;
             
-            
-           // NOUVEAU: Personnalisation du corps de l'email pour le partenaire
-            let partnerBodyHTML = adminBodyHTML;
-
-            MailApp.sendEmail(partnerEmail, partnerSubject, "", { htmlBody: partnerBodyHTML });
-            logAction('sendPartnerConfirmationEmail', { orderId: orderData.id, businessId: orderData.businessId, email: partnerEmail });
+            if (type === 'partner_aggregator_pending') {
+                // NOUVEAU: Email spécifique pour le partenaire lui demandant de confirmer SON paiement
+                const confirmationLink = `https://abmcymarket.abmcy.com/entreprise/confirmation-paiement-partenaire.html?orderId=${orderData.id}&compteId=${orderData.businessId}`;
+                const partnerContent = `
+                    <h2 style="color: #D4AF37;">Action Requise : Paiement Initié</h2>
+                    <p>Un client a initié un paiement de <strong>${orderData.total.toLocaleString('fr-FR')} F CFA</strong> sur votre compte Wave pour la commande <strong>#${orderData.id}</strong>.</p>
+                    <p>Veuillez vérifier votre solde Wave.</p>
+                    <div style="text-align: center; margin: 25px 0;">
+                        <a href="${confirmationLink}" style="background-color: #28a745; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold;">Confirmer la réception des fonds</a>
+                    </div>
+                    <p style="font-size: 12px; color: #666;">En cliquant, vous validerez la commande et le client recevra sa facture.</p>
+                `;
+                const partnerBody = getEmailTemplate(partnerContent, null);
+                MailApp.sendEmail(partnerEmail, `[ACTION REQUISE] Confirmez le paiement #${orderData.id}`, "", { htmlBody: partnerBody });
+                logAction('sendPartnerConfirmationEmail', { orderId: orderData.id, type: 'request_confirmation' });
+            } else if (type !== 'abmcy_pending') {
+                // Cas standard (COD ou déjà payé)
+                const partnerBody = getEmailTemplate(adminContent, null);
+                MailApp.sendEmail(partnerEmail, partnerSubject, "", { htmlBody: partnerBody });
+                logAction('sendPartnerConfirmationEmail', { orderId: orderData.id, type: 'notification' });
+            }
         }
 
         // NOUVEAU: Génération de la facture PDF
@@ -1557,8 +1628,7 @@ function sendOrderConfirmationEmail(orderData, originalData, type) {
         if (orderData.customerEmail) {
             const customerSubject = `Confirmation de votre commande #${orderData.id}`;
             const productDetailsHTML = originalData.produits.map(p => `<li>${p.name} (x${p.quantity}) - ${p.price.toLocaleString('fr-FR')} F CFA</li>`).join('');
-            const customerBodyHTML = `
-                ${emailHeader}
+            const customerContent = `
                 <h2>Bonjour,</h2>
                 <p>Merci pour votre commande chez <strong>${businessName}</strong> !</p>
                 <p>Nous avons bien reçu votre commande <strong>#${orderData.id}</strong> et nous la préparons pour l'expédition.</p>
@@ -1567,10 +1637,10 @@ function sendOrderConfirmationEmail(orderData, originalData, type) {
                 <p><strong>Total : ${orderData.total.toLocaleString('fr-FR')} F CFA</strong></p>
                 <p>Vous pouvez suivre l'avancement de votre commande à tout moment ici : <a href="https://abmcymarket.abmcy.com/suivi-commande.html?orderId=${orderData.id}">Suivre ma commande</a></p>
                 <p>L'équipe ${businessName} & ABMCY MARKET.</p>
-                ${emailFooter}
             `;
             
-            const emailOptions = { htmlBody: customerBodyHTML };
+            const customerBody = getEmailTemplate(customerContent, orderData.businessId);
+            const emailOptions = { htmlBody: customerBody };
             if (invoiceBlob) emailOptions.attachments = [invoiceBlob];
 
             MailApp.sendEmail(orderData.customerEmail, customerSubject, "", emailOptions);
@@ -1697,6 +1767,41 @@ function getBusinessDetails(compteId) {
         logo: logoIndex > -1 ? row[logoIndex] : null,
         name: nameIndex > -1 ? row[nameIndex] : null
     };
+}
+
+/**
+ * NOUVEAU: Génère un modèle d'email HTML standardisé avec le logo de l'entreprise.
+ * @param {string} content - Le contenu HTML du corps de l'email.
+ * @param {string} [businessId] - L'ID de l'entreprise pour personnaliser le logo (optionnel).
+ * @returns {string} Le code HTML complet de l'email.
+ */
+function getEmailTemplate(content, businessId) {
+    let businessLogo = "https://i.postimg.cc/5tQq2dm7/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png";
+    let businessName = "ABMCY MARKET";
+
+    if (businessId) {
+        const bizDetails = getBusinessDetails(businessId);
+        if (bizDetails) {
+            if (bizDetails.logo) businessLogo = bizDetails.logo;
+            if (bizDetails.name) businessName = bizDetails.name;
+        }
+    }
+
+    return `
+        <div style="font-family: 'Helvetica', sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #eee; border-radius: 5px; overflow: hidden;">
+            <div style="text-align: center; padding: 20px; background-color: #f8f9fa; border-bottom: 3px solid #D4AF37;">
+                <img src="${businessLogo}" alt="${businessName}" style="max-height: 80px; width: auto;">
+                <p style="margin: 5px 0; font-size: 14px; color: #666;">Propulsé par ABMCY MARKET</p>
+            </div>
+            <div style="padding: 20px; background-color: #ffffff;">
+                ${content}
+            </div>
+            <div style="background-color: #f8f9fa; padding: 15px; text-align: center; font-size: 12px; color: #777; border-top: 1px solid #eee;">
+                <p>&copy; ${new Date().getFullYear()} ${businessName}. Tous droits réservés.</p>
+                <p>ABMCY MARKET - Votre marché en ligne.</p>
+            </div>
+        </div>
+    `;
 }
 
 /**

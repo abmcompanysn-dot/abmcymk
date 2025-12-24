@@ -1,6 +1,6 @@
 const CONFIG = {
     // NOUVEAU: URL de l'API CENTRALE qui gère maintenant tout (comptes, commandes, etc.)
-    ACCOUNT_API_URL:"https://script.google.com/macros/s/AKfycbyp4mJXsOcYy_2zD6ZFGde_Uc7cUSaQwqKxsz6gj1OMoMVKghBIBINcINUgDogdfOq6-A/exec",
+    ACCOUNT_API_URL:"https://script.google.com/macros/s/AKfycbx7rRZO_2TUCZC51fr9JNhXj4tXvWo8ScUolH9TDjPdeKQ3k9jD2Rd7p8W_gKmdVcdzxw/exec",
     // Les URL spécifiques pour commandes, livraisons et notifications sont maintenant obsolètes
     // car tout est géré par l'API centrale (ACCOUNT_API_URL).
     
@@ -1535,7 +1535,6 @@ async function loadPaymentMethods() {
             <img src="https://www.wave.com/img/nav-logo.png" alt="Wave" class="h-6">
             <span class="text-sm font-medium">Wave</span>
         </label>
-        <!--
         <label for="orange-money" class="flex items-center space-x-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-100 has-[:checked]:bg-gold/10 has-[:checked]:border-gold">
             <input type="radio" id="orange-money" name="payment-provider" value="orange-money" class="form-radio h-4 w-4 text-gold focus:ring-gold">
             <img src="https://www.orange-sonatel.com/wp-content/uploads/2022/09/Orange-Money-logo.jpg" alt="Orange Money" class="h-6">
@@ -1546,7 +1545,6 @@ async function loadPaymentMethods() {
             <img src="https://www.freemoney.sn/wp-content/uploads/2023/03/Free-Money-Logo-01.png" alt="Free Money" class="h-6">
             <span class="text-sm font-medium">Free Money</span>
         </label>
-        -->
     `;
 
     mobilePaymentOptionsContainer.innerHTML = optionsHTML;
@@ -1715,18 +1713,6 @@ async function processCheckout(event) {
 
     statusDiv.textContent = 'Veuillez patienter...';
 
-    // NOUVEAU: Récupérer les paramètres de paiement pour vérifier l'activation des agrégateurs
-    let paymentSettings;
-    try {
-        const settingsResponse = await fetch(CONFIG.ACCOUNT_API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ action: 'getPaymentSettings' }) });
-        const settingsResult = await settingsResponse.json();
-        if (settingsResult.success) paymentSettings = settingsResult.data;
-        else throw new Error(settingsResult.error || "Impossible de récupérer les paramètres de paiement.");
-    } catch (error) {
-        statusDiv.textContent = `Erreur lors de la récupération des paramètres de paiement: ${error.message}`;
-        statusDiv.className = 'mt-4 text-center font-semibold text-red-600'; return;
-        submitButton.disabled = false; submitButton.textContent = 'Valider la commande';
-    }
     // 1. Récupérer les données du formulaire
     const selectedPaymentMethodElement = form.querySelector('input[name="payment-method"]:checked');
     const selectedPaymentProviderElement = form.querySelector('input[name="payment-provider"]:checked'); // NOUVEAU
