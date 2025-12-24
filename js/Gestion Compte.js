@@ -1124,7 +1124,7 @@ function createAbmcyAggregatorInvoice(data, origin) {
         // AMÉLIORATION: Nettoyer l'URL de base pour ne garder que la partie avant les paramètres.
         // Cela évite de passer des placeholders comme {amount} à la page de l'agrégateur.
         const cleanBaseUrl = baseUrlToUse.split('?')[0]; // Utilise l'URL personnalisée ou celle par défaut
-        const paymentUrl = `${aggregatorPageUrl}?orderId=${idCommande}&total=${data.total}&ref=${transactionReference}&provider=${selectedProvider}&baseUrl=${encodeURIComponent(cleanBaseUrl)}`;
+        const paymentUrl = `${aggregatorPageUrl}?orderId=${idCommande}&amount=${data.total}&ref=${transactionReference}&provider=${selectedProvider}&baseUrl=${encodeURIComponent(cleanBaseUrl)}`;
         
         // L'ancienne logique de remplacement est maintenant gérée par la page abmcymarket.html elle-même.
         
@@ -1273,58 +1273,101 @@ function getBusinessWaveUrl(compteId) {
 }
 
 /**
- * NOUVEAU: Enregistre une tentative de paiement dans l'historique de l'agrégateur et envoie un email au client.
- * @param {object} data - Données de la tentative de paiement.
- * @param {string} origin - L'origine de la requête.
- * @returns {GoogleAppsScript.Content.TextOutput} Réponse JSON.
+ * NOUVEAU: Récupère les paiements ABMCY en attente pour l'admin.
  */
-function initiateAbmcyPayment(data, origin) {
+function getPendingAbmcyPayments(origin) {
     try {
-        const historySheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.ABMCY_AGGREGATOR_HISTORY);
-        if (!historySheet) {
-            throw new Error(`La feuille '${SHEET_NAMES.ABMCY_AGGREGATOR_HISTORY}' est introuvable.`);
-        }
-
-        // Les en-têtes attendus dans la feuille d'historique
-        const headers = ["Timestamp", "IDCommande", "Montant", "MoyenPaiement", "TransactionReference", "NomExpediteur", "NumeroExpediteur", "StatutLog", "NotesAdmin"];
+        const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.ORDERS);
+        const data = sheet.getDataRange().getValues();
+        const headers = data.shift();
+        const statusIndex = headers.indexOf("Statut");
         
-        // Construire la ligne à partir des données reçues
-        const newRow = headers.map(header => {
-            if (header === "Timestamp") return new Date();
-            return data[header] || ''; // Utiliser la valeur de 'data' ou une chaîne vide si non fournie
-        });
+        // Filtrer les commandes en attente de paiement ABMCY
+        const pending = data.filter(row => row[statusIndex] && String(row[statusIndex]).startsWith("En attente de paiement ABMCY"))
+                            .map(row => {
+                                return headers.reduce((obj, header, i) => {
+                                    obj[header] = row[i];
+                                    return obj;
+                                }, {});
+                            });
+        return createJsonResponse({ success: true, data: pending }, origin);
+    } catch (e) {
+        return createJsonResponse({ success: false, error: e.message }, origin);
+    }
+}
 
-        historySheet.appendRow(newRow);
+/**
+ * NOUVEAU: Confirme manuellement un paiement ABMCY.
+ */
+function manuallyConfirmAbmcyPayment(data, origin) {
+    try {
+        const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.ORDERS);
+        const allData = sheet.getDataRange().getValues();
+        const headers = allData[0];
+        const idIndex = headers.indexOf("IDCommande");
+        const statusIndex = headers.indexOf("Statut");
+        const etapeConfirmeeIndex = headers.indexOf("EtapeConfirmee");
+        const clientIndex = headers.indexOf("IDClient");
+        const totalIndex = headers.indexOf("MontantTotal");
+        const compteIdIndex = headers.indexOf("CompteID");
 
-        // Envoyer l'email de rappel au client
-        if (data.EmailClient) {
-            const subject = `Finalisez le paiement de votre commande #${data.IDCommande}`;
-            // Reconstruire l'URL de la page de l'agrégateur pour l'email
-            const aggregatorUrl = `https://abmcymarket.abmcy.com/abmcy_aggregator.html?orderId=${data.IDCommande}&amount=${data.Montant}&provider=${data.MoyenPaiement}`;
-            const body = `
-                <p>Bonjour ${data.NomExpediteur},</p>
-                <p>Vous avez initié un paiement pour la commande <strong>#${data.IDCommande}</strong> d'un montant de <strong>${data.Montant.toLocaleString('fr-FR')} F CFA</strong>.</p>
-                <p>Si vous n'avez pas encore finalisé la transaction, vous pouvez le faire en cliquant sur le lien ci-dessous :</p>
-                <p><a href="${aggregatorUrl}" style="font-weight:bold;">Finaliser mon paiement</a></p>
-                <p>Ce lien vous redirigera vers la page de paiement sécurisée.</p>
-                <p>L'équipe ABMCY MARKET</p>
-            `;
-            MailApp.sendEmail(data.EmailClient, subject, "", { htmlBody: body });
+        const rowIndex = allData.findIndex(row => row[idIndex] === data.orderId);
+        if (rowIndex === -1) return createJsonResponse({ success: false, error: "Commande non trouvée" }, origin);
+
+        // Mise à jour
+        const rowNum = rowIndex + 1;
+        sheet.getRange(rowNum, statusIndex + 1).setValue("Payée et confirmée");
+        sheet.getRange(rowNum, etapeConfirmeeIndex + 1).setValue(true);
+
+        // Envoi des emails (Client + Partenaire)
+        const customerEmail = findCustomerEmailByOrderId(data.orderId, allData, headers);
+        const total = allData[rowIndex][totalIndex];
+        
+        if (customerEmail) {
+            sendAbmcyStatusEmail({ customerEmail: customerEmail, orderId: data.orderId, total: total }, 'confirmed');
         }
 
-        logAction('initiateAbmcyPayment', { 
-            orderId: data.IDCommande, 
-            provider: data.MoyenPaiement,
-            emailSent: !!data.EmailClient 
-        });
+        // Notifier le partenaire
+        const businessId = allData[rowIndex][compteIdIndex];
+        if (businessId) {
+            const businessEmail = getBusinessEmail(businessId);
+            if (businessEmail) {
+                MailApp.sendEmail(businessEmail, `[Partenaire] Paiement confirmé #${data.orderId}`, "Le paiement a été validé manuellement par l'admin.");
+            }
+        }
 
-        // Comme c'est une requête "fire-and-forget", on renvoie juste un succès.
-        return createJsonResponse({ success: true, message: "Initiation de paiement enregistrée." }, origin);
-
-    } catch (error) {
-        logError(JSON.stringify({ action: 'initiateAbmcyPayment', data }), error);
-        return createJsonResponse({ success: false, error: error.message }, origin);
+        logAction('manuallyConfirmAbmcyPayment', { orderId: data.orderId, admin: 'manual' });
+        return createJsonResponse({ success: true, message: "Paiement confirmé." }, origin);
+    } catch (e) {
+        return createJsonResponse({ success: false, error: e.message }, origin);
     }
+}
+
+/**
+ * NOUVEAU: Marque manuellement un paiement comme expiré.
+ */
+function manuallyExpireAbmcyPayment(data, origin) {
+    try {
+        const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.ORDERS);
+        const allData = sheet.getDataRange().getValues();
+        const idIndex = allData[0].indexOf("IDCommande");
+        const statusIndex = allData[0].indexOf("Statut");
+
+        const rowIndex = allData.findIndex(row => row[idIndex] === data.orderId);
+        if (rowIndex === -1) return createJsonResponse({ success: false, error: "Commande non trouvée" }, origin);
+
+        sheet.getRange(rowIndex + 1, statusIndex + 1).setValue("Expiré (Manuel)");
+        return createJsonResponse({ success: true, message: "Commande marquée comme expirée." }, origin);
+    } catch (e) {
+        return createJsonResponse({ success: false, error: e.message }, origin);
+    }
+}
+
+/**
+ * NOUVEAU: Alias pour initiateAbmcyPayment (pour compatibilité avec les logs).
+ */
+function logAbmcyPaymentAttempt(data, origin) {
+    return initiateAbmcyPayment(data, origin);
 }
 
 /**

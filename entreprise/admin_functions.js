@@ -4,7 +4,7 @@
  */
 
 // URL de l'API Centrale (Gestion Compte) - Modifiez-la ici pour qu'elle s'applique partout
-const GLOBAL_CENTRAL_API_URL = "https://script.google.com/macros/s/AKfycbwC_NAp654CKKyz4IRbFzBFz2leFlRu38gk-d3gfWVWNtoythsp9CVsN-nVdrk07pEcvA/exec";
+const GLOBAL_CENTRAL_API_URL = "https://script.google.com/macros/s/AKfycbxxC8caNFWJ-1eUucxrgFo5j8QvEnRfhQdcecs_407IRqwGKby7zbYVVywCyxgbTP7gdA/exec";
 
 const IMGBB_API_KEY = '96ff1e4e9603661db4d410f53df99454';
 const IMGBB_UPLOAD_URL = 'https://api.imgbb.com/1/upload';

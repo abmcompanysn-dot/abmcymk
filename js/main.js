@@ -1,6 +1,6 @@
 const CONFIG = {
     // NOUVEAU: URL de l'API CENTRALE qui gère maintenant tout (comptes, commandes, etc.)
-    ACCOUNT_API_URL:"https://script.google.com/macros/s/AKfycbwC_NAp654CKKyz4IRbFzBFz2leFlRu38gk-d3gfWVWNtoythsp9CVsN-nVdrk07pEcvA/exec",
+    ACCOUNT_API_URL:"https://script.google.com/macros/s/AKfycbxxC8caNFWJ-1eUucxrgFo5j8QvEnRfhQdcecs_407IRqwGKby7zbYVVywCyxgbTP7gdA/exec",
     // Les URL spécifiques pour commandes, livraisons et notifications sont maintenant obsolètes
     // car tout est géré par l'API centrale (ACCOUNT_API_URL).
     
@@ -134,7 +134,7 @@ async function initializeApp() {
 
     if (user) {
         // Si l'utilisateur est connecté et sur la page d'authentification, on le redirige vers son compte.
-        if (currentPage === 'authentification.html') {
+        if (currentPage === 'authentification.html' || currentPage === 'authentification') {
             window.location.href = 'compte.html';
             return; // Arrêter l'exécution pour laisser la redirection se faire
         }
@@ -165,19 +165,19 @@ async function initializeApp() {
         initializeCheckoutPage();
     }
     // NOUVEAU: Initialiser immédiatement le squelette de la page catégorie si on y est.
-    if (window.location.pathname.endsWith('categorie.html')) {
+    if (window.location.pathname.match(/categorie(\.html)?$/)) {
         initializeCategoryPage();
     }
     // NOUVEAU: Initialiser la page de suivi de commande
-    if (window.location.pathname.endsWith('suivi-commande.html')) {
+    if (window.location.pathname.match(/suivi-commande(\.html)?$/)) {
         initializeOrderTrackingPage();
     }
     // NOUVEAU: Initialiser la page de confirmation
-    if (window.location.pathname.endsWith('confirmation.html')) {
+    if (window.location.pathname.match(/confirmation(\.html)?$/)) {
         initializeConfirmationPage();
     }
     // NOUVEAU: Initialiser la page FAQ
-    if (window.location.pathname.endsWith('faq.html')) {
+    if (window.location.pathname.match(/faq(\.html)?$/)) {
         initializeFaqPage();
     }
 
@@ -190,7 +190,7 @@ async function initializeApp() {
 
     // NOUVEAU: Optimisation pour la page d'authentification.
     // On ne charge pas le catalogue complet sur cette page pour la rendre plus rapide.
-    if (window.location.pathname.includes('authentification.html')) {
+    if (window.location.pathname.includes('authentification')) {
         console.log("Page d'authentification détectée. Le chargement du catalogue est ignoré.");
         return; // On arrête l'initialisation ici.
     }
@@ -211,11 +211,13 @@ async function initializeApp() {
       populateNavLinks(catalog);
   
       // Remplir le contenu spécifique à la page actuelle
-      if (window.location.pathname.endsWith('recherche.html')) displaySearchResults(catalog);
-      if (window.location.pathname.endsWith('categorie.html')) fillCategoryProducts(catalog);
-      if (window.location.pathname.endsWith('categorie.html')) updateWhatsAppLinkForCategory(catalog); // NOUVEAU
-      if (window.location.pathname.endsWith('promotions.html')) displayPromotionProducts(catalog);
-      if (window.location.pathname.endsWith('produit.html')) loadProductPage(catalog);
+      if (window.location.pathname.match(/recherche(\.html)?$/)) displaySearchResults(catalog);
+      if (window.location.pathname.match(/categorie(\.html)?$/)) {
+          fillCategoryProducts(catalog);
+          updateWhatsAppLinkForCategory(catalog); // NOUVEAU
+      }
+      if (window.location.pathname.match(/promotions(\.html)?$/)) displayPromotionProducts(catalog);
+      if (window.location.pathname.match(/produit(\.html)?$/)) loadProductPage(catalog);
       
       // Remplir les sections de la page d'accueil
       if (document.getElementById('superdeals-products')) {
