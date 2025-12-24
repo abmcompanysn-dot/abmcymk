@@ -107,6 +107,11 @@ function doGet(e) {
         }
         return createJsonResponse({ success: true, data: availableTypes }, origin);
     }
+
+    // NOUVEAU: Génération du Sitemap XML pour l'indexation SEO des entreprises
+    if (action === 'sitemap') {
+        return generateSitemap(origin);
+    }
     
     // Réponse par défaut pour un simple test de l'API
     // CORRECTION: N'appelle plus addCorsHeaders
@@ -1046,6 +1051,12 @@ function createAbmcyAggregatorInvoice(data, origin) {
     lock.waitLock(30000);
 
     try {
+        // CORRECTION: Récupérer le businessId au tout début pour éviter l'erreur "ReferenceError"
+        let businessId = '';
+        if (data.produits && data.produits.length > 0) {
+            businessId = data.produits[0].businessId || '';
+        }
+
         const config = getConfig();
         if (!config.ABMCY_AGGREGATOR_ACTIVE) {
             logAction('createAbmcyAggregatorInvoice', { error: 'Aggregator inactive', configValue: config.ABMCY_AGGREGATOR_ACTIVE });
@@ -1073,12 +1084,6 @@ function createAbmcyAggregatorInvoice(data, origin) {
         const orderSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.ORDERS);
         const idCommande = "CMD-" + new Date().getTime();
         const transactionReference = "ABMCY-" + new Date().getTime(); // Référence unique pour le suivi
-
-        // NOUVEAU: Récupérer le businessId
-        let businessId = '';
-        if (data.produits && data.produits.length > 0) {
-            businessId = data.produits[0].businessId || '';
-        }
 
         // 1. Enregistrer la commande avec un statut "En attente de paiement ABMCY"
         const produitsDetails = data.produits.map(p => `${p.name} (x${p.quantity})`).join(', ');
@@ -2647,6 +2652,61 @@ function getVisitStats(data, origin) {
   const chartLabels = labels.map(key => { const p = key.split('-'); return `${p[2]}/${p[1]}`; });
 
   return createJsonResponse({ success: true, status: "success", labels: chartLabels, data: chartData }, origin);
+}
+
+/**
+ * NOUVEAU: Génère un sitemap XML dynamique pour les profils d'entreprises.
+ * Permet l'indexation par Google des pages entreprises, descriptions et services.
+ * @param {string} origin - L'origine de la requête.
+ * @returns {GoogleAppsScript.Content.TextOutput} Le contenu XML.
+ */
+function generateSitemap(origin) {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const entSheet = ss.getSheetByName(SHEET_NAMES.ENTREPRISES);
+    const slugSheet = ss.getSheetByName(SHEET_NAMES.SLUGS);
+    
+    if (!entSheet) {
+        return ContentService.createTextOutput('<error>Feuille Entreprises introuvable</error>')
+            .setMimeType(ContentService.MimeType.XML);
+    }
+
+    const entData = entSheet.getDataRange().getValues();
+    // Si la feuille Slugs existe, on prend les données, sinon tableau vide
+    const slugData = slugSheet ? slugSheet.getDataRange().getValues() : [];
+    
+    // Headers Entreprises (on saute la première ligne)
+    const entHeaders = entData.shift(); 
+    const idIndex = entHeaders.indexOf("NumeroCompte");
+    
+    // Base URL pour les profils publics
+    const baseUrl = "https://abmcymarket.abmcy.com/entreprise/babershop.html";
+    
+    let xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
+    xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n';
+    
+    // Ajouter la page d'accueil principale
+    xml += '  <url>\n    <loc>https://abmcymarket.abmcy.com/</loc>\n    <changefreq>daily</changefreq>\n    <priority>1.0</priority>\n  </url>\n';
+
+    entData.forEach(row => {
+        const id = row[idIndex];
+        if (!id) return;
+        
+        // Chercher si un slug (alias) existe pour ce compte
+        // On suppose que slugData a des en-têtes, donc on cherche dans tout le tableau
+        const slugRow = slugData.find(s => s[1] === id);
+        const slug = slugRow ? slugRow[0] : null;
+        
+        let loc = slug ? `${baseUrl}?alias=${slug}` : `${baseUrl}?compteId=${id}`;
+        
+        // Échapper les caractères spéciaux XML pour l'URL
+        loc = loc.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+        
+        xml += `  <url>\n    <loc>${loc}</loc>\n    <changefreq>weekly</changefreq>\n    <priority>0.8</priority>\n  </url>\n`;
+    });
+    
+    xml += '</urlset>';
+    
+    return ContentService.createTextOutput(xml).setMimeType(ContentService.MimeType.XML);
 }
 
 /**

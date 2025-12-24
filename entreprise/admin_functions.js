@@ -4,7 +4,7 @@
  */
 
 // URL de l'API Centrale (Gestion Compte) - Modifiez-la ici pour qu'elle s'applique partout
-const GLOBAL_CENTRAL_API_URL = "https://script.google.com/macros/s/AKfycbwkN4lQE8zw-jdJLgAvBYZBk64jzBY2d0qqKX3VvPCGNygPDY4S9etGxTxhexeoIBUw3A/exec";
+const GLOBAL_CENTRAL_API_URL = "https://script.google.com/macros/s/AKfycbwC_NAp654CKKyz4IRbFzBFz2leFlRu38gk-d3gfWVWNtoythsp9CVsN-nVdrk07pEcvA/exec";
 
 const IMGBB_API_KEY = '96ff1e4e9603661db4d410f53df99454';
 const IMGBB_UPLOAD_URL = 'https://api.imgbb.com/1/upload';
@@ -13,7 +13,7 @@ const IMGBB_UPLOAD_URL = 'https://api.imgbb.com/1/upload';
  * Upload une image vers ImgBB et retourne l'URL.
  * @param {File} imageFile - Le fichier image sélectionné par l'utilisateur.
  * @returns {Promise<string>} L'URL de l'image uploadée ou null si échec.
- */
+ */A
 async function uploadImageToImgBB(imageFile) {
     if (!imageFile) return null;
 

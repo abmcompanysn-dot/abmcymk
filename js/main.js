@@ -1,6 +1,6 @@
 const CONFIG = {
     // NOUVEAU: URL de l'API CENTRALE qui gère maintenant tout (comptes, commandes, etc.)
-    ACCOUNT_API_URL:"https://script.google.com/macros/s/AKfycbwkN4lQE8zw-jdJLgAvBYZBk64jzBY2d0qqKX3VvPCGNygPDY4S9etGxTxhexeoIBUw3A/exec",
+    ACCOUNT_API_URL:"https://script.google.com/macros/s/AKfycbwC_NAp654CKKyz4IRbFzBFz2leFlRu38gk-d3gfWVWNtoythsp9CVsN-nVdrk07pEcvA/exec",
     // Les URL spécifiques pour commandes, livraisons et notifications sont maintenant obsolètes
     // car tout est géré par l'API centrale (ACCOUNT_API_URL).
     
@@ -409,7 +409,7 @@ function saveCart(cart) {
  * @param {number} price - Le prix du produit.
  * @param {string} imageUrl - L'URL de l'image du produit.
  */
-function addToCart(event, productId, name, price, imageUrl) {
+function addToCart(event, productId, name, price, imageUrl, businessId) {
     if (event) {
         event.preventDefault();
         event.stopPropagation();
@@ -442,7 +442,7 @@ function addToCart(event, productId, name, price, imageUrl) {
     } else {
         // Nouveau produit
         // On ne stocke plus les infos de livraison ici.
-        cart.push({ key: itemKey, productId, name, price, imageUrl, quantity, variants: selectedVariants });
+        cart.push({ key: itemKey, productId, name, price, imageUrl, quantity, variants: selectedVariants, businessId: businessId || '' });
     }
     
     saveCart(cart);
@@ -1154,7 +1154,8 @@ function loadProductPage(catalog) {
         renderCategorySpecificDetails(product, variantsContainer, specsContainer, catalog);
 
         // Mettre à jour le bouton "Ajouter au panier"
-        addToCartButton.setAttribute('onclick', `addToCart(event, '${product.IDProduit}', '${product.Nom}', ${product.PrixActuel}, '${product.ImageURL || CONFIG.DEFAULT_PRODUCT_IMAGE}')`);
+        const businessId = product.CompteID || '';
+        addToCartButton.setAttribute('onclick', `addToCart(event, '${product.IDProduit}', '${product.Nom}', ${product.PrixActuel}, '${product.ImageURL || CONFIG.DEFAULT_PRODUCT_IMAGE}', '${businessId}')`);
         const hasVariants = variantsContainer.innerHTML.trim() !== '';
         // Le bouton est désactivé si le produit est en rupture de stock ET qu'il n'y a pas de variantes.
         addToCartButton.disabled = (product.Stock <= 0 && !hasVariants);
@@ -2109,6 +2110,7 @@ function renderProductCard(product) { // This function remains synchronous as it
     const oldPrice = product.PrixAncien || 0;
     const discount = product['Réduction%'] || 0;
     const stock = product.Stock || 0;
+    const businessId = product.CompteID || '';
 
     // Pour la nouvelle carte de type AliExpress, on simplifie l'affichage
     return `
@@ -2121,7 +2123,7 @@ function renderProductCard(product) { // This function remains synchronous as it
             
             <!-- NOUVEAU: Conteneur pour les icônes d'action qui apparaissent au survol -->
             <div class="absolute top-2 right-2 flex flex-col space-y-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                <button onclick="addToCart(event, '${product.IDProduit}', '${product.Nom}', ${price}, '${product.ImageURL}')" title="Ajouter au panier" class="bg-white p-2 rounded-full shadow-lg hover:bg-gold hover:text-white">
+                <button onclick="addToCart(event, '${product.IDProduit}', '${product.Nom}', ${price}, '${product.ImageURL}', '${businessId}')" title="Ajouter au panier" class="bg-white p-2 rounded-full shadow-lg hover:bg-gold hover:text-white">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
                 </button>
                 <button onclick="shareProduct(event, '${product.IDProduit}')" title="Partager" class="bg-white p-2 rounded-full shadow-lg hover:bg-gold hover:text-white">

@@ -8,7 +8,7 @@
 // --- CONFIGURATION ---
 const ENTREPRISE_CONFIG = {
     // URL de l'API CENTRALE qui fournit les données publiques des entreprises
-    CENTRAL_API_URL: "https://script.google.com/macros/s/AKfycbwkN4lQE8zw-jdJLgAvBYZBk64jzBY2d0qqKX3VvPCGNygPDY4S9etGxTxhexeoIBUw3A/exec"
+    CENTRAL_API_URL: "https://script.google.com/macros/s/AKfycbwC_NAp654CKKyz4IRbFzBFz2leFlRu38gk-d3gfWVWNtoythsp9CVsN-nVdrk07pEcvA/exec"
 };
 
 /**
@@ -24,6 +24,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // NOUVEAU: Fonctions pour la lightbox, accessibles globalement
 window.openLightbox = openLightbox;
+window.shareBusiness = shareBusiness; // Rendre accessible globalement
 
 /**
  * Initialise la page en récupérant et affichant les données de l'entreprise.
@@ -98,6 +99,13 @@ async function initializeApp() {
 function displayBusinessInfo(info) {
     document.title = `${info.NomEntreprise} - ABMCY Market`; // Mettre à jour le titre de la page
     
+    // NOUVEAU: Mise à jour dynamique des balises Open Graph pour le partage (Facebook, WhatsApp)
+    updateMetaTag('og:title', `${info.NomEntreprise} - ABMCY Market`);
+    updateMetaTag('og:description', info.Description || `Découvrez les produits et services de ${info.NomEntreprise} sur ABMCY Market.`);
+    updateMetaTag('og:image', info.CoverImageUrl || info.LogoUrl || 'https://via.placeholder.com/1200x630');
+    updateMetaTag('og:url', window.location.href);
+    updateMetaTag('og:type', 'business.business');
+
     const heroSection = document.getElementById('hero-section');
     if (heroSection && info.CoverImageUrl) {
         heroSection.style.backgroundImage = `url('${info.CoverImageUrl}')`;
@@ -363,4 +371,40 @@ function openLightbox(imageUrl, captionText) {
  */
 function closeLightbox() {
     document.getElementById('lightbox').classList.add('opacity-0', 'pointer-events-none');
+}
+
+/**
+ * NOUVEAU: Helper pour mettre à jour ou créer une balise meta Open Graph.
+ * @param {string} property - La propriété de la balise (ex: 'og:title').
+ * @param {string} content - Le contenu à assigner.
+ */
+function updateMetaTag(property, content) {
+    if (!content) return;
+    let element = document.querySelector(`meta[property="${property}"]`);
+    if (!element) {
+        element = document.createElement('meta');
+        element.setAttribute('property', property);
+        document.head.appendChild(element);
+    }
+    element.setAttribute('content', content);
+}
+
+/**
+ * NOUVEAU: Partage la boutique via l'API native ou copie le lien.
+ */
+function shareBusiness() {
+    const businessName = document.getElementById('business-name').textContent || 'Boutique ABMCY Market';
+    const shareData = {
+        title: businessName,
+        text: `Découvrez ${businessName} sur ABMCY Market !`,
+        url: window.location.href
+    };
+
+    if (navigator.share) {
+        navigator.share(shareData).catch(console.error);
+    } else {
+        navigator.clipboard.writeText(window.location.href).then(() => {
+            alert('Lien de la boutique copié dans le presse-papier !');
+        }).catch(() => alert('Impossible de copier le lien.'));
+    }
 }
