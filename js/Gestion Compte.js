@@ -243,6 +243,10 @@ function doPost(e) {
                 return logAbmcyPaymentAttempt(data, origin);
             case 'manuallyConfirmAbmcyPayment': // NOUVEAU: Pour la confirmation manuelle
                 return manuallyConfirmAbmcyPayment(data, origin);
+            case 'partnerConfirmPayment': // NOUVEAU: Pour la confirmation par le partenaire (sans mot de passe admin)
+                return partnerConfirmPayment(data, origin);
+             case 'partnerConfirmPayment': // NOUVEAU: Pour la confirmation par le partenaire (sans mot de passe admin)
+                return partnerConfirmPayment(data, origin);    
             case 'manuallyExpireAbmcyPayment': // NOUVEAU: Pour l'expiration manuelle
                 return manuallyExpireAbmcyPayment(data, origin);
             case 'initiateAbmcyPayment': // NOUVEAU: Pour enregistrer la tentative de paiement et notifier le client
@@ -1297,6 +1301,14 @@ function getPendingAbmcyPayments(origin) {
 }
 
 /**
+ * NOUVEAU: Confirme un paiement via le lien partenaire (sans mot de passe admin).
+ */
+function partnerConfirmPayment(data, origin) {
+    // Réutilise la logique de confirmation manuelle
+    return manuallyConfirmAbmcyPayment(data, origin);
+}
+
+/**
  * NOUVEAU: Confirme manuellement un paiement ABMCY.
  */
 function manuallyConfirmAbmcyPayment(data, origin) {
@@ -1498,7 +1510,33 @@ function sendOrderConfirmationEmail(orderData, originalData, type) {
         // NOUVEAU: Envoyer une copie à l'entreprise partenaire si applicable
         if (partnerEmail) {
             const partnerSubject = `[Partenaire] Nouvelle commande #${orderData.id}`;
-            MailApp.sendEmail(partnerEmail, partnerSubject, "", { htmlBody: adminBodyHTML });
+            
+            
+           // NOUVEAU: Personnalisation du corps de l'email pour le partenaire
+            let partnerBodyHTML = adminBodyHTML;
+
+            if (type === 'abmcy_pending') {
+                const confirmationLink = `https://abmcymarket.abmcy.com/entreprise/confirmation-paiement-partenaire.html?orderId=${orderData.id}&compteId=${orderData.businessId}`;
+                
+                partnerBodyHTML = `
+                    ${emailHeader}
+                    <h2>Nouvelle commande #${orderData.id}</h2>
+                    <p><strong>Client :</strong> ${originalData.customer.name}</p>
+                    <p><strong>Montant :</strong> <strong style="color: #D4AF37;">${orderData.total.toLocaleString('fr-FR')} F CFA</strong></p>
+                    <p>Le client a initié un paiement via Wave (ou Mobile Money) sur votre lien.</p>
+                    <div style="background-color: #e9ecef; padding: 15px; border-radius: 5px; margin: 20px 0; text-align: center;">
+                        <p style="margin-top: 0;">Veuillez vérifier la réception des fonds sur votre compte.</p>
+                        <a href="${confirmationLink}" style="display: inline-block; padding: 12px 20px; background-color: #28a745; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;">Confirmer la réception du paiement</a>
+                        <p style="font-size: 12px; color: #666; margin-bottom: 0; margin-top: 10px;">Cette action notifiera le client et validera la commande.</p>
+                    </div>
+                    <hr>
+                    <h3>Détails de la commande :</h3>
+                    <ul>${productDetailsHTML}</ul>
+                    ${emailFooter}
+                `;
+            }
+
+            MailApp.sendEmail(partnerEmail, partnerSubject, "", { htmlBody: partnerBodyHTML });
             logAction('sendPartnerConfirmationEmail', { orderId: orderData.id, businessId: orderData.businessId, email: partnerEmail });
         }
 
@@ -1806,6 +1844,44 @@ function getPartnerOrders(data, origin) {
                 return match ? { name: match[1], quantity: parseInt(match[2]), price: 0 } : { name: s, quantity: 1, price: 0 };
             });
 
+            // Extraction des infos client (Invité ou Inscrit)
+            let customerInfo = {
+                firstname: 'Inconnu',
+                lastname: '',
+                email: '',
+                phone: '',
+                address: row[addressIndex],
+                notes: row[notesIndex]
+            };
+
+            if (userRow) {
+                // Client inscrit : on prend les infos de la base utilisateurs
+                customerInfo.firstname = userRow[uNameIndex].split(' ')[0];
+                customerInfo.lastname = userRow[uNameIndex].split(' ').slice(1).join(' ');
+                customerInfo.email = userRow[uEmailIndex];
+                customerInfo.phone = userRow[uPhoneIndex];
+            } else {
+                // Client invité : Essayer d'extraire depuis les notes (format défini dans main.js)
+                const notes = row[notesIndex] || '';
+                const nameMatch = notes.match(/Nom:\s*(.+)/);
+                const emailMatch = notes.match(/Email:\s*(.+)/);
+                const phoneMatch = notes.match(/Tél:\s*(.+)/);
+                
+                if (nameMatch) {
+                    const fullName = nameMatch[1].trim();
+                    customerInfo.firstname = fullName.split(' ')[0];
+                    customerInfo.lastname = fullName.split(' ').slice(1).join(' ');
+                }
+                if (emailMatch) customerInfo.email = emailMatch[1].trim();
+                if (phoneMatch) customerInfo.phone = phoneMatch[1].trim();
+                
+                // Nettoyer les notes pour l'affichage (enlever le bloc technique)
+                const splitNotes = notes.split('---');
+                if (splitNotes.length > 1) {
+                    customerInfo.notes = splitNotes[1].replace('Note du client:', '').trim();
+                }
+            }
+
             return {
                 id: row[idIndex],
                 date: row[dateIndex],
@@ -1813,14 +1889,7 @@ function getPartnerOrders(data, origin) {
                 status: row[statusIndex],
                 paymentMethod: row[paymentIndex] === 'Paydunya' || row[paymentIndex] === 'wave' ? 'online' : 'cod',
                 items: items,
-                customer: {
-                    firstname: userRow ? userRow[uNameIndex].split(' ')[0] : 'Inconnu',
-                    lastname: userRow ? userRow[uNameIndex].split(' ').slice(1).join(' ') : '',
-                    email: userRow ? userRow[uEmailIndex] : '',
-                    phone: userRow ? userRow[uPhoneIndex] : '',
-                    address: row[addressIndex],
-                    notes: row[notesIndex]
-                }
+                customer: customerInfo
             };
         }).reverse();
         
@@ -3011,6 +3080,14 @@ function createAbmcyPaymentExpirationTrigger() {
     ui.alert("Déclencheur d'expiration des paiements ABMCY créé. Il s'exécutera toutes les 5 minutes.");
 }
 
+
+/**
+ * NOUVEAU: Confirme un paiement via le lien partenaire (sans mot de passe admin).
+ */
+function partnerConfirmPayment(data, origin) {
+    // Réutilise la logique de confirmation manuelle
+    return manuallyConfirmAbmcyPayment(data, origin);
+}
 /**
  * NOUVEAU: Fonction exécutée par un déclencheur horaire pour vérifier les paiements ABMCY expirés.
  * Marque les commandes "En attente de paiement ABMCY" comme "Expiré" si le délai de 25 minutes est dépassé.

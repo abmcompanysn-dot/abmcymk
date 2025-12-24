@@ -8,7 +8,7 @@
 // --- CONFIGURATION ---
 const ADMIN_SPREADSHEET_ID = "1kTQsUgcvcWxJNgHuITi4nlMhAqwyVAMhQbzIMIODcBg";
 const CENTRAL_SHEET_ID = "1kTQsUgcvcWxJNgHuITi4nlMhAqwyVAMhQbzIMIODcBg"; // IMPORTANT: ID de la feuille centrale
-const DEFAULT_LOGO_URL = "https://i.postimg.cc/6QZBH1JJ/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png"; // NOUVEAU: URL du logo par défaut
+const DEFAULT_LOGO_URL = "https://i.postimg.cc/5tQq2dm7/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png"; // NOUVEAU: URL du logo par défaut
 
 // Liste des origines autorisées pour CORS.
 const ALLOWED_ORIGINS_FRONTEND = [
