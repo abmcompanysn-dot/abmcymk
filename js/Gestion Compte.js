@@ -2695,13 +2695,16 @@ function generateSitemap(origin) {
         // On suppose que slugData a des en-têtes, donc on cherche dans tout le tableau
         const slugRow = slugData.find(s => s[1] === id);
         const slug = slugRow ? slugRow[0] : null;
+        // NOUVEAU: Ajout de la date de modification pour le SEO (lastmod)
+        // Utilise la date du slug si dispo, sinon la date du jour
+        const lastMod = slugRow && slugRow[2] ? new Date(slugRow[2]).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
         
         let loc = slug ? `${baseUrl}?alias=${slug}` : `${baseUrl}?compteId=${id}`;
         
         // Échapper les caractères spéciaux XML pour l'URL
         loc = loc.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
         
-        xml += `  <url>\n    <loc>${loc}</loc>\n    <changefreq>weekly</changefreq>\n    <priority>0.8</priority>\n  </url>\n`;
+        xml += `  <url>\n    <loc>${loc}</loc>\n    <lastmod>${lastMod}</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>0.8</priority>\n  </url>\n`;
     });
     
     xml += '</urlset>';

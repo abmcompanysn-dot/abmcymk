@@ -4,59 +4,51 @@
     <!-- Page d'accueil -->
     <url>
         <loc>https://abmcymarket.abmcy.com/</loc>
-        <lastmod>2024-01-01</lastmod> <!-- Mettez à jour cette date -->
+        <lastmod>2024-12-24</lastmod>
         <changefreq>daily</changefreq>
         <priority>1.0</priority>
     </url>
 
-    <!-- Pages de produits -->
-    <!-- 
-        IMPORTANT : Vous devez générer dynamiquement une balise <url> 
-        pour CHAQUE produit de votre site. 
-        Voici un exemple pour un produit.
-    -->
+    <!-- Pages principales -->
     <url>
-        <loc>https://abmcymarket.abmcy.com/produit?id=exemple-produit-1</loc>
-        <lastmod>2024-01-01</lastmod>
-        <changefreq>weekly</changefreq>
+        <loc>https://abmcymarket.abmcy.com/promotions.html</loc>
+        <changefreq>daily</changefreq>
         <priority>0.9</priority>
     </url>
-
-    <!-- Pages de catégories -->
-    <!-- 
-        IMPORTANT : Vous devez également générer une balise <url> 
-        pour CHAQUE page de catégorie.
-    -->
-    <!-- <url>
-        <loc>https://abmcymarket.abmcy.com/categorie?nom=electronique</loc>
-        <lastmod>2024-01-01</lastmod>
+    <url>
+        <loc>https://abmcymarket.abmcy.com/recherche.html</loc>
         <changefreq>weekly</changefreq>
         <priority>0.8</priority>
-    </url> -->
-
-    <!-- Autres pages importantes -->
+    </url>
     <url>
-        <loc>https://abmcymarket.abmcy.com/panier</loc>
+        <loc>https://abmcymarket.abmcy.com/faq.html</loc>
+        <changefreq>monthly</changefreq>
+        <priority>0.6</priority>
+    </url>
+
+    <!-- Pages Utilisateur -->
+    <url>
+        <loc>https://abmcymarket.abmcy.com/authentification.html</loc>
+        <changefreq>yearly</changefreq>
+        <priority>0.5</priority>
+    </url>
+    <url>
+        <loc>https://abmcymarket.abmcy.com/panier.html</loc>
         <changefreq>monthly</changefreq>
         <priority>0.5</priority>
     </url>
     <url>
-        <loc>https://abmcymarket.abmcy.com/authentification</loc>
-        <changefreq>yearly</changefreq>
-        <priority>0.4</priority>
-    </url>
-    <url>
-        <loc>https://abmcymarket.abmcy.com/suivi-commande</loc>
+        <loc>https://abmcymarket.abmcy.com/suivi-commande.html</loc>
         <changefreq>monthly</changefreq>
-        <priority>0.7</priority>
+        <priority>0.5</priority>
     </url>
     <url>
-        <loc>https://abmcymarket.abmcy.com/politique-retour</loc>
+        <loc>https://abmcymarket.abmcy.com/politique-retour.html</loc>
         <changefreq>yearly</changefreq>
         <priority>0.3</priority>
     </url>
     <url>
-        <loc>https://abmcymarket.abmcy.com/politique-confidentialite</loc>
+        <loc>https://abmcymarket.abmcy.com/politique-confidentialite.html</loc>
         <changefreq>yearly</changefreq>
         <priority>0.3</priority>
     </url>
