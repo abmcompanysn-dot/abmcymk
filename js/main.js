@@ -1,6 +1,6 @@
 const CONFIG = {
     // NOUVEAU: URL de l'API CENTRALE qui gère maintenant tout (comptes, commandes, etc.)
-    ACCOUNT_API_URL:"https://script.google.com/macros/s/AKfycbxxC8caNFWJ-1eUucxrgFo5j8QvEnRfhQdcecs_407IRqwGKby7zbYVVywCyxgbTP7gdA/exec",
+    ACCOUNT_API_URL:"https://script.google.com/macros/s/AKfycbwz5kcckInIKs10_an7qbyt6uOdAGQWRJkU9lXobA36PeOi_-Ame8DuaFvxM3oHseaiRQ/exec",
     // Les URL spécifiques pour commandes, livraisons et notifications sont maintenant obsolètes
     // car tout est géré par l'API centrale (ACCOUNT_API_URL).
     
@@ -1457,8 +1457,16 @@ async function initializeCheckoutPage() {
         form.querySelector('#delivery-address').value = user.Adresse || '';
     }
 
-    // Charger les options de livraison
-    populateDeliverySelectorsCheckout();
+    // NOUVEAU: Vérifier si c'est une commande partenaire (Retrait boutique)
+    const cart = getCart();
+    const partnerItem = cart.find(item => item.businessId);
+    
+    if (partnerItem) {
+        setupPartnerOrderUI(partnerItem);
+    } else {
+        // Charger les options de livraison standard
+        populateDeliverySelectorsCheckout();
+    }
 
     // CORRECTION: Utiliser 'await' pour forcer le script à attendre que les options de paiement soient chargées et affichées.
     await loadPaymentMethods(); // Charger les méthodes de paiement dynamiquement
@@ -1470,6 +1478,33 @@ async function initializeCheckoutPage() {
 
     // Ajouter l'écouteur pour la soumission du formulaire
     form.addEventListener('submit', processCheckout);
+}
+
+/**
+ * NOUVEAU: Configure l'interface pour une commande partenaire (Retrait en boutique).
+ * @param {object} partnerItem - L'article du panier contenant les infos du partenaire.
+ */
+function setupPartnerOrderUI(partnerItem) {
+    const deliverySection = document.getElementById('delivery-options-section');
+    if (deliverySection) {
+        const businessName = partnerItem.businessName || 'Boutique Partenaire';
+        const businessAddress = partnerItem.businessAddress || 'Adresse de la boutique';
+        
+        deliverySection.innerHTML = `
+            <div class="bg-yellow-50 border border-yellow-400 p-4 rounded-lg mb-4">
+                <h3 class="font-bold text-gray-800 mb-2 flex items-center">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                    Point de Retrait : ${businessName}
+                </h3>
+                <p class="text-sm text-gray-700">Votre commande sera à récupérer directement à l'adresse suivante :</p>
+                <p class="font-semibold text-lg mt-1 text-gray-900">${businessAddress}</p>
+            </div>
+            <!-- Champs cachés pour simuler les données de livraison -->
+            <input type="hidden" id="delivery-address" name="delivery-address" value="RETRAIT BOUTIQUE: ${businessName} - ${businessAddress}">
+            <input type="hidden" id="delivery-location" name="delivery-location" value="retrait_magasin">
+            <input type="hidden" id="delivery-method" name="delivery-method" value="retrait_gratuit">
+        `;
+    }
 }
 
 /**
@@ -1628,6 +1663,12 @@ function getShippingCost(location, subtotal) {
     // La condition de livraison gratuite pour les commandes > 10000 F a été retirée.
     
     const methodSelect = document.getElementById('delivery-method');
+    
+    // NOUVEAU: Gestion du cas où c'est un input caché (Retrait boutique partenaire)
+    if (methodSelect && methodSelect.tagName === 'INPUT') {
+        return 0; // Retrait gratuit par défaut
+    }
+
     if (methodSelect && methodSelect.selectedOptions.length > 0) {
         const selectedOption = methodSelect.selectedOptions[0];
         // NOUVEAU: Le prix est maintenant stocké dans un attribut `data-price` pour plus de fiabilité.
