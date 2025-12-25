@@ -13,7 +13,7 @@ const IMGBB_UPLOAD_URL = 'https://api.imgbb.com/1/upload';
  * Upload une image vers ImgBB et retourne l'URL.
  * @param {File} imageFile - Le fichier image sélectionné par l'utilisateur.
  * @returns {Promise<string>} L'URL de l'image uploadée ou null si échec.
- */A
+ */
 async function uploadImageToImgBB(imageFile) {
     if (!imageFile) return null;
 
@@ -38,4 +38,13 @@ async function uploadImageToImgBB(imageFile) {
         console.error("Erreur lors de l'upload de l'image:", error);
         throw error;
     }
+}
+
+/**
+ * Vérifie si une URL Wave est valide.
+ * @param {string} url 
+ * @returns {boolean}
+ */
+function isValidWaveUrl(url) {
+    return typeof url === 'string' && url.includes("wave.com");
 }

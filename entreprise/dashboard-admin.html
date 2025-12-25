@@ -948,6 +948,7 @@
             document.getElementById('settingsDesc').value = info.Description || '';
             document.getElementById('settingsPhone').value = info.Telephone || '';
             document.getElementById('settingsAddress').value = info.Adresse || '';
+            document.getElementById('settingsWaveUrl').value = info.WaveBaseUrl || '';
             
             if (info.LogoUrl) {
                 document.getElementById('previewLogo').src = info.LogoUrl;
@@ -1500,6 +1501,7 @@
                     description: document.getElementById('settingsDesc').value,
                     telephone: document.getElementById('settingsPhone').value,
                     adresse: document.getElementById('settingsAddress').value,
+                    waveBaseUrl: document.getElementById('settingsWaveUrl').value,
                     logoUrl: logoUrl,
                     coverImageUrl: coverUrl
                 };
