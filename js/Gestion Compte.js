@@ -45,7 +45,7 @@ const BUSINESS_TYPE_APIS = {
 };
 
 // NOUVEAU: Images par défaut pour les entreprises (Logo et Couverture)
-const DEFAULT_BUSINESS_LOGO = "https://i.postimg.cc/5tQq2dm7/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png";
+const DEFAULT_BUSINESS_LOGO = "https://abmcymarket.abmcy.com/logo/l.svg";
 const DEFAULT_BUSINESS_COVER = "https://via.placeholder.com/1200x400?text=Banniere+Par+Defaut";
 
 const CACHE_KEY_CONFIG = 'script_config_v2'; // NOUVEAU: Clé de cache globale pour la configuration
@@ -1531,7 +1531,7 @@ function initiateAbmcyPayment(data, origin) {
 function sendOrderConfirmationEmail(orderData, originalData, type) {
     try {
         // NOUVEAU: Récupération des infos de l'entreprise partenaire pour personnaliser l'email
-        let businessLogo = "https://i.postimg.cc/5tQq2dm7/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png";
+        let businessLogo = "https://abmcymarket.abmcy.com/logo/l.svg";
         let businessName = "ABMCY MARKET";
         let partnerEmail = null;
 
@@ -1776,7 +1776,7 @@ function getBusinessDetails(compteId) {
  * @returns {string} Le code HTML complet de l'email.
  */
 function getEmailTemplate(content, businessId) {
-    let businessLogo = "https://i.postimg.cc/5tQq2dm7/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png";
+    let businessLogo = "https://abmcymarket.abmcy.com/logo/l.svg";
     let businessName = "ABMCY MARKET";
 
     if (businessId) {
@@ -3083,7 +3083,7 @@ function setupProject() {
   // NOUVEAU: Remplir la feuille Entreprises avec des exemples
   const entreprisesSheet = ss.getSheetByName(SHEET_NAMES.ENTREPRISES);
   if (entreprisesSheet && entreprisesSheet.getLastRow() < 2) { // Ne remplir que si la feuille est vide (sauf en-têtes)
-    const defaultLogo = "https://i.postimg.cc/5tQq2dm7/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png";
+    const defaultLogo = "https://abmcymarket.abmcy.com/logo/l.svg";
     const entreprisesExemples = [
       { type: "Coiffeur", nom: "Salon de Coiffure Chic" },
       { type: "Restaurant", nom: "Le Gourmet Dakarois" },

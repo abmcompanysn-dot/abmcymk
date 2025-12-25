@@ -344,7 +344,7 @@ function addDemoData(data) {
     return createJsonResponse({ status: "error", message: "Le compte possède déjà des services. Ajout des données de démo annulé." });
   }
 
-  const defaultImage = 'https://i.postimg.cc/5tQq2dm7/Sleek-Wordmark-Logo-for-ABMCY-MARKET.png';
+  const defaultImage = 'logo/l.svg';
 
   const demoItems = [
     // --- 5 SERVICES ---
