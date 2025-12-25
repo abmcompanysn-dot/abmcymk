@@ -153,7 +153,7 @@ function doPost(e) {
         }
 
         // NOUVEAU: Protection par mot de passe pour les actions admin de l'agrégateur
-        const adminActions = ['getPendingAbmcyPayments', 'manuallyConfirmAbmcyPayment', 'manuallyExpireAbmcyPayment'];
+        const adminActions = ['getPendingAbmcyPayments', 'manuallyConfirmAbmcyPayment', 'manuallyExpireAbmcyPayment', 'getAbmcyAggregatorHistory', 'getAggregatorDashboardData', 'markReimbursementAsPaid'];
         if (adminActions.includes(action)) {
             // CORRECTION: Recherche dynamique du mot de passe au lieu d'une cellule fixe.
             const abmcyAdminSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.ABMCY_Admin);
@@ -238,7 +238,11 @@ function doPost(e) {
                 return createAbmcyAggregatorInvoice(data, origin); 
             // L'action 'getAbmcyPaymentStatus' est maintenant fusionnée dans 'getOrderById' pour éviter la redondance.
             case 'getPendingAbmcyPayments': // NOUVEAU: Pour la page admin de confirmation manuelle
-                return getPendingAbmcyPayments(origin);
+                return getPendingAbmcyPayments(data, origin); // Pass data for password
+            case 'getAggregatorDashboardData': // NOUVEAU: Pour le nouveau tableau de bord
+                return getAggregatorDashboardData(origin);
+            case 'markReimbursementAsPaid': // NOUVEAU: Pour le nouveau tableau de bord
+                return markReimbursementAsPaid(data, origin);
             case 'getAbmcyAggregatorHistory': // NOUVEAU: Pour l'onglet historique du tableau de bord
                 return getAbmcyAggregatorHistory(origin);
             case 'logAbmcyPaymentAttempt': // NOUVEAU: Pour enregistrer les infos de l'expéditeur
@@ -1097,6 +1101,7 @@ function createAbmcyAggregatorInvoice(data, origin) {
         const initiationTimestamp = new Date().toISOString(); // Timestamp de début du timer
 
         // AMÉLIORATION: Ajouter la référence de transaction et le timestamp d'initiation
+        const aggregatorType = isPartnerAggregator ? 'Partner' : 'ABMCY';
         orderSheet.appendRow([
             idCommande, data.idClient, produitsDetails,
             data.total, `En attente de paiement ABMCY (${selectedProvider})`, new Date(),
@@ -1104,8 +1109,9 @@ function createAbmcyAggregatorInvoice(data, origin) {
             data.adresseLivraison, selectedProvider, data.notes || '',
             transactionReference, // Nouvelle colonne pour la référence
             initiationTimestamp, // Nouvelle colonne pour le timestamp d'initiation
-            data.customer.name, data.customer.phone, // CORRECTION: Enregistrer le nom et le numéro dès la création pour le tableau de bord
-            businessId // NOUVEAU: CompteID
+            data.customer.name, data.customer.phone,
+            businessId, // NOUVEAU: CompteID
+            aggregatorType, '' // NOUVEAU: AggregatorType, ReimbursementStatus
         ]);
 
         // 1.5 NOUVEAU: Enregistrer la tentative dans l'historique (Comme initiateAbmcyPayment)
@@ -1312,7 +1318,7 @@ function getBusinessWaveUrl(compteId) {
 /**
  * NOUVEAU: Récupère les paiements ABMCY en attente pour l'admin.
  */
-function getPendingAbmcyPayments(origin) {
+function getPendingAbmcyPayments(data, origin) {
     try {
         const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.ORDERS);
         const data = sheet.getDataRange().getValues();
@@ -1329,6 +1335,101 @@ function getPendingAbmcyPayments(origin) {
                             });
         return createJsonResponse({ success: true, data: pending }, origin);
     } catch (e) {
+        return createJsonResponse({ success: false, error: e.message }, origin);
+    }
+}
+
+/**
+ * NOUVEAU: Récupère les données agrégées pour le tableau de bord de l'agrégateur.
+ */
+function getAggregatorDashboardData(origin) {
+    try {
+        const ordersSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.ORDERS);
+        const ordersData = ordersSheet.getDataRange().getValues();
+        const ordersHeaders = ordersData.shift();
+
+        const historySheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.ABMCY_AGGREGATOR_HISTORY);
+        const historyData = historySheet.getDataRange().getValues();
+        const historyHeaders = historyData.shift();
+
+        const entSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.ENTREPRISES);
+        const entData = entSheet.getDataRange().getValues();
+        const entHeaders = entData.shift();
+        const entIdIndex = entHeaders.indexOf("NumeroCompte");
+        const entNameIndex = entHeaders.indexOf("NomEntreprise");
+
+        // 1. Calcul des KPIs et données de graphiques à partir de l'historique
+        const hAmountIndex = historyHeaders.indexOf("Montant");
+        const hStatusIndex = historyHeaders.indexOf("StatutLog");
+        const hProviderIndex = historyHeaders.indexOf("MoyenPaiement");
+        const hDateIndex = historyHeaders.indexOf("Timestamp");
+
+        let totalRevenue = 0;
+        const statusCounts = { 'Confirmé': 0, 'En attente': 0, 'Expiré': 0 };
+        const revenueByProvider = {};
+        const salesByDay = {};
+
+        historyData.forEach(row => {
+            const status = row[hStatusIndex];
+            const amount = parseFloat(row[hAmountIndex]) || 0;
+            const provider = row[hProviderIndex];
+            const date = new Date(row[hDateIndex]);
+            const dayKey = date.toISOString().split('T')[0];
+
+            if (status === 'Confirmé') {
+                totalRevenue += amount;
+                statusCounts['Confirmé']++;
+                revenueByProvider[provider] = (revenueByProvider[provider] || 0) + amount;
+                salesByDay[dayKey] = (salesByDay[dayKey] || 0) + amount;
+            } else if (status === 'En attente') {
+                statusCounts['En attente']++;
+            } else {
+                statusCounts['Expiré']++;
+            }
+        });
+
+        // 2. Calcul des remboursements dus aux partenaires
+        const oStatusIndex = ordersHeaders.indexOf("Statut");
+        const oCompteIdIndex = ordersHeaders.indexOf("CompteID");
+        const oAggregatorTypeIndex = ordersHeaders.indexOf("AggregatorType");
+        const oReimbursementIndex = ordersHeaders.indexOf("ReimbursementStatus");
+        const oIdIndex = ordersHeaders.indexOf("IDCommande");
+        const oTotalIndex = ordersHeaders.indexOf("MontantTotal");
+        const oDateIndex = ordersHeaders.indexOf("Date");
+
+        const reimbursements = ordersData.filter(row =>
+            row[oCompteIdIndex] &&
+            row[oStatusIndex].includes('Payée et confirmée') &&
+            row[oAggregatorTypeIndex] === 'ABMCY' &&
+            row[oReimbursementIndex] !== 'Payé'
+        ).map(row => {
+            const partnerId = row[oCompteIdIndex];
+            const partnerRow = entData.find(er => er[entIdIndex] === partnerId);
+            return {
+                orderId: row[oIdIndex],
+                partnerName: partnerRow ? partnerRow[entNameIndex] : 'Partenaire Inconnu',
+                amount: row[oTotalIndex],
+                date: row[oDateIndex]
+            };
+        });
+
+        const dashboardData = {
+            kpis: {
+                totalRevenue: totalRevenue,
+                totalTransactions: historyData.length,
+                statusCounts: statusCounts
+            },
+            charts: {
+                revenueByProvider: revenueByProvider,
+                salesByDay: salesByDay
+            },
+            reimbursements: reimbursements
+        };
+
+        return createJsonResponse({ success: true, data: dashboardData }, origin);
+
+    } catch (e) {
+        logError('getAggregatorDashboardData', e);
         return createJsonResponse({ success: false, error: e.message }, origin);
     }
 }
@@ -1354,6 +1455,28 @@ function getAbmcyAggregatorHistory(origin) {
         
         return createJsonResponse({ success: true, data: history }, origin);
     } catch (e) {
+        return createJsonResponse({ success: false, error: e.message }, origin);
+    }
+}
+
+/**
+ * NOUVEAU: Marque un remboursement comme payé.
+ */
+function markReimbursementAsPaid(data, origin) {
+    try {
+        const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.ORDERS);
+        const allData = sheet.getDataRange().getValues();
+        const idIndex = allData[0].indexOf("IDCommande");
+        const reimbursementIndex = allData[0].indexOf("ReimbursementStatus");
+
+        const rowIndex = allData.findIndex(row => row[idIndex] === data.orderId);
+        if (rowIndex === -1) return createJsonResponse({ success: false, error: "Commande non trouvée" }, origin);
+
+        sheet.getRange(rowIndex + 1, reimbursementIndex + 1).setValue("Payé");
+        logAction('markReimbursementAsPaid', { orderId: data.orderId });
+        return createJsonResponse({ success: true, message: "Remboursement marqué comme payé." }, origin);
+    } catch (e) {
+        logError('markReimbursementAsPaid', e);
         return createJsonResponse({ success: false, error: e.message }, origin);
     }
 }
@@ -1432,6 +1555,9 @@ function manuallyConfirmAbmcyPayment(data, origin) {
                 "Validé manuellement"
             ]);
         }
+
+        // Notification CallMeBot pour confirmation
+        sendCallMeBotNotification(`✅ *PAIEMENT CONFIRMÉ* ✅\n\n🆔 *Commande:* ${data.orderId}\n💰 *Montant:* ${total.toLocaleString('fr-FR')} F\n👤 *Admin:* Manuel`);
 
         logAction('manuallyConfirmAbmcyPayment', { orderId: data.orderId, admin: 'manual' });
         return createJsonResponse({ success: true, message: "Paiement confirmé." }, origin);
@@ -1583,6 +1709,10 @@ function sendOrderConfirmationEmail(orderData, originalData, type) {
                 <p><strong>Note du client :</strong> ${originalData.notes || 'Aucune'}</p>
             `;
         }
+
+        // Notification CallMeBot pour nouvelle commande (Admin)
+        sendCallMeBotNotification(`📦 *NOUVELLE COMMANDE* 📦\n\n🆔 *ID:* ${orderData.id}\n👤 *Client:* ${originalData.customer.name}\n💰 *Total:* ${orderData.total.toLocaleString('fr-FR')} F CFA\n💳 *Paiement:* ${originalData.moyenPaiement}\n🚚 *Livraison:* ${originalData.adresseLivraison}`);
+
         const adminBody = getEmailTemplate(adminContent, orderData.businessId);
         MailApp.sendEmail(ADMIN_EMAIL, adminSubject, "", { htmlBody: adminBody });
         logAction('sendAdminConfirmationEmail', { orderId: orderData.id, type: type });
@@ -2304,6 +2434,7 @@ function sendPaymentFailureEmail(provider, error, orderContext) {
             <p>Veuillez consulter les logs pour plus de détails.</p>
         `;
         MailApp.sendEmail(ADMIN_EMAIL, subject, "", { htmlBody: body });
+        sendCallMeBotNotification(`❌ *ÉCHEC PAIEMENT* ❌\n\n💳 *Provider:* ${provider}\n⚠️ *Erreur:* ${error.message}`);
         logAction('sendPaymentFailureEmail', { provider: provider, error: error.message });
     } catch (e) {
         logError('sendPaymentFailureEmail', e);
@@ -2722,6 +2853,9 @@ function logError(context, error, origin) {
         const lastRow = logSheet.getLastRow();
         logSheet.getRange(lastRow, 1, 1, logSheet.getLastColumn()).setBackground('#fce8e6'); // Rouge clair
 
+        // Notification CallMeBot pour les erreurs critiques
+        sendCallMeBotNotification(`🚨 *ERREUR SYSTÈME* 🚨\n\n📍 *Contexte:* ${context}\n⚠️ *Erreur:* ${error.message}\n💡 *Suggestion:* ${suggestion}`);
+
     } catch (e) {
         console.error("Échec de la journalisation d'erreur: " + e.message);
     }
@@ -2933,6 +3067,27 @@ function generateSitemap(origin) {
 }
 
 /**
+ * NOUVEAU: Envoie une notification WhatsApp via CallMeBot.
+ * @param {string} message - Le message à envoyer (supporte le formatage WhatsApp *gras*, _italique_).
+ */
+function sendCallMeBotNotification(message) {
+    try {
+        const config = getConfig();
+        // Vérifier si CallMeBot est activé et configuré
+        if (!config.CALLMEBOT_ACTIVE || !config.CALLMEBOT_PHONE || !config.CALLMEBOT_API_KEY) {
+            return;
+        }
+
+        const encodedMessage = encodeURIComponent(message);
+        const url = `https://api.callmebot.com/whatsapp.php?phone=${config.CALLMEBOT_PHONE}&text=${encodedMessage}&apikey=${config.CALLMEBOT_API_KEY}`;
+        
+        UrlFetchApp.fetch(url, { muteHttpExceptions: true });
+    } catch (e) {
+        console.error("Erreur CallMeBot: " + e.message);
+    }
+}
+
+/**
  * Crée un menu personnalisé à l'ouverture de la feuille de calcul.
  */
 function onOpen() {
@@ -2975,7 +3130,10 @@ function getConfig() {
             "logo": "https://www.wave.com/img/nav-logo.png",
             "baseUrl": "https://pay.wave.com/m/M_sn_J3jR9Wg9ilPF/c/sn/"
         }
-    }) // NOUVEAU: Wave par défaut
+    }), // NOUVEAU: Wave par défaut
+    'CALLMEBOT_PHONE': '', // À remplir par l'utilisateur
+    'CALLMEBOT_API_KEY': '', // À remplir par l'utilisateur
+    'CALLMEBOT_ACTIVE': 'false'
   };
 
   try {
@@ -3001,7 +3159,10 @@ function getConfig() {
       PAYDUNYA_PUBLIC_KEY: config.PAYDUNYA_PUBLIC_KEY || defaultConfig.PAYDUNYA_PUBLIC_KEY,
       PAYDUNYA_TOKEN: config.PAYDUNYA_TOKEN || defaultConfig.PAYDUNYA_TOKEN,
       ABMCY_AGGREGATOR_ACTIVE: String(config.ABMCY_AGGREGATOR_ACTIVE !== undefined ? config.ABMCY_AGGREGATOR_ACTIVE : defaultConfig.ABMCY_AGGREGATOR_ACTIVE).toLowerCase() === 'true', // NOUVEAU: Conversion robuste
-      ABMCY_PAYMENT_METHODS: config.ABMCY_PAYMENT_METHODS ? JSON.parse(config.ABMCY_PAYMENT_METHODS) : JSON.parse(defaultConfig.ABMCY_PAYMENT_METHODS) // NOUVEAU: Parsing correct du défaut
+      ABMCY_PAYMENT_METHODS: config.ABMCY_PAYMENT_METHODS ? JSON.parse(config.ABMCY_PAYMENT_METHODS) : JSON.parse(defaultConfig.ABMCY_PAYMENT_METHODS), // NOUVEAU: Parsing correct du défaut
+      CALLMEBOT_PHONE: config.CALLMEBOT_PHONE || defaultConfig.CALLMEBOT_PHONE,
+      CALLMEBOT_API_KEY: config.CALLMEBOT_API_KEY || defaultConfig.CALLMEBOT_API_KEY,
+      CALLMEBOT_ACTIVE: String(config.CALLMEBOT_ACTIVE).toLowerCase() === 'true'
     };
 
     cache.put(CACHE_KEY_CONFIG, JSON.stringify(finalConfig), 600); // Cache pendant 10 minutes
@@ -3021,7 +3182,7 @@ function setupProject() {
 
   const sheetsToCreate = {
     [SHEET_NAMES.USERS]: ["IDClient", "Nom", "Email", "PasswordHash", "Salt", "Telephone", "Adresse", "DateInscription", "Statut", "Role", "ResetToken", "ResetTokenExpiry"], // CORRECTION: Ajout des colonnes pour la réinitialisation
-    [SHEET_NAMES.ORDERS]: ["IDCommande", "IDClient", "DetailsProduits", "MontantTotal", "Statut", "Date", "EtapeConfirmee", "EtapePreparation", "EtapeExpediee", "EtapeLivree", "AdresseLivraison", "MoyenPaiement", "Notes", "TransactionReference", "InitiationTimestamp", "NomExpediteur", "NumeroExpediteur", "CompteID"], // NOUVEAU: Ajout de CompteID
+    [SHEET_NAMES.ORDERS]: ["IDCommande", "IDClient", "DetailsProduits", "MontantTotal", "Statut", "Date", "EtapeConfirmee", "EtapePreparation", "EtapeExpediee", "EtapeLivree", "AdresseLivraison", "MoyenPaiement", "Notes", "TransactionReference", "InitiationTimestamp", "NomExpediteur", "NumeroExpediteur", "CompteID", "AggregatorType", "ReimbursementStatus"], // NOUVEAU: Ajout de colonnes pour l'agrégateur
     [SHEET_NAMES.LOGS]: ["Timestamp", "Source", "Action", "Détails"],
     [SHEET_NAMES.CONFIG]: ["Clé", "Valeur"],
     [SHEET_NAMES.ADDRESSES]: ["IDAdresse", "IDClient", "Label", "Details", "IsDefault"], // NOUVEAU
@@ -3139,7 +3300,10 @@ function setupProject() {
             "logo": "https://www.wave.com/img/nav-logo.png",
             "baseUrl": "https://pay.wave.com/m/M_sn_J3jR9Wg9ilPF/c/sn/"
         }
-    })
+    }),
+    'CALLMEBOT_PHONE': '+221xxxxxxxxx', // Mettez votre numéro ici
+    'CALLMEBOT_API_KEY': 'xxxxxx', // Mettez votre clé API ici
+    'CALLMEBOT_ACTIVE': 'false' // Passez à 'true' une fois configuré
   };
 
   Object.entries(defaultConfigValues).forEach(([key, value]) => {

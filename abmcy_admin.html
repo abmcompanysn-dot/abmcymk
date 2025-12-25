@@ -3,19 +3,37 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin - Confirmation Paiements ABMCY</title>
+    <title>Tableau de Bord Agrégateur - ABMCY</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- NOUVEAU: Ajout de Chart.js pour les graphiques -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
     <style>
         body { font-family: 'Inter', sans-serif; }
         .loader {
             border: 4px solid #f3f3f3;
-            border-top: 4px solid #3498db;
+            border-top: 4px solid #3b82f6; /* blue-500 */
             border-radius: 50%;
             width: 40px;
             height: 40px;
             animation: spin 1s linear infinite;
             margin: 20px auto;
         }
+        .tab-btn {
+            padding: 0.75rem 1.5rem;
+            font-weight: 600;
+            color: #6b7280; /* gray-500 */
+            background: none;
+            border: none;
+            border-bottom: 3px solid transparent;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.2s ease-in-out;
+        }
+        .tab-btn:hover { color: #3b82f6; }
+        .tab-btn.active { color: #3b82f6; border-bottom-color: #3b82f6; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; animation: fadeIn 0.3s; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
@@ -29,101 +47,178 @@
 
     <div id="login-screen" class="min-h-screen flex items-center justify-center">
         <div class="bg-white p-8 rounded-lg shadow-md w-full max-w-sm">
-            <h1 class="text-2xl font-bold text-center mb-6">Accès Admin</h1>
+            <h1 class="text-2xl font-bold text-center mb-6">Tableau de Bord Agrégateur</h1>
             <form id="login-form">
                 <div class="mb-4">
                     <label for="password" class="block text-gray-700 text-sm font-bold mb-2">Mot de passe</label>
                     <input type="password" id="password" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
                 </div>
-                <button type="submit" class="font-bold py-2 px-4 rounded transition duration-300 ease-in-out bg-blue-500 text-white hover:bg-blue-600 w-full">Se connecter</button>
+                <button type="submit" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded transition duration-300 ease-in-out">Se connecter</button>
                 <p id="login-status" class="text-red-500 text-xs italic mt-4 text-center"></p>
             </form>
         </div>
     </div>
 
     <div id="admin-panel" class="hidden container mx-auto p-4 md:p-8">
-        <div class="flex justify-between items-center mb-6">
-            <h1 class="text-3xl font-bold text-gray-800">Paiements ABMCY en attente</h1>
-            <button id="refresh-btn" class="font-bold py-2 px-4 rounded transition duration-300 ease-in-out bg-blue-500 text-white hover:bg-blue-600">Rafraîchir</button>
+        <div class="flex justify-between items-start mb-6">
+            <h1 class="text-3xl font-bold text-gray-800">Tableau de Bord Agrégateur</h1>
+            <button onclick="logout()" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded transition">Déconnexion</button>
         </div>
 
-        <div id="status-message" class="mb-4"></div>
+        <!-- Navigation par onglets -->
+        <div class="border-b border-gray-200 mb-6">
+            <nav class="flex space-x-4" aria-label="Tabs">
+                <button class="tab-btn active" onclick="switchTab('dashboard')">Dashboard</button>
+                <button class="tab-btn" onclick="switchTab('confirmations')">Confirmations</button>
+                <button class="tab-btn" onclick="switchTab('history')">Historique</button>
+                <button class="tab-btn" onclick="switchTab('reimbursements')">Remboursements</button>
+            </nav>
+        </div>
 
-        <div class="bg-white rounded-lg shadow overflow-hidden">
-            <div id="loader" class="loader"></div>
-            <div id="transactions-list" class="divide-y divide-gray-200">
-                <!-- Les transactions seront injectées ici -->
+        <div id="global-status-message" class="mb-4"></div>
+
+        <!-- Contenu des onglets -->
+        <div id="tabs-content">
+            <!-- Onglet Dashboard -->
+            <div id="tab-dashboard" class="tab-content active space-y-6">
+                <div id="kpi-container" class="grid grid-cols-1 md:grid-cols-3 gap-6"></div>
+                <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
+                    <div class="lg:col-span-3 bg-white p-6 rounded-lg shadow"><canvas id="salesChart"></canvas></div>
+                    <div class="lg:col-span-2 bg-white p-6 rounded-lg shadow"><canvas id="statusChart"></canvas></div>
+                </div>
+            </div>
+
+            <!-- Onglet Confirmations -->
+            <div id="tab-confirmations" class="tab-content">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-2xl font-bold text-gray-700">Paiements en attente</h2>
+                    <button id="refresh-btn" class="font-bold py-2 px-4 rounded transition duration-300 ease-in-out bg-blue-500 text-white hover:bg-blue-600">Rafraîchir</button>
+                </div>
+                <div class="bg-white rounded-lg shadow overflow-hidden">
+                    <div id="confirmations-loader" class="loader"></div>
+                    <div id="confirmations-list" class="divide-y divide-gray-200"></div>
+                </div>
+            </div>
+
+            <!-- Onglet Historique -->
+            <div id="tab-history" class="tab-content">
+                <h2 class="text-2xl font-bold text-gray-700 mb-4">Historique des Transactions</h2>
+                <div class="bg-white rounded-lg shadow overflow-hidden">
+                    <div id="history-loader" class="loader"></div>
+                    <div id="history-list" class="divide-y divide-gray-200"></div>
+                </div>
+            </div>
+
+            <!-- Onglet Remboursements -->
+            <div id="tab-reimbursements" class="tab-content">
+                <h2 class="text-2xl font-bold text-gray-700 mb-4">Remboursements Partenaires Dûs</h2>
+                <div class="bg-white rounded-lg shadow overflow-hidden">
+                    <div id="reimbursements-loader" class="loader"></div>
+                    <div id="reimbursements-list" class="divide-y divide-gray-200"></div>
+                </div>
             </div>
         </div>
     </div>
 
     <script>
-        const API_URL = "https://script.google.com/macros/s/AKfycbwz5kcckInIKs10_an7qbyt6uOdAGQWRJkU9lXobA36PeOi_-Ame8DuaFvxM3oHseaiRQ/exec";
+        const API_URL = "https://script.google.com/macros/s/AKfycbx7rRZO_2TUCZC51fr9JNhXj4tXvWo8ScUolH9TDjPdeKQ3k9jD2Rd7p8W_gKmdVcdzxw/exec";
         const loginForm = document.getElementById('login-form');
         const loginScreen = document.getElementById('login-screen');
         const adminPanel = document.getElementById('admin-panel');
         const passwordInput = document.getElementById('password');
         const loginStatus = document.getElementById('login-status');
-        const transactionsList = document.getElementById('transactions-list');
-        const loader = document.getElementById('loader');
         const refreshBtn = document.getElementById('refresh-btn');
-        const statusMessage = document.getElementById('status-message');
+        const globalStatus = document.getElementById('global-status-message');
 
         let adminPassword = '';
+        let chartInstances = {};
 
         loginForm.addEventListener('submit', e => {
             e.preventDefault();
             adminPassword = passwordInput.value;
             loginStatus.textContent = 'Vérification...';
-            loadPendingTransactions();
+            loadDashboardData();
         });
 
-        refreshBtn.addEventListener('click', loadPendingTransactions);
+        refreshBtn.addEventListener('click', loadPendingConfirmations);
 
         async function apiCall(action, data = {}) {
             const payload = {
                 action: action,
-                password: adminPassword, // Toujours envoyer le mot de passe pour l'authentification
+                password: adminPassword,
                 data: data
             };
-            const response = await fetch(API_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'text/plain' },
-                body: JSON.stringify(payload)
-            });
-            return response.json();
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain' },
+                    body: JSON.stringify(payload)
+                });
+                if (!response.ok) throw new Error(`Erreur HTTP: ${response.status}`);
+                return await response.json();
+            } catch (error) {
+                return { success: false, error: error.message };
+            }
         }
 
-        async function loadPendingTransactions() {
-            loader.style.display = 'block';
-            transactionsList.innerHTML = '';
-            statusMessage.innerHTML = '';
-
-            const result = await apiCall('getPendingAbmcyPayments');
-
-            loader.style.display = 'none';
+        async function loadDashboardData() {
+            const result = await apiCall('getAggregatorDashboardData');
 
             if (result.unauthorized) {
                 loginStatus.textContent = 'Mot de passe incorrect.';
                 return;
             }
-
             if (result.success) {
                 loginScreen.classList.add('hidden');
                 adminPanel.classList.remove('hidden');
-                
-                if (result.data.length === 0) {
-                    transactionsList.innerHTML = '<p class="p-6 text-center text-gray-500">Aucune transaction en attente de confirmation.</p>';
-                } else {
-                    renderTransactions(result.data);
-                }
+                renderDashboard(result.data);
+                // Charger les autres onglets en arrière-plan
+                loadPendingConfirmations();
+                loadHistory();
             } else {
-                statusMessage.innerHTML = `<p class="p-4 bg-red-100 text-red-700 rounded">${result.error}</p>`;
+                loginStatus.textContent = `Erreur: ${result.error || 'Impossible de charger les données.'}`;
             }
         }
 
-        function renderTransactions(transactions) {
-            transactionsList.innerHTML = transactions.map(tx => `
+        function renderDashboard(data) {
+            // KPIs
+            const { kpis, charts, reimbursements } = data;
+            document.getElementById('kpi-container').innerHTML = `
+                <div class="bg-white p-6 rounded-lg shadow"><h3 class="text-gray-500 font-semibold">Revenu Total Confirmé</h3><p class="text-3xl font-bold mt-2">${kpis.totalRevenue.toLocaleString('fr-FR')} F</p></div>
+                <div class="bg-white p-6 rounded-lg shadow"><h3 class="text-gray-500 font-semibold">Transactions Totales</h3><p class="text-3xl font-bold mt-2">${kpis.totalTransactions}</p></div>
+                <div class="bg-white p-6 rounded-lg shadow"><h3 class="text-gray-500 font-semibold">Taux de Confirmation</h3><p class="text-3xl font-bold mt-2">${kpis.totalTransactions > 0 ? ((kpis.statusCounts['Confirmé'] / kpis.totalTransactions) * 100).toFixed(1) : 0}%</p></div>
+            `;
+
+            // Charts
+            renderChart('statusChart', 'pie', {
+                labels: Object.keys(kpis.statusCounts),
+                datasets: [{ data: Object.values(kpis.statusCounts), backgroundColor: ['#22c55e', '#facc15', '#ef4444'] }]
+            }, "Statut des Transactions");
+
+            const salesLabels = Object.keys(charts.salesByDay).sort();
+            renderChart('salesChart', 'line', {
+                labels: salesLabels.map(d => new Date(d).toLocaleDateString('fr-FR', {day:'2-digit', month:'short'})),
+                datasets: [{ label: 'Revenu par jour', data: salesLabels.map(l => charts.salesByDay[l]), borderColor: '#3b82f6', tension: 0.1, fill: false }]
+            }, "Revenus sur le temps");
+
+            // Remboursements
+            renderReimbursements(reimbursements);
+        }
+
+        async function loadPendingConfirmations() {
+            document.getElementById('confirmations-loader').style.display = 'block';
+            const result = await apiCall('getPendingAbmcyPayments');
+            document.getElementById('confirmations-loader').style.display = 'none';
+            if(result.success) renderConfirmations(result.data);
+        }
+
+        function renderConfirmations(transactions) {
+            const list = document.getElementById('confirmations-list');
+            if (transactions.length === 0) {
+                list.innerHTML = '<p class="p-6 text-center text-gray-500">Aucune transaction en attente.</p>';
+                return;
+            }
+            list.innerHTML = transactions.map(tx => `
                 <div class="p-4 flex flex-col md:flex-row justify-between items-start md:items-center" id="tx-${tx.IDCommande}">
                     <div>
                         <p class="font-bold text-lg">${tx.IDCommande}</p>
@@ -132,7 +227,6 @@
                             <span class="font-semibold">${tx.MoyenPaiement}</span>
                         </p>
                         <p class="text-xs text-gray-500">Le ${new Date(tx.Date).toLocaleString('fr-FR')}</p>
-                        <!-- NOUVEAU: Affichage des infos de l'expéditeur -->
                         <div class="mt-2 text-xs bg-blue-50 p-2 rounded border border-blue-200">
                             <p><strong>Expéditeur:</strong> ${tx.NomExpediteur || 'N/A'} - <strong>Tél:</strong> ${tx.NumeroExpediteur || 'N/A'}</p>
                         </div>
@@ -145,33 +239,111 @@
             `).join('');
         }
 
+        async function loadHistory() {
+            document.getElementById('history-loader').style.display = 'block';
+            const result = await apiCall('getAbmcyAggregatorHistory');
+            document.getElementById('history-loader').style.display = 'none';
+            if(result.success) renderHistory(result.data);
+        }
+
+        function renderHistory(transactions) {
+            const list = document.getElementById('history-list');
+             if (transactions.length === 0) {
+                list.innerHTML = '<p class="p-6 text-center text-gray-500">Aucun historique.</p>';
+                return;
+            }
+            list.innerHTML = transactions.map(tx => {
+                let statusClass = 'bg-gray-100 text-gray-800';
+                if (tx.StatutLog === 'Confirmé') statusClass = 'bg-green-100 text-green-800';
+                if (tx.StatutLog === 'Expiré') statusClass = 'bg-red-100 text-red-800';
+                return `
+                <div class="p-4">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <p class="font-bold">${tx.IDCommande}</p>
+                            <p class="text-sm text-gray-600">${tx.Montant.toLocaleString('fr-FR')} F via ${tx.MoyenPaiement}</p>
+                            <p class="text-xs text-gray-500">${new Date(tx.Timestamp).toLocaleString('fr-FR')}</p>
+                        </div>
+                        <span class="text-xs font-bold px-2 py-1 rounded-full ${statusClass}">${tx.StatutLog}</span>
+                    </div>
+                    <p class="text-xs mt-1"><strong>Expéditeur:</strong> ${tx.NomExpediteur || 'N/A'} (${tx.NumeroExpediteur || 'N/A'})</p>
+                </div>
+            `}).join('');
+        }
+
+        function renderReimbursements(reimbursements) {
+            const list = document.getElementById('reimbursements-list');
+            document.getElementById('reimbursements-loader').style.display = 'none';
+            if (reimbursements.length === 0) {
+                list.innerHTML = '<p class="p-6 text-center text-gray-500">Aucun remboursement à effectuer.</p>';
+                return;
+            }
+            list.innerHTML = reimbursements.map(r => `
+                <div class="p-4" id="reimburse-${r.orderId}">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <p class="font-bold text-red-600">${r.amount.toLocaleString('fr-FR')} F à ${r.partnerName}</p>
+                            <p class="text-sm text-gray-600">Pour commande <span class="font-mono">${r.orderId}</span></p>
+                            <p class="text-xs text-gray-500">Date: ${new Date(r.date).toLocaleDateString('fr-FR')}</p>
+                        </div>
+                        <button onclick="markAsPaid('${r.orderId}')" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded text-sm">Marquer comme payé</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
         async function confirmPayment(orderId) {
             if (!confirm(`Voulez-vous vraiment confirmer le paiement pour la commande ${orderId} ?`)) return;
-            
             const result = await apiCall('manuallyConfirmAbmcyPayment', { orderId });
-            handleActionResponse(result, orderId, 'Paiement confirmé avec succès !', 'bg-green-100 text-green-700');
+            handleActionResponse(result, orderId, 'confirmations-list', 'Paiement confirmé avec succès !', 'bg-green-100 text-green-700');
         }
 
         async function expirePayment(orderId) {
             if (!confirm(`Voulez-vous vraiment marquer la commande ${orderId} comme expirée ?`)) return;
-
             const result = await apiCall('manuallyExpireAbmcyPayment', { orderId });
-            handleActionResponse(result, orderId, 'Paiement marqué comme expiré.', 'bg-yellow-100 text-yellow-700');
+            handleActionResponse(result, orderId, 'confirmations-list', 'Paiement marqué comme expiré.', 'bg-yellow-100 text-yellow-700');
         }
 
-        function handleActionResponse(result, orderId, successMessage, successClasses) {
+        async function markAsPaid(orderId) {
+            if (!confirm(`Marquer le remboursement pour ${orderId} comme payé ?`)) return;
+            const result = await apiCall('markReimbursementAsPaid', { orderId });
+            handleActionResponse(result, orderId, 'reimbursements-list', 'Remboursement enregistré.', 'bg-green-100 text-green-700', 'reimburse-');
+        }
+
+        function handleActionResponse(result, orderId, listId, successMessage, successClasses, elementPrefix = 'tx-') {
             if (result.success) {
-                const txElement = document.getElementById(`tx-${orderId}`);
+                const txElement = document.getElementById(`${elementPrefix}${orderId}`);
                 if (txElement) {
                     txElement.style.transition = 'opacity 0.5s ease';
                     txElement.style.opacity = '0';
                     setTimeout(() => txElement.remove(), 500);
                 }
-                statusMessage.innerHTML = `<p class="p-4 rounded ${successClasses}">${successMessage}</p>`;
+                globalStatus.innerHTML = `<p class="p-4 rounded ${successClasses}">${successMessage}</p>`;
             } else {
-                statusMessage.innerHTML = `<p class="p-4 bg-red-100 text-red-700 rounded">Erreur: ${result.error}</p>`;
+                globalStatus.innerHTML = `<p class="p-4 bg-red-100 text-red-700 rounded">Erreur: ${result.error}</p>`;
             }
-            setTimeout(() => statusMessage.innerHTML = '', 4000);
+            setTimeout(() => globalStatus.innerHTML = '', 4000);
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            document.getElementById('tab-' + tabId).classList.add('active');
+            document.querySelector(`button[onclick="switchTab('${tabId}')"]`).classList.add('active');
+        }
+
+        function renderChart(canvasId, type, data, title) {
+            const ctx = document.getElementById(canvasId).getContext('2d');
+            if (chartInstances[canvasId]) chartInstances[canvasId].destroy();
+            chartInstances[canvasId] = new Chart(ctx, { type, data, options: { responsive: true, plugins: { title: { display: true, text: title } } } });
+        }
+
+        function logout() {
+            adminPassword = '';
+            adminPanel.classList.add('hidden');
+            loginScreen.classList.remove('hidden');
+            passwordInput.value = '';
+            loginStatus.textContent = '';
         }
     </script>
 </body>
