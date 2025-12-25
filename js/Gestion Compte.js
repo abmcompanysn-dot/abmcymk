@@ -3079,12 +3079,27 @@ function sendCallMeBotNotification(message) {
         }
 
         const encodedMessage = encodeURIComponent(message);
-        const url = `https://api.callmebot.com/whatsapp.php?phone=${config.CALLMEBOT_PHONE}&text=${encodedMessage}&apikey=${config.CALLMEBOT_API_KEY}`;
+        // CORRECTION: Encoder le numéro de téléphone pour gérer le '+' correctement (%2B)
+        const encodedPhone = encodeURIComponent(config.CALLMEBOT_PHONE);
+        const url = `https://api.callmebot.com/whatsapp.php?phone=${encodedPhone}&text=${encodedMessage}&apikey=${config.CALLMEBOT_API_KEY}`;
         
         UrlFetchApp.fetch(url, { muteHttpExceptions: true });
     } catch (e) {
         console.error("Erreur CallMeBot: " + e.message);
     }
+}
+
+/**
+ * NOUVEAU: Fonction de test pour CallMeBot (accessible via le menu).
+ */
+function testCallMeBot() {
+  const ui = SpreadsheetApp.getUi();
+  try {
+    sendCallMeBotNotification("🧪 Ceci est un test de notification CallMeBot depuis ABMCY Market ! Si vous lisez ceci, la configuration est correcte.");
+    ui.alert("Message de test envoyé. Vérifiez votre WhatsApp.");
+  } catch (e) {
+    ui.alert("Erreur lors du test : " + e.message);
+  }
 }
 
 /**
@@ -3094,6 +3109,8 @@ function onOpen() {
   SpreadsheetApp.getUi()
       .createMenu('Configuration Module')
       .addItem('🚀 Initialiser le projet (Feuilles & Config)', 'setupProject')
+      .addSeparator()
+      .addItem('📱 Tester CallMeBot WhatsApp', 'testCallMeBot') // NOUVEAU: Bouton de test
       .addSeparator()
       .addItem('⏰ Configurer le déclencheur d\'expiration des paiements ABMCY', 'createAbmcyPaymentExpirationTrigger') // NOUVEAU
       .addSeparator() // NOUVEAU
