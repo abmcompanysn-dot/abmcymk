@@ -158,6 +158,10 @@
             color: var(--danger-color);
             border-color: var(--danger-color);
         }
+        .edit-btn {
+            color: var(--accent-color);
+            border-color: var(--accent-color);
+        }
 
         #loader {
             text-align: center;
@@ -390,12 +394,13 @@
             <section class="section">
                 <h2>Gérer les Services</h2>
                 <form id="addServiceForm" class="form-grid">
+                    <input type="hidden" id="serviceId">
                     <div class="input-group">
                         <label for="serviceName">Nom du service</label>
                         <input type="text" id="serviceName" required>
                     </div>
                     <div class="input-group">
-                        <label for="servicePrice">Prix (€)</label>
+                        <label for="servicePrice">Prix (FCFA)</label>
                         <input type="number" id="servicePrice" required>
                     </div>
                     <div class="input-group">
@@ -414,7 +419,7 @@
                         <label for="serviceDescription">Description</label>
                         <textarea id="serviceDescription" rows="2" style="width: 100%; padding: 0.7rem; border: 1px solid #ccc; border-radius: 6px; font-family: inherit;"></textarea>
                     </div>
-                    <button type="submit" class="submit-btn">Ajouter</button>
+                    <button type="submit" class="submit-btn">Ajouter / Modifier</button>
                 </form>
                 <div id="servicesList" class="items-list">
                     <!-- Les services seront injectés ici par JavaScript -->
@@ -425,12 +430,13 @@
             <section class="section">
                 <h2>Gérer les Produits</h2>
                 <form id="addProductForm" class="form-grid">
+                    <input type="hidden" id="productId">
                     <div class="input-group">
                         <label for="productName">Nom du produit</label>
                         <input type="text" id="productName" required>
                     </div>
                     <div class="input-group">
-                        <label for="productPrice">Prix (€)</label>
+                        <label for="productPrice">Prix (FCFA)</label>
                         <input type="number" id="productPrice" required>
                     </div>
                     <div class="input-group">
@@ -449,7 +455,7 @@
                         <label for="productDescription">Description</label>
                         <textarea id="productDescription" rows="2" style="width: 100%; padding: 0.7rem; border: 1px solid #ccc; border-radius: 6px; font-family: inherit;"></textarea>
                     </div>
-                    <button type="submit" class="submit-btn">Ajouter</button>
+                    <button type="submit" class="submit-btn">Ajouter / Modifier</button>
                 </form>
                 <div id="productsList" class="items-list">
                     <!-- Les produits seront injectés ici par JavaScript -->
@@ -769,6 +775,8 @@
         const productsListDiv = document.getElementById('productsList');
 
         let compteId = null;
+        let currentServices = [];
+        let currentProducts = [];
         let currentSlug = null; // Stocker le slug actuel
 
         function toggleSidebar() {
@@ -819,6 +827,7 @@
             // NOUVEAU: Charger les données locales pour un affichage immédiat
             loadLocalData();
             
+            setupImagePreviews();
             fetchData();
             setupQrCodeAndLink();
         });
@@ -910,8 +919,10 @@
                 const result = await response.json();
 
                 if (result.status === 'success') {
-                    renderItems(result.data.services, servicesListDiv, 'service');
-                    renderItems(result.data.products, productsListDiv, 'produit');
+                    currentServices = result.data.services;
+                    currentProducts = result.data.products;
+                    renderItems(currentServices, servicesListDiv, 'service');
+                    renderItems(currentProducts, productsListDiv, 'produit');
                     loader.style.display = 'none';
                     dashboardContent.style.display = 'block';
 
@@ -968,6 +979,23 @@
                 document.getElementById('previewCover').style.display = 'block';
                 document.getElementById('currentCoverUrl').value = info.CoverImageUrl;
             }
+        }
+
+        function setupImagePreviews() {
+            ['settingsLogo', 'settingsCover'].forEach(id => {
+                document.getElementById(id).addEventListener('change', function(e) {
+                    if (this.files && this.files[0]) {
+                        const reader = new FileReader();
+                        reader.onload = (e) => {
+                            const previewId = id === 'settingsLogo' ? 'previewLogo' : 'previewCover';
+                            const img = document.getElementById(previewId);
+                            img.src = e.target.result;
+                            img.style.display = 'block';
+                        };
+                        reader.readAsDataURL(this.files[0]);
+                    }
+                });
+            });
         }
 
         function renderItems(items, container, type) {
@@ -1117,10 +1145,10 @@
             const uniqueClients = new Set(currentOrders.map(o => o.customer.email)).size;
             const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
 
-            document.getElementById('stat-revenue').textContent = totalRevenue.toLocaleString('fr-FR') + ' F';
+            document.getElementById('stat-revenue').textContent = totalRevenue.toLocaleString('fr-FR') + ' FCFA';
             document.getElementById('stat-orders').textContent = totalOrders;
             document.getElementById('stat-clients').textContent = uniqueClients;
-            document.getElementById('stat-aov').textContent = Math.round(averageOrderValue).toLocaleString('fr-FR') + ' F';
+            document.getElementById('stat-aov').textContent = Math.round(averageOrderValue).toLocaleString('fr-FR') + ' FCFA';
 
             // 2. Charts Data
             updateDashboardCharts();
@@ -1208,7 +1236,7 @@
                     <td><span style="font-family: monospace; font-weight: bold;">${order.id}</span></td>
                     <td>${date}</td>
                     <td>${order.customer.firstname} ${order.customer.lastname}</td>
-                    <td style="font-weight: bold;">${order.total.toLocaleString('fr-FR')} F</td>
+                    <td style="font-weight: bold;">${order.total.toLocaleString('fr-FR')} FCFA</td>
                     <td>${order.paymentMethod === 'cod' ? 'À la livraison' : 'En ligne'}</td>
                     <td><span class="badge" style="background-color: ${statusColor};">${order.status}</span></td>
                     <td><button onclick="openOrderModal('${order.id}')" style="background: none; border: 1px solid var(--accent-color); color: var(--accent-color); padding: 0.3rem 0.8rem; border-radius: 4px; cursor: pointer;">Détails</button></td>
@@ -1278,7 +1306,7 @@
             document.getElementById('modalClientNote').textContent = order.customer.notes || 'Aucune';
             
             document.getElementById('modalOrderDate').textContent = new Date(order.date).toLocaleString('fr-FR');
-            document.getElementById('modalOrderTotal').textContent = `${order.total.toLocaleString('fr-FR')} F CFA`;
+            document.getElementById('modalOrderTotal').textContent = `${order.total.toLocaleString('fr-FR')} FCFA`;
             document.getElementById('modalPaymentType').textContent = order.paymentMethod === 'cod' ? 'Paiement à la livraison' : 'Paiement en ligne';
             document.getElementById('modalOrderStatus').value = order.status;
 
@@ -1288,7 +1316,7 @@
                 itemsContainer.innerHTML += `
                     <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; background: #f8f9fa; border-radius: 6px;">
                         <span>${item.name} (x${item.quantity})</span>
-                        <span style="font-weight: bold;">${(item.price * item.quantity).toLocaleString('fr-FR')} F</span>
+                        <span style="font-weight: bold;">${(item.price * item.quantity).toLocaleString('fr-FR')} FCFA</span>
                     </div>
                 `;
             });
@@ -1330,6 +1358,7 @@
             const prefix = type === 'service' ? 'service' : 'product';
             
             const nameInput = document.getElementById(`${prefix}Name`);
+            const idInput = document.getElementById(`${prefix}Id`);
             const priceInput = document.getElementById(`${prefix}Price`);
             const fileInput = document.getElementById(`${prefix}Image`);
             const categoryInput = document.getElementById(`${prefix}Category`);
@@ -1343,6 +1372,7 @@
             const characteristics = characteristicsInput ? characteristicsInput.value : '';
             const description = descriptionInput ? descriptionInput.value : '';
             let imageUrl = '';
+            const isEdit = idInput && idInput.value;
 
             if (!nom || isNaN(prix)) {
                 alert("Veuillez remplir tous les champs avec des valeurs valides.");
@@ -1354,6 +1384,12 @@
 
             try {
                 // Upload de l'image si présente
+                if (isEdit && (!fileInput || !fileInput.files[0])) {
+                    // Keep existing image
+                    const items = type === 'service' ? currentServices : currentProducts;
+                    const item = items.find(i => i.IDItem === idInput.value);
+                    if (item) imageUrl = item.ImageUrl || item.Image || '';
+                }
                 if (fileInput && fileInput.files[0]) {
                     submitBtn.textContent = 'Upload image...';
                     if (typeof uploadImageToImgBB === 'function') {
@@ -1371,14 +1407,14 @@
 
             // Utilisation d'une structure cohérente avec 'action' et 'data'
             const payload = {
-                action: type === 'service' ? 'addService' : 'addProduct',
+                action: type === 'service' ? (isEdit ? 'updateService' : 'addService') : (isEdit ? 'updateProduct' : 'addProduct'),
                 data: {
                     compteId: compteId,
-                    item: { nom, prix, imageUrl, category, characteristics, description }
+                    item: { id: isEdit ? idInput.value : null, nom, prix, imageUrl, category, characteristics, description }
                 }
             };
 
-            submitBtn.textContent = 'Enregistrement...';
+            submitBtn.textContent = isEdit ? 'Mise à jour...' : 'Enregistrement...';
 
             try {
                 const response = await fetch(BUSINESS_API_URL, {
@@ -1390,7 +1426,7 @@
                 const result = await response.json();
 
                 if (result.status === 'success') {
-                    form.reset(); // Vider le formulaire
+                    resetForm(type); // Vider le formulaire et reset mode
                     await fetchData(); // Rafraîchir les listes
                 } else {
                     throw new Error(result.message || "Une erreur inconnue est survenue.");
@@ -1399,7 +1435,7 @@
                 alert(`Erreur lors de l'ajout : ${error.message}`);
             } finally {
                 submitBtn.disabled = false;
-                submitBtn.textContent = 'Ajouter';
+                submitBtn.textContent = isEdit ? 'Mettre à jour' : 'Ajouter';
             }
         }
 
