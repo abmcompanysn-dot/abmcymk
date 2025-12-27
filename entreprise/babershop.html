@@ -624,11 +624,21 @@
                 const alias = new URLSearchParams(window.location.search).get('alias');
 
                 // Si l'ID est manquant, on regarde si main-entreprise.js l'a déjà chargé
-                if (!targetId && window.PUBLIC_DATA && window.PUBLIC_DATA.businessInfo) {
-                    targetId = window.PUBLIC_DATA.businessInfo.NumeroCompte;
+                if (!targetId) {
+                    if (window.BUSINESS_ID) targetId = window.BUSINESS_ID;
+                    else if (window.PUBLIC_DATA && window.PUBLIC_DATA.businessInfo) targetId = window.PUBLIC_DATA.businessInfo.NumeroCompte;
                 }
 
                 if (!apiUrl || (!targetId && alias)) {
+                    // Tentative de résolution de l'alias si l'ID est toujours manquant
+                    if (!targetId && alias) {
+                        try {
+                            const resolveResp = await fetch(`https://script.google.com/macros/s/AKfycbw7rPxpIc5HBkw0AsFBSelnXBWnyaaJmXvUs4RZ8gLwJPzoDl9-JP-GXDMcVFwNctMfGg/exec?action=resolveSlug&alias=${alias}`);
+                            const resolveData = await resolveResp.json();
+                            if (resolveData.status === 'success') targetId = resolveData.compteId;
+                        } catch(e) { console.warn("Echec resolution alias", e); }
+                    }
+
                     let queryParam = '';
                     if (targetId) queryParam = `compteId=${targetId}`;
                     else if (alias) queryParam = `alias=${alias}`;

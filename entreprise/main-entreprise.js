@@ -67,6 +67,11 @@ async function initializeApp() {
 
         const { businessInfo, services, products } = result.data;
 
+        // Exposer les données globalement pour les autres scripts (ex: formulaire d'avis)
+        window.PUBLIC_DATA = result.data;
+        window.BUSINESS_API_URL = businessInfo.ApiTypeUrl;
+        window.BUSINESS_ID = compteId;
+
         // 2. Remplir la page avec les données récupérées
         displayBusinessInfo(businessInfo);
         
