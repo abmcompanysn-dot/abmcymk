@@ -623,7 +623,12 @@
                 let targetId = new URLSearchParams(window.location.search).get('compteId');
                 const alias = new URLSearchParams(window.location.search).get('alias');
 
-                if (!apiUrl) {
+                // Si l'ID est manquant, on regarde si main-entreprise.js l'a déjà chargé
+                if (!targetId && window.PUBLIC_DATA && window.PUBLIC_DATA.businessInfo) {
+                    targetId = window.PUBLIC_DATA.businessInfo.NumeroCompte;
+                }
+
+                if (!apiUrl || (!targetId && alias)) {
                     let queryParam = '';
                     if (targetId) queryParam = `compteId=${targetId}`;
                     else if (alias) queryParam = `alias=${alias}`;
