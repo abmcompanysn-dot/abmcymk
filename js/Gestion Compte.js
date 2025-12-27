@@ -39,7 +39,7 @@ const ALLOWED_ORIGINS = {
 // NOUVEAU: Configuration des URLs d'API spécifiques par type d'entreprise.
 // C'est ici que le système "récupère l'API" pour l'associer au compte.
 const BUSINESS_TYPE_APIS = {
-    "Coiffeur": "https://script.google.com/macros/s/AKfycbx1ZH4kQ7uEaH_HqHunZl_Zg5TDV6v5vuTgi6pmzT57xkoJHbI_n7MuSQgwbPu-fDRufw/exec", // ⚠️ REMPLACEZ CECI par l'URL déployée de votre script 'api_type_coiffeur.js'
+    "Coiffeur": "https://script.google.com/macros/s/AKfycbwViPPGcmqgOWwQyOVs6tnyQdaqFes41YAmOM5CiLudn7BjdA9VwpZwktTn6YDCk0sdJg/exec", // ⚠️ REMPLACEZ CECI par l'URL déployée de votre script 'api_type_coiffeur.js'
     "Restaurant": "", // À définir plus tard
     "Boutique": ""    // À définir plus tard
 };
@@ -901,6 +901,11 @@ function enregistrerCommande(data, origin) {
             businessId // NOUVEAU: CompteID
         ]);
 
+        // NOUVEAU: Décrémenter le stock automatiquement
+        if (businessId) {
+            updateBusinessStock(businessId, data.produits);
+        }
+
         logAction('enregistrerCommande', { id: idCommande, client: data.idClient });
         // Retourne plus d'infos pour la notification
         return createJsonResponse({ 
@@ -952,6 +957,11 @@ function createPaydunyaInvoice(data, origin) {
             '', '', '', '', // TransactionReference, InitiationTimestamp, NomExpediteur, NumeroExpediteur (vides pour Paydunya au début)
             businessId // NOUVEAU: CompteID (Rempli si entreprise, vide si direct)
         ]);
+
+        // NOUVEAU: Décrémenter le stock (Réservation à la commande)
+        if (businessId) {
+            updateBusinessStock(businessId, data.produits);
+        }
 
         // 2. Préparer la requête pour l'API Paydunya
         const paydunyaPayload = {
@@ -1113,6 +1123,11 @@ function createAbmcyAggregatorInvoice(data, origin) {
             businessId, // NOUVEAU: CompteID
             aggregatorType, '' // NOUVEAU: AggregatorType, ReimbursementStatus
         ]);
+
+        // NOUVEAU: Décrémenter le stock (Réservation à la commande)
+        if (businessId) {
+            updateBusinessStock(businessId, data.produits);
+        }
 
         // 1.5 NOUVEAU: Enregistrer la tentative dans l'historique (Comme initiateAbmcyPayment)
         const historySheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.ABMCY_AGGREGATOR_HISTORY);
@@ -3006,6 +3021,49 @@ function getVisitStats(data, origin) {
   const chartLabels = labels.map(key => { const p = key.split('-'); return `${p[2]}/${p[1]}`; });
 
   return createJsonResponse({ success: true, status: "success", labels: chartLabels, data: chartData }, origin);
+}
+
+/**
+ * NOUVEAU: Appelle l'API de l'entreprise pour décrémenter le stock.
+ * @param {string} businessId - L'ID du compte entreprise.
+ * @param {Array} products - La liste des produits commandés.
+ */
+function updateBusinessStock(businessId, products) {
+    try {
+        const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.ENTREPRISES);
+        const data = sheet.getDataRange().getValues();
+        const headers = data[0];
+        const idIndex = headers.indexOf("NumeroCompte");
+        const urlIndex = headers.indexOf("ApiTypeUrl");
+
+        const row = data.find(r => r[idIndex] === businessId);
+        if (!row || !row[urlIndex]) return;
+
+        const apiUrl = row[urlIndex];
+        
+        // Préparer les items pour l'API spécifique
+        const items = products.map(p => ({
+            itemId: p.productId,
+            quantity: p.quantity
+        }));
+
+        const payload = {
+            action: 'decrementStock',
+            data: {
+                compteId: businessId,
+                items: items
+            }
+        };
+
+        UrlFetchApp.fetch(apiUrl, {
+            method: 'post',
+            contentType: 'application/json',
+            payload: JSON.stringify(payload),
+            muteHttpExceptions: true
+        });
+    } catch (e) {
+        logError(`updateBusinessStock for ${businessId}`, e);
+    }
 }
 
 /**

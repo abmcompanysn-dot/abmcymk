@@ -13,6 +13,7 @@ const PRODUCTS_SHEET = "Produits"; // Feuille contenant les produits de TOUS les
 const LOGS_SHEET = "Logs";         // Feuille pour le journal d'activité
 const SLUGS_SHEET = "Slugs";       // Feuille pour les alias (URL courtes)
 const STATS_SHEET = "Stats_Visites"; // Feuille pour l'historique des visites
+const AVIS_SHEET = "Avis";         // NOUVEAU: Feuille pour les avis clients
 
 /**
  * Gère les requêtes OPTIONS pour le support CORS.
@@ -48,12 +49,14 @@ function doGet(e) {
 
   const services = getDataForId(SERVICES_SHEET, compteId);
   const products = getDataForId(PRODUCTS_SHEET, compteId);
+  const reviews = getPublicReviews(compteId); // NOUVEAU: Récupérer les avis publics
 
   return createJsonResponse({
     status: "success",
     data: {
       services: services,
-      products: products
+      products: products,
+      reviews: reviews // NOUVEAU
     }
   });
 }
@@ -92,6 +95,18 @@ function doPost(e) {
         return addItem(data);
       case 'updateItem':
         return updateItem(data);
+      case 'updateService':
+        return updateItemFromDashboard(data, 'service');
+      case 'updateProduct':
+        return updateItemFromDashboard(data, 'produit');
+      case 'decrementStock':
+        return decrementStock(data);
+      case 'submitReview': // NOUVEAU: Soumettre un avis
+        return submitReview(data);
+      case 'getReviews': // NOUVEAU: Récupérer tous les avis (Admin)
+        return getReviews(data);
+      case 'toggleReviewVisibility': // NOUVEAU: Modérer un avis
+        return toggleReviewVisibility(data);
       case 'deleteItem':
         return deleteItem(data);
       case 'submitPublicHaircut':
@@ -155,11 +170,33 @@ function addItemFromDashboard(data, type) {
 }
 
 /**
+ * Adapte les données du dashboard pour la fonction updateItem.
+ */
+function updateItemFromDashboard(data, type) {
+  const itemData = data.item || {};
+  
+  const flatData = {
+    compteId: data.compteId,
+    type: type,
+    itemId: itemData.id,
+    nom: itemData.nom,
+    prix: itemData.prix,
+    imageUrl: itemData.imageUrl,
+    description: itemData.description,
+    category: itemData.category,
+    characteristics: itemData.characteristics,
+    stock: itemData.stock
+  };
+  
+  return updateItem(flatData);
+}
+
+/**
  * Ajoute un nouvel item (service ou produit).
  * @param {object} data - { compteId, type, nom, prix, description, imageUrl, category, characteristics }
  */
 function addItem(data) {
-  const { compteId, type, nom, prix, description, imageUrl, category, characteristics } = data;
+  const { compteId, type, nom, prix, description, imageUrl, category, characteristics, stock } = data;
   if (!compteId || !type || !nom || !prix) {
     return createJsonResponse({ status: "error", message: "Données requises manquantes (compteId, type, nom, prix)." });
   }
@@ -179,7 +216,8 @@ function addItem(data) {
     imageUrl || '', 
     category || '', 
     characteristics || '', 
-    new Date()
+    new Date(),
+    stock || 0
   ]);
 
   logAction(compteId, `Ajout ${type}`, `Nom: ${nom}, Prix: ${prix}`);
@@ -191,7 +229,7 @@ function addItem(data) {
  * @param {object} data - { compteId, type, itemId, nom, prix, description, imageUrl, category, characteristics }
  */
 function updateItem(data) {
-  const { compteId, type, itemId, nom, prix, description, imageUrl, category, characteristics } = data;
+  const { compteId, type, itemId, nom, prix, description, imageUrl, category, characteristics, stock } = data;
   if (!itemId || !type) {
     return createJsonResponse({ status: "error", message: "ID de l'item ou type manquant." });
   }
@@ -211,22 +249,126 @@ function updateItem(data) {
   }
 
   // Mettre à jour les valeurs
-  sheet.getRange(rowIndex + 1, headers.indexOf("Nom") + 1).setValue(nom);
-  sheet.getRange(rowIndex + 1, headers.indexOf("Prix") + 1).setValue(prix);
-  sheet.getRange(rowIndex + 1, headers.indexOf("Description") + 1).setValue(description);
+  if (nom !== undefined) sheet.getRange(rowIndex + 1, headers.indexOf("Nom") + 1).setValue(nom);
+  if (prix !== undefined) sheet.getRange(rowIndex + 1, headers.indexOf("Prix") + 1).setValue(prix);
+  if (description !== undefined) sheet.getRange(rowIndex + 1, headers.indexOf("Description") + 1).setValue(description);
   
   if (imageUrl) {
     sheet.getRange(rowIndex + 1, headers.indexOf("ImageURL") + 1).setValue(imageUrl);
   }
-  if (category) {
+  if (category !== undefined) {
     sheet.getRange(rowIndex + 1, headers.indexOf("Categorie") + 1).setValue(category);
   }
-  if (characteristics) {
+  if (characteristics !== undefined) {
     sheet.getRange(rowIndex + 1, headers.indexOf("Caracteristiques") + 1).setValue(characteristics);
+  }
+  if (stock !== undefined) {
+    const stockIndex = headers.indexOf("Stock");
+    if (stockIndex > -1) sheet.getRange(rowIndex + 1, stockIndex + 1).setValue(stock);
   }
 
   logAction(compteId, `Modification ${type}`, `ID: ${itemId}, Nom: ${nom}`);
   return createJsonResponse({ status: "success", message: "Mise à jour réussie." });
+}
+
+/**
+ * Décrémente le stock des produits après une commande.
+ * @param {object} data - { compteId, items: [{ itemId, quantity }] }
+ */
+function decrementStock(data) {
+  const { compteId, items } = data;
+  if (!compteId || !items || !Array.isArray(items)) {
+    return createJsonResponse({ status: "error", message: "Données invalides pour la mise à jour du stock." });
+  }
+
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(PRODUCTS_SHEET);
+  if (!sheet) return createJsonResponse({ status: "error", message: "Feuille Produits introuvable." });
+
+  const dataRange = sheet.getDataRange();
+  const values = dataRange.getValues();
+  const headers = values[0];
+  
+  const idIndex = headers.indexOf("IDItem");
+  const stockIndex = headers.indexOf("Stock");
+  const compteIdIndex = headers.indexOf("CompteID");
+
+  if (idIndex === -1 || stockIndex === -1) {
+    return createJsonResponse({ status: "error", message: "Colonnes IDItem ou Stock introuvables." });
+  }
+
+  items.forEach(item => {
+    // Trouver la ligne correspondant à l'ID du produit et au CompteID
+    const rowIndex = values.findIndex(row => row[idIndex] === item.itemId && row[compteIdIndex] === compteId);
+    if (rowIndex > -1) {
+      const currentStock = parseInt(values[rowIndex][stockIndex]) || 0;
+      const newStock = Math.max(0, currentStock - item.quantity); // Empêcher le stock négatif
+      sheet.getRange(rowIndex + 1, stockIndex + 1).setValue(newStock);
+    }
+  });
+
+  return createJsonResponse({ status: "success", message: "Stock mis à jour." });
+}
+
+/**
+ * NOUVEAU: Soumet un avis client.
+ */
+function submitReview(data) {
+  const { compteId, nom, prenom, telephone, pointsPositifs, pointsAmeliorer, note } = data;
+  if (!compteId || !nom) return createJsonResponse({ status: "error", message: "Données manquantes." });
+  
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(AVIS_SHEET);
+  if (!sheet) return createJsonResponse({ status: "error", message: "Système d'avis non configuré." });
+
+  const idAvis = "AVIS-" + new Date().getTime();
+  
+  // Colonnes: CompteID, IDAvis, Date, Nom, Prenom, Telephone, PointsPositifs, PointsAmeliorer, Visible, Note
+  sheet.appendRow([
+    compteId, idAvis, new Date(), nom, prenom, telephone, pointsPositifs, pointsAmeliorer, false, note || 5 // Visible par défaut à faux
+  ]);
+  
+  return createJsonResponse({ status: "success", message: "Merci ! Votre avis a été envoyé et sera visible après validation." });
+}
+
+/**
+ * NOUVEAU: Récupère tous les avis pour le dashboard admin.
+ */
+function getReviews(data) {
+   const { compteId } = data;
+   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(AVIS_SHEET);
+   if(!sheet) return createJsonResponse({ status: "success", data: [] });
+   
+   const allData = getDataForId(AVIS_SHEET, compteId);
+   // Trier par date décroissante
+   allData.sort((a, b) => new Date(b.Date) - new Date(a.Date));
+   
+   return createJsonResponse({ status: "success", data: allData });
+}
+
+/**
+ * NOUVEAU: Récupère uniquement les avis publics.
+ */
+function getPublicReviews(compteId) {
+   const allData = getDataForId(AVIS_SHEET, compteId);
+   return allData.filter(r => String(r.Visible).toLowerCase() === "true");
+}
+
+/**
+ * NOUVEAU: Change la visibilité d'un avis.
+ */
+function toggleReviewVisibility(data) {
+  const { compteId, reviewId, visible } = data;
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(AVIS_SHEET);
+  const values = sheet.getDataRange().getValues();
+  const headers = values[0];
+  const idIndex = headers.indexOf("IDAvis");
+  const visibleIndex = headers.indexOf("Visible");
+  
+  const rowIndex = values.findIndex(r => r[idIndex] === reviewId);
+  if(rowIndex > -1) {
+    sheet.getRange(rowIndex + 1, visibleIndex + 1).setValue(visible);
+    return createJsonResponse({ status: "success", message: "Visibilité mise à jour." });
+  }
+  return createJsonResponse({ status: "error", message: "Avis non trouvé." });
 }
 
 /**
@@ -283,10 +425,11 @@ function setupSheets() {
   // Configuration des feuilles et des colonnes attendues
   const sheetsToCreate = {
     [SERVICES_SHEET]: ["CompteID", "IDItem", "Nom", "Prix", "Description", "ImageURL", "Categorie", "Caracteristiques", "Date"],
-    [PRODUCTS_SHEET]: ["CompteID", "IDItem", "Nom", "Prix", "Description", "ImageURL", "Categorie", "Caracteristiques", "Date"],
+    [PRODUCTS_SHEET]: ["CompteID", "IDItem", "Nom", "Prix", "Description", "ImageURL", "Categorie", "Caracteristiques", "Date", "Stock"],
     [LOGS_SHEET]: ["CompteID", "Date", "Action", "Details"],
     [SLUGS_SHEET]: ["Slug", "CompteID", "Date", "Visits"],
-    [STATS_SHEET]: ["CompteID", "Date"]
+    [STATS_SHEET]: ["CompteID", "Date"],
+    [AVIS_SHEET]: ["CompteID", "IDAvis", "Date", "Nom", "Prenom", "Telephone", "PointsPositifs", "PointsAmeliorer", "Visible", "Note"] // NOUVEAU
   };
 
   let log = [];

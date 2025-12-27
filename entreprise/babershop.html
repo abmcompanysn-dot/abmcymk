@@ -122,6 +122,8 @@
                 <div class="ml-4 mb-2">
                     <h1 id="business-name" class="text-3xl font-bold text-gray-800"></h1>
                     <p id="business-address" class="text-sm text-gray-600"></p>
+                    <!-- NOUVEAU: Affichage de la note moyenne -->
+                    <div id="header-rating" class="flex items-center mt-1 text-gold text-sm font-bold hidden"></div>
                     <!-- NOUVEAU: Section pour les horaires et réseaux sociaux -->
                     <div id="business-contact-info" class="mt-2 flex items-center space-x-4">
                         <!-- Les horaires et les liens sociaux seront injectés ici par le JS -->
@@ -138,6 +140,7 @@
         <div class="flex justify-center space-x-8 mb-8 border-b border-gray-200">
             <button id="btn-gallery" class="tab-btn text-lg" onclick="switchTab('gallery')">Galerie</button>
             <button id="btn-services" class="tab-btn active text-lg" onclick="switchTab('services')">Services & Produits</button>
+            <button id="btn-reviews" class="tab-btn text-lg" onclick="switchTab('reviews')">Avis Clients</button>
         </div>
 
         <!-- Contenu Onglet Galerie -->
@@ -489,6 +492,59 @@
         </div>
         </div>
 
+        <!-- NOUVEAU: Contenu Onglet Avis -->
+        <div id="tab-reviews" class="hidden">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <!-- Formulaire -->
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h2 class="text-2xl font-bold mb-4">Donner votre avis</h2>
+                    <form id="reviewForm" class="space-y-4">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Note</label>
+                                <select id="reviewNote" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 text-gold font-bold">
+                                    <option value="5">★★★★★ (5/5)</option>
+                                    <option value="4">★★★★☆ (4/5)</option>
+                                    <option value="3">★★★☆☆ (3/5)</option>
+                                    <option value="2">★★☆☆☆ (2/5)</option>
+                                    <option value="1">★☆☆☆☆ (1/5)</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Nom</label>
+                                <input type="text" id="reviewNom" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Prénom</label>
+                                <input type="text" id="reviewPrenom" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Téléphone</label>
+                            <input type="tel" id="reviewTel" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 text-green-600">Ce que vous avez aimé (Points positifs)</label>
+                            <textarea id="reviewPositif" rows="2" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"></textarea>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 text-red-500">Ce qu'il faut améliorer</label>
+                            <textarea id="reviewAmeliorer" rows="2" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"></textarea>
+                        </div>
+                        <button type="submit" class="w-full bg-black text-white font-bold py-2 px-4 rounded hover:bg-gray-800">Envoyer mon avis</button>
+                    </form>
+                </div>
+
+                <!-- Liste des avis -->
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h2 class="text-2xl font-bold mb-4">Avis Récents</h2>
+                    <div id="public-reviews-list" class="space-y-4 max-h-[600px] overflow-y-auto"></div>
+                </div>
+            </div>
+        </div>
+
         <!-- Section À propos (déplacée en bas) -->
         <section id="about-section" class="bg-white p-6 rounded-lg shadow-md mt-8 hidden">
             <h2 class="text-2xl font-bold mb-4">À propos de nous</h2>
@@ -522,27 +578,146 @@
         function switchTab(tabName) {
             const galleryTab = document.getElementById('tab-gallery');
             const servicesTab = document.getElementById('tab-services');
+            const reviewsTab = document.getElementById('tab-reviews');
             const galleryBtn = document.getElementById('btn-gallery');
             const servicesBtn = document.getElementById('btn-services');
+            const reviewsBtn = document.getElementById('btn-reviews');
+
+            // Reset
+            galleryTab.classList.add('hidden');
+            servicesTab.classList.add('hidden');
+            reviewsTab.classList.add('hidden');
+            galleryBtn.classList.remove('active');
+            servicesBtn.classList.remove('active');
+            reviewsBtn.classList.remove('active');
 
             if (tabName === 'gallery') {
                 galleryTab.classList.remove('hidden');
-                servicesTab.classList.add('hidden');
                 galleryBtn.classList.add('active');
-                servicesBtn.classList.remove('active');
-            } else {
-                galleryTab.classList.add('hidden');
+            } else if (tabName === 'services') {
                 servicesTab.classList.remove('hidden');
                 servicesBtn.classList.add('active');
-                galleryBtn.classList.remove('active');
+            } else if (tabName === 'reviews') {
+                reviewsTab.classList.remove('hidden');
+                reviewsBtn.classList.add('active');
             }
         }
+
+        // Gestion du formulaire d'avis
+        document.getElementById('reviewForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = e.target.querySelector('button');
+            const originalText = btn.textContent;
+            btn.disabled = true;
+            btn.textContent = "Envoi...";
+
+            // Récupérer l'URL de l'API depuis les données chargées (stockées globalement ou via le DOM)
+            // On suppose que main-entreprise.js a chargé les données et on peut récupérer l'API URL
+            // Pour simplifier, on va refaire un appel pour avoir l'URL si elle n'est pas dispo, 
+            // ou mieux, on utilise l'URL centrale pour router si possible, mais ici on va chercher l'URL dans le DOM si stockée
+            // Hack: On va chercher l'URL API dans une variable globale si main-entreprise.js l'expose, sinon on la redemande.
+            
+            const params = new URLSearchParams(window.location.search);
+            const compteId = params.get('compteId') || params.get('alias'); // Simplification
+            
+            // Note: Idéalement main-entreprise.js devrait exposer BUSINESS_API_URL. 
+            // On va supposer qu'on peut récupérer l'URL via l'API centrale comme dans le dashboard.
+            
+            try {
+                // 1. Récupérer l'URL API Métier (si pas déjà dispo)
+                let apiUrl = window.BUSINESS_API_URL;
+                if (!apiUrl) {
+                    const centralResp = await fetch(`https://script.google.com/macros/s/AKfycbw7rPxpIc5HBkw0AsFBSelnXBWnyaaJmXvUs4RZ8gLwJPzoDl9-JP-GXDMcVFwNctMfGg/exec?action=getBusinessPublicData&compteId=${new URLSearchParams(window.location.search).get('compteId')}`);
+                    const centralData = await centralResp.json();
+                    apiUrl = centralData.data.businessInfo.ApiTypeUrl;
+                }
+
+                const data = {
+                    compteId: new URLSearchParams(window.location.search).get('compteId'),
+                    nom: document.getElementById('reviewNom').value,
+                    prenom: document.getElementById('reviewPrenom').value,
+                    telephone: document.getElementById('reviewTel').value,
+                    pointsPositifs: document.getElementById('reviewPositif').value,
+                    pointsAmeliorer: document.getElementById('reviewAmeliorer').value,
+                    note: parseInt(document.getElementById('reviewNote').value)
+                };
+
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    mode: 'cors',
+                    headers: { 'Content-Type': 'text/plain' },
+                    body: JSON.stringify({ action: 'submitReview', data: data })
+                });
+                const result = await response.json();
+
+                if (result.status === 'success') {
+                    alert(result.message);
+                    e.target.reset();
+                } else {
+                    alert("Erreur: " + result.message);
+                }
+            } catch (err) {
+                alert("Erreur lors de l'envoi : " + err.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = originalText;
+            }
+        });
 
         // Observer pour afficher la section À propos quand le contenu dynamique est chargé
         const observer = new MutationObserver(function(mutations) {
             mutations.forEach(function(mutation) {
                 if (mutation.target.id === 'dynamic-content' && !mutation.target.classList.contains('hidden')) {
                     document.getElementById('about-section').classList.remove('hidden');
+                    
+                    // NOUVEAU: Rendre les avis s'ils sont disponibles dans les données chargées
+                    // On suppose que main-entreprise.js a injecté les données quelque part ou on peut les récupérer
+                    // Pour l'instant, main-entreprise.js n'est pas visible, donc on ajoute une logique d'affichage ici
+                    // qui sera déclenchée si window.PUBLIC_DATA est défini (à ajouter dans main-entreprise.js idéalement)
+                    if (window.PUBLIC_DATA && window.PUBLIC_DATA.reviews) {
+                        const container = document.getElementById('public-reviews-list');
+                        container.innerHTML = '';
+                        
+                        // Calcul de la moyenne
+                        const reviews = window.PUBLIC_DATA.reviews;
+                        if (reviews.length > 0) {
+                            const totalNotes = reviews.reduce((acc, r) => acc + (parseInt(r.Note) || 5), 0);
+                            const average = (totalNotes / reviews.length).toFixed(1);
+                            const fullStars = Math.round(average);
+                            const starsDisplay = '★'.repeat(fullStars) + '☆'.repeat(5 - fullStars);
+                            
+                            // Affichage dans le header
+                            const headerRating = document.getElementById('header-rating');
+                            headerRating.innerHTML = `<span class="text-lg mr-1">${starsDisplay}</span> <span>${average}/5 (${reviews.length} avis)</span>`;
+                            headerRating.classList.remove('hidden');
+                        }
+
+                        if (window.PUBLIC_DATA.reviews.length === 0) {
+                            container.innerHTML = '<p class="text-gray-500 italic">Aucun avis pour le moment. Soyez le premier !</p>';
+                        } else {
+                            window.PUBLIC_DATA.reviews.forEach(review => {
+                                const date = new Date(review.Date).toLocaleDateString('fr-FR');
+                                const rNote = parseInt(review.Note) || 5;
+                                const rStars = '★'.repeat(rNote) + '☆'.repeat(5 - rNote);
+                                
+                                container.innerHTML += `
+                                    <div class="border-b border-gray-100 pb-4 last:border-0">
+                                        <div class="flex justify-between items-baseline mb-1">
+                                            <div class="flex items-center">
+                                                <h4 class="font-bold text-gray-800 mr-2">${review.Prenom} ${review.Nom.charAt(0)}.</h4>
+                                                <span class="text-gold text-sm">${rStars}</span>
+                                            </div>
+                                            <span class="text-xs text-gray-400">${date}</span>
+                                        </div>
+                                        <div class="space-y-1">
+                                            <p class="text-sm text-gray-600"><span class="text-green-600 font-bold">⊕</span> ${review.PointsPositifs}</p>
+                                            <p class="text-sm text-gray-600"><span class="text-red-500 font-bold">⊖</span> ${review.PointsAmeliorer}</p>
+                                        </div>
+                                    </div>
+                                `;
+                            });
+                        }
+                    }
                 }
             });
         });

@@ -162,6 +162,10 @@
             color: var(--accent-color);
             border-color: var(--accent-color);
         }
+        .stock-btn {
+            color: #28a745;
+            border-color: #28a745;
+        }
 
         #loader {
             text-align: center;
@@ -374,6 +378,7 @@
             <ul>
                 <li><a href="#" onclick="showSection('dashboard')" id="nav-dashboard" class="active">Tableau de Bord</a></li>
                 <li><a href="#" onclick="showSection('orders')" id="nav-orders">Commandes & Clients</a></li>
+                <li><a href="#" onclick="showSection('reviews')" id="nav-reviews">Avis Clients</a></li>
                 <li><a href="#" onclick="showSection('logs')" id="nav-logs">Journal d'activité</a></li>
                 <li><a href="#" onclick="showSection('settings')" id="nav-settings">Paramètres</a></li>
                 <li><a href="#" onclick="logout()" id="nav-logout" style="color: #dc3545;">Déconnexion</a></li>
@@ -446,6 +451,10 @@
                     <div class="input-group">
                         <label for="productCharacteristics">Caractéristiques</label>
                         <input type="text" id="productCharacteristics" placeholder="ex: Hydratant, 200ml...">
+                    </div>
+                    <div class="input-group">
+                        <label for="productStock">Stock</label>
+                        <input type="number" id="productStock" value="0">
                     </div>
                     <div class="input-group">
                         <label for="productImage">Image (Optionnel)</label>
@@ -627,6 +636,15 @@
             </section>
         </div>
 
+        <!-- NOUVEAU: Section Avis Clients -->
+        <div id="reviews-content" style="display: none;">
+            <section class="section">
+                <h2>Avis Clients</h2>
+                <p>Gérez les avis laissés par vos clients. Activez "Visible" pour les afficher sur votre page publique.</p>
+                <div id="reviewsList" class="items-list"></div>
+            </section>
+        </div>
+
         <!-- NOUVEAU: Section Paramètres -->
         <div id="settings-content" style="display: none;">
             <section class="section">
@@ -771,6 +789,7 @@
         const settingsContent = document.getElementById('settings-content');
         const logsContent = document.getElementById('logs-content');
         const ordersContent = document.getElementById('orders-content');
+        const reviewsContent = document.getElementById('reviews-content');
         const servicesListDiv = document.getElementById('servicesList');
         const productsListDiv = document.getElementById('productsList');
 
@@ -839,12 +858,14 @@
             settingsContent.style.display = 'none';
             logsContent.style.display = 'none';
             ordersContent.style.display = 'none';
+            reviewsContent.style.display = 'none';
             
             // Désactiver les liens
             document.getElementById('nav-dashboard').classList.remove('active');
             document.getElementById('nav-settings').classList.remove('active');
             document.getElementById('nav-logs').classList.remove('active');
             document.getElementById('nav-orders').classList.remove('active');
+            document.getElementById('nav-reviews').classList.remove('active');
 
             // Afficher la section demandée
             if (sectionId === 'dashboard') {
@@ -864,6 +885,11 @@
                 ordersContent.style.display = 'block';
                 document.getElementById('nav-orders').classList.add('active');
                 fetchOrders();
+                if(window.innerWidth <= 768) toggleSidebar();
+            } else if (sectionId === 'reviews') {
+                reviewsContent.style.display = 'block';
+                document.getElementById('nav-reviews').classList.add('active');
+                fetchReviews();
                 if(window.innerWidth <= 768) toggleSidebar();
             }
         }
@@ -1009,6 +1035,7 @@
                 const name = item.Nom || item.NomService || item.NomProduit;
                 const price = item.Prix;
                 const itemId = item.IDItem;
+                const stockDisplay = (type === 'produit') ? ` | Stock: ${item.Stock || 0}` : '';
                 const imageUrl = item.ImageUrl || item.Image || ''; 
                 const imgHtml = imageUrl ? `<img src="${imageUrl}" class="item-thumb" alt="${name}">` : '';
 
@@ -1019,9 +1046,12 @@
                         ${imgHtml}
                         <div class="item-details">
                             ${name} <span class="item-price">${price}€</span>
+                            <span style="font-size:0.8em; color:#666;">${stockDisplay}</span>
                         </div>
                     </div>
                     <div class="item-actions">
+                        <button class="edit-btn" onclick="handleEditItem('${itemId}', '${type}')">Modifier</button>
+                        ${type === 'produit' ? `<button class="stock-btn" onclick="handleStockItem('${itemId}')">Stock</button>` : ''}
                         <button class="delete-btn" onclick="handleDeleteItem('${itemId}', '${type}')">Supprimer</button>
                     </div>
                 `;
@@ -1070,6 +1100,73 @@
             } catch (error) {
                 tbody.innerHTML = `<tr><td colspan="3" style="color:red;">Erreur: ${error.message}</td></tr>`;
             }
+        }
+
+        // --- Gestion des Avis ---
+        async function fetchReviews() {
+            const container = document.getElementById('reviewsList');
+            container.innerHTML = '<p>Chargement des avis...</p>';
+
+            try {
+                const response = await fetch(BUSINESS_API_URL, {
+                    method: 'POST',
+                    mode: 'cors',
+                    headers: { 'Content-Type': 'text/plain' },
+                    body: JSON.stringify({
+                        action: 'getReviews',
+                        data: { compteId: compteId }
+                    })
+                });
+                const result = await response.json();
+
+                if (result.status === 'success') {
+                    container.innerHTML = '';
+                    if (result.data.length === 0) {
+                        container.innerHTML = '<p>Aucun avis reçu pour le moment.</p>';
+                        return;
+                    }
+
+                    result.data.forEach(review => {
+                        const isVisible = String(review.Visible).toLowerCase() === 'true';
+                        const date = new Date(review.Date).toLocaleDateString('fr-FR');
+                        const note = review.Note || 5;
+                        const stars = '★'.repeat(note) + '☆'.repeat(5 - note);
+                        
+                        const div = document.createElement('div');
+                        div.className = 'list-item';
+                        div.innerHTML = `
+                            <div class="item-info" style="flex-direction: column; align-items: flex-start; gap: 5px;">
+                                <div><strong>${review.Prenom} ${review.Nom}</strong> <span style="color: #D4AF37;">${stars}</span> <span style="font-size:0.8em; color:#666;">(${date})</span></div>
+                                <div style="font-size: 0.9em; color: #28a745;">👍 ${review.PointsPositifs}</div>
+                                <div style="font-size: 0.9em; color: #dc3545;">🔧 ${review.PointsAmeliorer}</div>
+                            </div>
+                            <div class="item-actions">
+                                <button onclick="toggleReview('${review.IDAvis}', ${!isVisible})" class="${isVisible ? 'delete-btn' : 'stock-btn'}">
+                                    ${isVisible ? 'Masquer' : 'Afficher Public'}
+                                </button>
+                            </div>
+                        `;
+                        container.appendChild(div);
+                    });
+                }
+            } catch (error) {
+                container.innerHTML = `<p style="color:red;">Erreur: ${error.message}</p>`;
+            }
+        }
+
+        async function toggleReview(reviewId, newStatus) {
+            try {
+                await fetch(BUSINESS_API_URL, {
+                    method: 'POST',
+                    mode: 'cors',
+                    headers: { 'Content-Type': 'text/plain' },
+                    body: JSON.stringify({
+                        action: 'toggleReviewVisibility',
+                        data: { compteId: compteId, reviewId: reviewId, visible: newStatus }
+                    })
+                });
+                fetchReviews(); // Rafraîchir la liste
+            } catch (e) { alert("Erreur: " + e.message); }
         }
 
         // --- Gestion des Commandes & Clients ---
@@ -1364,6 +1461,7 @@
             const categoryInput = document.getElementById(`${prefix}Category`);
             const characteristicsInput = document.getElementById(`${prefix}Characteristics`);
             const descriptionInput = document.getElementById(`${prefix}Description`);
+            const stockInput = document.getElementById('productStock');
             const submitBtn = form.querySelector('button[type="submit"]');
 
             const nom = nameInput.value;
@@ -1371,6 +1469,7 @@
             const category = categoryInput ? categoryInput.value : '';
             const characteristics = characteristicsInput ? characteristicsInput.value : '';
             const description = descriptionInput ? descriptionInput.value : '';
+            const stock = (type === 'produit' && stockInput) ? parseInt(stockInput.value) : 0;
             let imageUrl = '';
             const isEdit = idInput && idInput.value;
 
@@ -1410,7 +1509,7 @@
                 action: type === 'service' ? (isEdit ? 'updateService' : 'addService') : (isEdit ? 'updateProduct' : 'addProduct'),
                 data: {
                     compteId: compteId,
-                    item: { id: isEdit ? idInput.value : null, nom, prix, imageUrl, category, characteristics, description }
+                    item: { id: isEdit ? idInput.value : null, nom, prix, imageUrl, category, characteristics, description, stock }
                 }
             };
 
@@ -1436,6 +1535,68 @@
             } finally {
                 submitBtn.disabled = false;
                 submitBtn.textContent = isEdit ? 'Mettre à jour' : 'Ajouter';
+            }
+        }
+
+        function handleEditItem(itemId, type) {
+            const items = type === 'service' ? currentServices : currentProducts;
+            const item = items.find(i => i.IDItem === itemId);
+            if (!item) return;
+
+            const prefix = type === 'service' ? 'service' : 'product';
+            document.getElementById(`${prefix}Id`).value = item.IDItem;
+            document.getElementById(`${prefix}Name`).value = item.Nom || item.NomService || item.NomProduit;
+            document.getElementById(`${prefix}Price`).value = item.Prix;
+            if (document.getElementById(`${prefix}Category`)) document.getElementById(`${prefix}Category`).value = item.Categorie || '';
+            if (document.getElementById(`${prefix}Characteristics`)) document.getElementById(`${prefix}Characteristics`).value = item.Caracteristiques || '';
+            if (document.getElementById(`${prefix}Description`)) document.getElementById(`${prefix}Description`).value = item.Description || '';
+            
+            if (type === 'produit') {
+                document.getElementById('productStock').value = item.Stock || 0;
+            }
+
+            const form = document.getElementById(type === 'service' ? 'addServiceForm' : 'addProductForm');
+            const btn = form.querySelector('button[type="submit"]');
+            btn.textContent = 'Mettre à jour';
+            
+            form.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        async function handleStockItem(itemId) {
+            const item = currentProducts.find(i => i.IDItem === itemId);
+            if (!item) return;
+            
+            const newStock = prompt(`Stock actuel pour ${item.Nom || item.NomProduit}: ${item.Stock || 0}\nNouveau stock :`, item.Stock || 0);
+            if (newStock === null) return;
+            
+            const stockVal = parseInt(newStock);
+            if (isNaN(stockVal)) {
+                alert("Valeur invalide");
+                return;
+            }
+
+            try {
+                const response = await fetch(BUSINESS_API_URL, {
+                    method: 'POST',
+                    mode: 'cors',
+                    headers: { 'Content-Type': 'text/plain' },
+                    body: JSON.stringify({
+                        action: 'updateProduct',
+                        data: {
+                            compteId: compteId,
+                            item: { id: itemId, stock: stockVal }
+                        }
+                    })
+                });
+                const result = await response.json();
+                if (result.status === 'success') {
+                    alert("Stock mis à jour !");
+                    fetchData();
+                } else {
+                    throw new Error(result.message);
+                }
+            } catch (error) {
+                alert(`Erreur : ${error.message}`);
             }
         }
 
@@ -1680,10 +1841,45 @@
         function downloadQrCode() {
             const container = document.getElementById('qrCodeContainer');
             const canvas = container.querySelector('canvas');
+            const phone = document.getElementById('settingsPhone').value || "Service Client";
+            
             if (canvas) {
+                // Création d'un canvas temporaire pour l'image "Immersive"
+                const finalCanvas = document.createElement('canvas');
+                const ctx = finalCanvas.getContext('2d');
+                const padding = 40;
+                const bottomSpace = 100;
+                
+                // Dimensions
+                finalCanvas.width = canvas.width + (padding * 2);
+                finalCanvas.height = canvas.height + (padding * 2) + bottomSpace;
+                
+                // 1. Fond (Couleur de base - Noir #1a1a1a)
+                ctx.fillStyle = "#1a1a1a"; 
+                ctx.fillRect(0, 0, finalCanvas.width, finalCanvas.height);
+                
+                // 2. Carré blanc pour le QR Code
+                ctx.fillStyle = "#ffffff";
+                ctx.fillRect(padding - 10, padding - 10, canvas.width + 20, canvas.height + 20);
+                
+                // 3. Dessiner le QR Code
+                ctx.drawImage(canvas, padding, padding);
+                
+                // 4. Texte "Service Client"
+                ctx.fillStyle = "#ffffff";
+                ctx.font = "bold 16px Poppins, sans-serif";
+                ctx.textAlign = "center";
+                ctx.fillText(`Service Client : ${phone}`, finalCanvas.width / 2, canvas.height + padding + 50);
+                
+                // 5. Texte "Powered by ABMCY"
+                ctx.fillStyle = "#D4AF37"; // Couleur Or
+                ctx.font = "italic 14px Poppins, sans-serif";
+                ctx.fillText("Powered by ABMCY", finalCanvas.width / 2, canvas.height + padding + 80);
+
+                // Téléchargement
                 const link = document.createElement('a');
-                link.download = 'QRCode-Boutique.png';
-                link.href = canvas.toDataURL();
+                link.download = 'QRCode-Boutique-Pro.png';
+                link.href = finalCanvas.toDataURL();
                 link.click();
             } else {
                 alert("Le QR Code n'est pas encore généré.");
