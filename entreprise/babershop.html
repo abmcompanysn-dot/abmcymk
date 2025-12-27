@@ -617,23 +617,29 @@
             // ou mieux, on utilise l'URL centrale pour router si possible, mais ici on va chercher l'URL dans le DOM si stockée
             // Hack: On va chercher l'URL API dans une variable globale si main-entreprise.js l'expose, sinon on la redemande.
             
-            const params = new URLSearchParams(window.location.search);
-            const compteId = params.get('compteId') || params.get('alias'); // Simplification
-            
-            // Note: Idéalement main-entreprise.js devrait exposer BUSINESS_API_URL. 
-            // On va supposer qu'on peut récupérer l'URL via l'API centrale comme dans le dashboard.
-            
             try {
                 // 1. Récupérer l'URL API Métier (si pas déjà dispo)
                 let apiUrl = window.BUSINESS_API_URL;
+                let targetId = new URLSearchParams(window.location.search).get('compteId');
+                const alias = new URLSearchParams(window.location.search).get('alias');
+
                 if (!apiUrl) {
-                    const centralResp = await fetch(`https://script.google.com/macros/s/AKfycbw7rPxpIc5HBkw0AsFBSelnXBWnyaaJmXvUs4RZ8gLwJPzoDl9-JP-GXDMcVFwNctMfGg/exec?action=getBusinessPublicData&compteId=${new URLSearchParams(window.location.search).get('compteId')}`);
+                    let queryParam = '';
+                    if (targetId) queryParam = `compteId=${targetId}`;
+                    else if (alias) queryParam = `alias=${alias}`;
+                    else throw new Error("Identifiant de boutique manquant");
+
+                    const centralResp = await fetch(`https://script.google.com/macros/s/AKfycbw7rPxpIc5HBkw0AsFBSelnXBWnyaaJmXvUs4RZ8gLwJPzoDl9-JP-GXDMcVFwNctMfGg/exec?action=getBusinessPublicData&${queryParam}`);
                     const centralData = await centralResp.json();
+                    
+                    if (!centralData.success || !centralData.data) throw new Error(centralData.error || "Données indisponibles");
+                    
                     apiUrl = centralData.data.businessInfo.ApiTypeUrl;
+                    if (!targetId && centralData.data.businessInfo.NumeroCompte) targetId = centralData.data.businessInfo.NumeroCompte;
                 }
 
                 const data = {
-                    compteId: new URLSearchParams(window.location.search).get('compteId'),
+                    compteId: targetId || alias,
                     nom: document.getElementById('reviewNom').value,
                     prenom: document.getElementById('reviewPrenom').value,
                     telephone: document.getElementById('reviewTel').value,
