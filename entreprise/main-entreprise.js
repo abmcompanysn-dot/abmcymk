@@ -27,6 +27,14 @@ window.openLightbox = openLightbox;
 window.shareBusiness = shareBusiness; // Rendre accessible globalement
 window.shareProduct = shareProduct; // Rendre accessible globalement
 
+// Injecter des styles CSS pour cacher la barre de défilement des carousels (esthétique)
+const style = document.createElement('style');
+style.textContent = `
+    .scrollbar-hide::-webkit-scrollbar { display: none; }
+    .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+`;
+document.head.appendChild(style);
+
 /**
  * Initialise la page en récupérant et affichant les données de l'entreprise.
  */
