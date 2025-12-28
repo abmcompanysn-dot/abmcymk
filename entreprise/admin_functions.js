@@ -10,13 +10,14 @@ const IMGBB_API_KEY = '96ff1e4e9603661db4d410f53df99454';
 /**
  * Upload une image vers ImgBB et retourne l'URL.
  * @param {File} imageFile - Le fichier image sélectionné par l'utilisateur.
+ * @param {string} [apiKey=IMGBB_API_KEY] - La clé API ImgBB.
  * @returns {Promise<string>} L'URL de l'image uploadée ou null si échec.
  */
-async function uploadImageToImgBB(imageFile) {
+async function uploadImageToImgBB(imageFile, apiKey = IMGBB_API_KEY) {
     if (!imageFile) return null;
 
     const formData = new FormData();
-    formData.append('key', IMGBB_API_KEY);
+    formData.append('key', apiKey);
     formData.append('image', imageFile);
 
     try {

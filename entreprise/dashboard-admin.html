@@ -1493,7 +1493,7 @@
                 if (fileInput && fileInput.files[0]) {
                     submitBtn.textContent = 'Upload image...';
                     if (typeof uploadImageToImgBB === 'function') {
-                        imageUrl = await uploadImageToImgBB(fileInput.files[0], CONFIG.IMGBB_API_KEY);
+                        imageUrl = await uploadImageToImgBB(fileInput.files[0], IMGBB_API_KEY);
                     } else {
                         console.warn("Fonction uploadImageToImgBB non trouvée.");
                     }
@@ -1657,8 +1657,8 @@
                 let logoUrl = document.getElementById('currentLogoUrl').value;
                 let coverUrl = document.getElementById('currentCoverUrl').value;
 
-                if (logoFile) logoUrl = await uploadImageToImgBB(logoFile, CONFIG.IMGBB_API_KEY);
-                if (coverFile) coverUrl = await uploadImageToImgBB(coverFile, CONFIG.IMGBB_API_KEY);
+                if (logoFile) logoUrl = await uploadImageToImgBB(logoFile, IMGBB_API_KEY);
+                if (coverFile) coverUrl = await uploadImageToImgBB(coverFile, IMGBB_API_KEY);
 
                 // 1.5 Sauvegarder le slug (alias)
                 const slugVal = document.getElementById('settingsSlug').value;
