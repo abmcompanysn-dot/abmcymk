@@ -72,6 +72,9 @@ async function initializeApp() {
         window.BUSINESS_API_URL = businessInfo.ApiTypeUrl;
         window.BUSINESS_ID = compteId;
 
+        // NOUVEAU: Signaler à la page que les données sont prêtes (pour afficher les avis, etc.)
+        window.dispatchEvent(new CustomEvent('business-data-loaded', { detail: result.data }));
+
         // 2. Remplir la page avec les données récupérées
         displayBusinessInfo(businessInfo);
         
@@ -117,7 +120,7 @@ function displayBusinessInfo(info) {
     }
 
     document.getElementById('business-name').textContent = info.NomEntreprise || "Nom de l'entreprise";
-    const logoElement = document.getElementById('business-logo');
+    const logoElement = document.getElementById('navbar-logo');
     if (logoElement && info.LogoUrl) {
         logoElement.src = info.LogoUrl || 'https://via.placeholder.com/150';
         logoElement.alt = `Logo de ${info.NomEntreprise}`;

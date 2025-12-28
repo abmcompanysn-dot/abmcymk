@@ -5,6 +5,7 @@
 
 // URL de l'API Centrale (Gestion Compte) - Modifiez-la ici pour qu'elle s'applique partout
 const IMGBB_UPLOAD_URL = 'https://api.imgbb.com/1/upload';
+const IMGBB_API_KEY = '96ff1e4e9603661db4d410f53df99454';
 
 /**
  * Upload une image vers ImgBB et retourne l'URL.

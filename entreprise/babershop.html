@@ -76,7 +76,7 @@
         <header>
             <div class="container mx-auto px-4 py-2">
                 <div class="flex items-center justify-between">
-                    <a href="../index.html" class="flex items-center"><img src="../logo/l.svg" alt="ABMCY MARKET Logo" class="h-10"></a>
+                    <a href="#" class="flex items-center"><img id="navbar-logo" src="../logo/l.svg" alt="Logo" class="h-10 w-10 rounded-full object-cover border border-gray-200"></a>
                     <div class="flex-1 mx-4 relative">
                         <form id="search-form-header" action="../recherche.html">
                             <div class="relative flex items-center bg-gray-100 rounded-full border-2 border-transparent focus-within:bg-white focus-within:border-gold transition">
@@ -118,8 +118,7 @@
         <!-- NOUVEAU: Ce conteneur cache tout le contenu dynamique jusqu'au chargement -->
         <div id="dynamic-content" class="hidden">
             <div class="flex items-end mb-6">
-                <img id="business-logo" src="" alt="Logo de l'entreprise" class="bg-gray-200 h-32 w-32 rounded-full border-4 border-white shadow-lg object-cover">
-                <div class="ml-4 mb-2">
+                <div class="mb-2">
                     <h1 id="business-name" class="text-3xl font-bold text-gray-800"></h1>
                     <p id="business-address" class="text-sm text-gray-600"></p>
                     <!-- NOUVEAU: Affichage de la note moyenne -->
@@ -686,64 +685,57 @@
             }
         });
 
-        // Observer pour afficher la section À propos quand le contenu dynamique est chargé
-        const observer = new MutationObserver(function(mutations) {
-            mutations.forEach(function(mutation) {
-                if (mutation.target.id === 'dynamic-content' && !mutation.target.classList.contains('hidden')) {
-                    document.getElementById('about-section').classList.remove('hidden');
-                    
-                    // NOUVEAU: Rendre les avis s'ils sont disponibles dans les données chargées
-                    // On suppose que main-entreprise.js a injecté les données quelque part ou on peut les récupérer
-                    // Pour l'instant, main-entreprise.js n'est pas visible, donc on ajoute une logique d'affichage ici
-                    // qui sera déclenchée si window.PUBLIC_DATA est défini (à ajouter dans main-entreprise.js idéalement)
-                    if (window.PUBLIC_DATA && window.PUBLIC_DATA.reviews) {
-                        const container = document.getElementById('public-reviews-list');
-                        container.innerHTML = '';
-                        
-                        // Calcul de la moyenne
-                        const reviews = window.PUBLIC_DATA.reviews;
-                        if (reviews.length > 0) {
-                            const totalNotes = reviews.reduce((acc, r) => acc + (parseInt(r.Note) || 5), 0);
-                            const average = (totalNotes / reviews.length).toFixed(1);
-                            const fullStars = Math.round(average);
-                            const starsDisplay = '★'.repeat(fullStars) + '☆'.repeat(5 - fullStars);
-                            
-                            // Affichage dans le header
-                            const headerRating = document.getElementById('header-rating');
-                            headerRating.innerHTML = `<span class="text-lg mr-1">${starsDisplay}</span> <span>${average}/5 (${reviews.length} avis)</span>`;
-                            headerRating.classList.remove('hidden');
-                        }
+        // Écouteur d'événement pour afficher les avis une fois les données chargées
+        window.addEventListener('business-data-loaded', (e) => {
+            const data = e.detail;
+            
+            // Afficher la section À propos
+            document.getElementById('about-section').classList.remove('hidden');
 
-                        if (window.PUBLIC_DATA.reviews.length === 0) {
-                            container.innerHTML = '<p class="text-gray-500 italic">Aucun avis pour le moment. Soyez le premier !</p>';
-                        } else {
-                            window.PUBLIC_DATA.reviews.forEach(review => {
-                                const date = new Date(review.Date).toLocaleDateString('fr-FR');
-                                const rNote = parseInt(review.Note) || 5;
-                                const rStars = '★'.repeat(rNote) + '☆'.repeat(5 - rNote);
-                                
-                                container.innerHTML += `
-                                    <div class="border-b border-gray-100 pb-4 last:border-0">
-                                        <div class="flex justify-between items-baseline mb-1">
-                                            <div class="flex items-center">
-                                                <h4 class="font-bold text-gray-800 mr-2">${review.Prenom} ${review.Nom.charAt(0)}.</h4>
-                                                <span class="text-gold text-sm">${rStars}</span>
-                                            </div>
-                                            <span class="text-xs text-gray-400">${date}</span>
-                                        </div>
-                                        <div class="space-y-1">
-                                            <p class="text-sm text-gray-600"><span class="text-green-600 font-bold">⊕</span> ${review.PointsPositifs}</p>
-                                            <p class="text-sm text-gray-600"><span class="text-red-500 font-bold">⊖</span> ${review.PointsAmeliorer}</p>
-                                        </div>
-                                    </div>
-                                `;
-                            });
-                        }
-                    }
-                }
-            });
+            // Rendre les avis
+            const reviews = data.reviews || [];
+            const container = document.getElementById('public-reviews-list');
+            const headerRating = document.getElementById('header-rating');
+            
+            container.innerHTML = '';
+            
+            if (reviews.length > 0) {
+                // Calcul de la moyenne
+                const totalNotes = reviews.reduce((acc, r) => acc + (parseInt(r.Note) || 5), 0);
+                const average = (totalNotes / reviews.length).toFixed(1);
+                const fullStars = Math.round(average);
+                const starsDisplay = '★'.repeat(fullStars) + '☆'.repeat(5 - fullStars);
+                
+                // Affichage dans le header
+                headerRating.innerHTML = `<span class="text-lg mr-1">${starsDisplay}</span> <span>${average}/5 (${reviews.length} avis)</span>`;
+                headerRating.classList.remove('hidden');
+
+                // Affichage de la liste
+                reviews.forEach(review => {
+                    const date = new Date(review.Date).toLocaleDateString('fr-FR');
+                    const rNote = parseInt(review.Note) || 5;
+                    const rStars = '★'.repeat(rNote) + '☆'.repeat(5 - rNote);
+                    
+                    container.innerHTML += `
+                        <div class="border-b border-gray-100 pb-4 last:border-0">
+                            <div class="flex justify-between items-baseline mb-1">
+                                <div class="flex items-center">
+                                    <h4 class="font-bold text-gray-800 mr-2">${review.Prenom} ${review.Nom.charAt(0)}.</h4>
+                                    <span class="text-gold text-sm">${rStars}</span>
+                                </div>
+                                <span class="text-xs text-gray-400">${date}</span>
+                            </div>
+                            <div class="space-y-1">
+                                <p class="text-sm text-gray-600"><span class="text-green-600 font-bold">⊕</span> ${review.PointsPositifs}</p>
+                                <p class="text-sm text-gray-600"><span class="text-red-500 font-bold">⊖</span> ${review.PointsAmeliorer}</p>
+                            </div>
+                        </div>
+                    `;
+                });
+            } else {
+                container.innerHTML = '<p class="text-gray-500 italic">Aucun avis pour le moment. Soyez le premier !</p>';
+            }
         });
-        observer.observe(document.getElementById('dynamic-content'), { attributes: true, attributeFilter: ['class'] });
     </script>
 </body>
 </html>
