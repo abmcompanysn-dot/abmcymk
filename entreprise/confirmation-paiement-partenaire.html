@@ -7,6 +7,7 @@
     <link rel="icon" href="https://abmcymarket.abmcy.com/logo/l.svg" type="image/png">
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script src="../main.js"></script>
     <style>
         body { font-family: 'Poppins', sans-serif; background-color: #f4f4f9; }
         .loader {
@@ -52,8 +53,7 @@
     </div>
 
     <script>
-        // URL de l'API Centrale
-        const API_URL = "https://script.google.com/macros/s/AKfycbw7rPxpIc5HBkw0AsFBSelnXBWnyaaJmXvUs4RZ8gLwJPzoDl9-JP-GXDMcVFwNctMfGg/exec";
+        // L'URL API_URL est récupérée depuis ../main.js
         
         const params = new URLSearchParams(window.location.search);
         const orderId = params.get('orderId');
