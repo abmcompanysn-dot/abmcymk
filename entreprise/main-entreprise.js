@@ -17,7 +17,7 @@ const ENTREPRISE_CONFIG = {
 document.addEventListener('DOMContentLoaded', () => {
     // Empêcher l'exécution automatique sur le tableau de bord admin (qui possède l'ID 'dashboard-content')
     if (document.getElementById('dashboard-content')) return;
-    initializeApp();
+    initBusinessPage();
     // Mettre à jour le badge du panier au chargement
     updateCartBadge();
 });
@@ -29,7 +29,7 @@ window.shareBusiness = shareBusiness; // Rendre accessible globalement
 /**
  * Initialise la page en récupérant et affichant les données de l'entreprise.
  */
-async function initializeApp() {
+async function initBusinessPage() {
     const params = new URLSearchParams(window.location.search);
     let compteId = params.get('compteId');
     const alias = params.get('alias');

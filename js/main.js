@@ -106,6 +106,9 @@ let siteConfig = { deliveryOptions: DELIVERY_CONFIG }; // Utilise la configurati
 
 // Attendre que le contenu de la page soit entièrement chargé
 document.addEventListener('DOMContentLoaded', () => {
+    // NOUVEAU: Ne pas exécuter sur le tableau de bord admin pour éviter les conflits
+    if (document.getElementById('dashboard-content')) return;
+
     // Initialiser toutes les fonctionnalités du site
     initializeApp();
 });
