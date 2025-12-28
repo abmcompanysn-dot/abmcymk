@@ -25,6 +25,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // NOUVEAU: Fonctions pour la lightbox, accessibles globalement
 window.openLightbox = openLightbox;
 window.shareBusiness = shareBusiness; // Rendre accessible globalement
+window.shareProduct = shareProduct; // Rendre accessible globalement
 
 /**
  * Initialise la page en récupérant et affichant les données de l'entreprise.
@@ -198,6 +199,10 @@ function displayItems(items, containerId, itemType, businessId, businessInfo) {
     const container = document.getElementById(containerId);
     if (!container) return;
 
+    // NOUVEAU: Configuration de la grille : 2 colonnes sur mobile, 3 sur tablette, 4 sur desktop
+    // Cela répond à la demande d'avoir "deux produits par ligne sur téléphone"
+    container.className = "grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-6";
+
     if (!items || items.length === 0) {
         container.innerHTML = `<p class="text-gray-500 col-span-full text-center">Aucun ${itemType} disponible pour le moment.</p>`;
         return;
@@ -212,29 +217,38 @@ function displayItems(items, containerId, itemType, businessId, businessInfo) {
         const businessName = businessInfo ? businessInfo.NomEntreprise.replace(/'/g, "\\'") : '';
         const businessAddress = businessInfo ? (businessInfo.Adresse || '').replace(/'/g, "\\'") : '';
 
+        const safeName = name.replace(/'/g, "\\'");
+        const safeImageUrl = imageUrl.replace(/'/g, "\\'");
+
         return `
-        <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300 flex flex-col h-full border border-gray-100">
-            <div class="relative h-48 overflow-hidden cursor-pointer group" onclick="openLightbox('${imageUrl}', '${name.replace(/'/g, "\\'")}')">
+        <div class="bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-300 flex flex-col h-full border border-gray-100 overflow-hidden group">
+            <div class="relative aspect-w-1 aspect-h-1 overflow-hidden cursor-pointer bg-gray-100" onclick="openLightbox('${safeImageUrl}', '${safeName}')">
                 <img src="${imageUrl}" alt="${name}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110">
                 <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-opacity"></div>
+                ${item.Categorie ? `<span class="absolute top-2 left-2 text-[10px] font-bold bg-white/90 text-gray-700 px-2 py-0.5 rounded-full shadow-sm backdrop-blur-sm">${item.Categorie}</span>` : ''}
             </div>
-            <div class="p-4 flex-grow flex flex-col justify-between">
-                <div>
-                    <div class="flex justify-between items-start mb-2">
-                        <h3 class="font-bold text-gray-800 text-lg leading-tight">${name}</h3>
-                    </div>
-                    ${item.Categorie ? `<span class="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full mb-2 inline-block">${item.Categorie}</span>` : ''}
-                    <p class="text-sm text-gray-600 line-clamp-2 mb-3">${item.Description || ''}</p>
-                </div>
+            
+            <div class="p-3 flex-grow flex flex-col">
+                <h3 class="font-semibold text-gray-800 text-sm leading-tight line-clamp-2 mb-1 h-10" title="${name}">${name}</h3>
                 
-                <div class="mt-auto pt-3 border-t border-gray-100 flex items-center justify-between">
-                    <span class="text-gold font-bold text-xl">${price.toLocaleString('fr-FR')} F</span>
-                    <button 
-                        onclick="addToCart('${id}', '${name.replace(/'/g, "\\'")}', ${price}, '${imageUrl}', '${itemType}', '${businessId}', '${businessName}', '${businessAddress}')"
-                        class="bg-black text-white p-2 rounded-full hover:bg-gold hover:text-black transition-colors duration-300 shadow-md flex items-center justify-center w-10 h-10"
-                        title="Ajouter au panier">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
-                    </button>
+                <div class="mt-auto">
+                    <div class="flex items-center justify-between mb-3">
+                        <span class="text-gold font-bold text-base">${Number(price).toLocaleString('fr-FR')} F</span>
+                    </div>
+                    
+                    <div class="grid grid-cols-5 gap-2">
+                        <button 
+                            onclick="shareProduct(event, '${id}', '${safeName}')"
+                            class="col-span-2 flex items-center justify-center bg-gray-50 text-gray-600 py-2 rounded-lg hover:bg-gray-100 transition-colors border border-gray-200"
+                            title="Partager">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12s-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.368a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z"></path></svg>
+                        </button>
+                        <button 
+                            onclick="addToCart('${id}', '${safeName}', ${price}, '${safeImageUrl}', '${itemType}', '${businessId}', '${businessName}', '${businessAddress}')"
+                            class="col-span-3 flex items-center justify-center bg-black text-white text-xs font-bold py-2 rounded-lg hover:bg-gray-800 transition-colors shadow-sm active:scale-95 transform duration-100">
+                            Ajouter
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -281,6 +295,27 @@ function addToCart(id, name, price, image, type, businessId, businessName, busin
         btn.classList.remove('bg-green-500', 'text-white');
         btn.classList.add('bg-black');
     }, 1000);
+}
+
+/**
+ * Partage un produit spécifique.
+ */
+function shareProduct(event, id, name) {
+    event.stopPropagation();
+    const productUrl = `${window.location.origin}/produit.html?id=${id}`;
+    const shareData = {
+        title: name,
+        text: `Découvrez ${name} sur ABMCY Market !`,
+        url: productUrl
+    };
+
+    if (navigator.share) {
+        navigator.share(shareData).catch(console.error);
+    } else {
+        navigator.clipboard.writeText(productUrl).then(() => {
+            alert('Lien copié !');
+        }).catch(() => alert('Impossible de copier le lien.'));
+    }
 }
 
 /**
