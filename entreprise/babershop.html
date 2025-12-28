@@ -735,7 +735,7 @@
                         <div class="border-b border-gray-100 pb-4 last:border-0">
                             <div class="flex justify-between items-baseline mb-1">
                                 <div class="flex items-center">
-                                    <h4 class="font-bold text-gray-800 mr-2">${review.Prenom} ${review.Nom.charAt(0)}.</h4>
+                                    <h4 class="font-bold text-gray-800 mr-2">${review.Prenom} ${(review.Nom || '').charAt(0)}.</h4>
                                     <span class="text-gold text-sm">${rStars}</span>
                                 </div>
                                 <span class="text-xs text-gray-400">${date}</span>

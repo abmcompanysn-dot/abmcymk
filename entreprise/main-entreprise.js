@@ -73,6 +73,31 @@ async function initBusinessPage() {
         window.BUSINESS_API_URL = businessInfo.ApiTypeUrl;
         window.BUSINESS_ID = compteId;
 
+        // NOUVEAU: Récupérer les avis depuis l'API métier si l'URL est disponible
+        if (businessInfo.ApiTypeUrl) {
+            try {
+                const reviewsResponse = await fetch(businessInfo.ApiTypeUrl, {
+                    method: 'POST',
+                    mode: 'cors',
+                    headers: { 'Content-Type': 'text/plain' },
+                    body: JSON.stringify({
+                        action: 'getReviews',
+                        data: { compteId: compteId }
+                    })
+                });
+                const reviewsResult = await reviewsResponse.json();
+                if (reviewsResult.status === 'success') {
+                    // Filtrer pour ne garder que les avis visibles
+                    result.data.reviews = reviewsResult.data.filter(r => String(r.Visible).toLowerCase() === 'true');
+                } else {
+                    result.data.reviews = [];
+                }
+            } catch (e) {
+                console.warn("Impossible de charger les avis:", e);
+                result.data.reviews = [];
+            }
+        }
+
         // NOUVEAU: Signaler à la page que les données sont prêtes (pour afficher les avis, etc.)
         window.dispatchEvent(new CustomEvent('business-data-loaded', { detail: result.data }));
 
