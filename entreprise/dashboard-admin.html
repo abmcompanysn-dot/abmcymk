@@ -768,6 +768,7 @@
 
     <!-- Import des fonctions admin (ImgBB) -->
     <script src="admin_functions.js"></script>
+    <script src="../js/main.js"></script>
     <!-- Import de la configuration centralisée -->
     <script src="main-entreprise.js"></script>
     <!-- Import de Chart.js pour le graphique -->
@@ -777,7 +778,7 @@
         // URL de l'API spécifique au type (Produits/Services)
         let BUSINESS_API_URL = ""; 
         // URL de l'API Centrale (Infos entreprise) - Récupérée depuis admin_functions.js
-        const CENTRAL_API_URL = GLOBAL_CENTRAL_API_URL;
+        const CENTRAL_API_URL = CONFIG.ACCOUNT_API_URL;
 
         // Librairie pour générer le QR Code
         const script = document.createElement('script');

@@ -178,10 +178,11 @@
     </div>
 
     <script src="admin_functions.js"></script>
+    <script src="../js/main.js"></script>
     <script>
         const messageDiv = document.getElementById('message');
         
-        const SCRIPT_URL = GLOBAL_CENTRAL_API_URL; 
+        const SCRIPT_URL = CONFIG.ACCOUNT_API_URL; 
 
         document.addEventListener('DOMContentLoaded', () => {
             loadBusinessTypes();
