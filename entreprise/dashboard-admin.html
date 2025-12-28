@@ -1029,6 +1029,7 @@
         function setupImagePreviews() {
             // Prévisualisation pour Logo et Couverture (Unique)
             ['settingsLogo', 'settingsCover'].forEach(id => {
+                const input = document.getElementById(id);
                 if(!input) return;
                 input.addEventListener('change', function(e) {
                     if (this.files && this.files[0]) {
