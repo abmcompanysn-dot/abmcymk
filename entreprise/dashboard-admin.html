@@ -192,6 +192,22 @@
             border: 1px solid #ddd;
             display: none; /* Caché par défaut */
         }
+        
+        /* Styles pour les miniatures multiples */
+        .preview-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .preview-thumb {
+            width: 80px;
+            height: 80px;
+            object-fit: cover;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
 
         /* --- Responsive & Mobile --- */
         .mobile-toggle {
@@ -419,6 +435,7 @@
                     <div class="input-group">
                         <label for="serviceImage">Image (Optionnel)</label>
                         <input type="file" id="serviceImage" accept="image/*" multiple>
+                        <div id="serviceImagePreview" class="preview-container"></div>
                     </div>
                     <div class="input-group" style="grid-column: 1 / -1;">
                         <label for="serviceDescription">Description</label>
@@ -459,6 +476,7 @@
                     <div class="input-group">
                         <label for="productImage">Image (Optionnel)</label>
                         <input type="file" id="productImage" accept="image/*" multiple>
+                        <div id="productImagePreview" class="preview-container"></div>
                     </div>
                     <div class="input-group" style="grid-column: 1 / -1;">
                         <label for="productDescription">Description</label>
@@ -1009,17 +1027,50 @@
         }
 
         function setupImagePreviews() {
+            // Prévisualisation pour Logo et Couverture (Unique)
             ['settingsLogo', 'settingsCover'].forEach(id => {
-                document.getElementById(id).addEventListener('change', function(e) {
+                if(!input) return;
+                input.addEventListener('change', function(e) {
                     if (this.files && this.files[0]) {
                         const reader = new FileReader();
                         reader.onload = (e) => {
                             const previewId = id === 'settingsLogo' ? 'previewLogo' : 'previewCover';
                             const img = document.getElementById(previewId);
-                            img.src = e.target.result;
-                            img.style.display = 'block';
+                            if(img) {
+                                img.src = e.target.result;
+                                img.style.display = 'block';
+                            }
                         };
                         reader.readAsDataURL(this.files[0]);
+                    }
+                });
+            });
+
+            // Prévisualisation pour Services et Produits (Multiple)
+            ['serviceImage', 'productImage'].forEach(id => {
+                const input = document.getElementById(id);
+                if(!input) return;
+                
+                input.addEventListener('change', function(e) {
+                    const containerId = id + 'Preview';
+                    const container = document.getElementById(containerId);
+                    if(!container) return;
+                    
+                    container.innerHTML = ''; // Réinitialiser les aperçus précédents
+                    
+                    if (this.files) {
+                        Array.from(this.files).forEach(file => {
+                            if (!file.type.startsWith('image/')) return;
+                            
+                            const reader = new FileReader();
+                            reader.onload = (e) => {
+                                const img = document.createElement('img');
+                                img.src = e.target.result;
+                                img.className = 'preview-thumb';
+                                container.appendChild(img);
+                            };
+                            reader.readAsDataURL(file);
+                        });
                     }
                 });
             });
@@ -1539,6 +1590,27 @@
             } finally {
                 submitBtn.disabled = false;
                 submitBtn.textContent = isEdit ? 'Mettre à jour' : 'Ajouter';
+            }
+        }
+
+        function resetForm(type) {
+            const prefix = type === 'service' ? 'service' : 'product';
+            const formId = type === 'service' ? 'addServiceForm' : 'addProductForm';
+            const form = document.getElementById(formId);
+            
+            if (form) {
+                form.reset();
+                // Réinitialiser l'ID caché pour quitter le mode édition
+                const idInput = document.getElementById(`${prefix}Id`);
+                if (idInput) idInput.value = '';
+                
+                const btn = form.querySelector('button[type="submit"]');
+                if (btn) {
+                    btn.textContent = 'Ajouter';
+                    btn.disabled = false;
+                }
+                const preview = document.getElementById(`${prefix}ImagePreview`);
+                if (preview) preview.innerHTML = '';
             }
         }
 
