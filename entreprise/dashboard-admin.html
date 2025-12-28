@@ -418,7 +418,7 @@
                     </div>
                     <div class="input-group">
                         <label for="serviceImage">Image (Optionnel)</label>
-                        <input type="file" id="serviceImage" accept="image/*">
+                        <input type="file" id="serviceImage" accept="image/*" multiple>
                     </div>
                     <div class="input-group" style="grid-column: 1 / -1;">
                         <label for="serviceDescription">Description</label>
@@ -458,7 +458,7 @@
                     </div>
                     <div class="input-group">
                         <label for="productImage">Image (Optionnel)</label>
-                        <input type="file" id="productImage" accept="image/*">
+                        <input type="file" id="productImage" accept="image/*" multiple>
                     </div>
                     <div class="input-group" style="grid-column: 1 / -1;">
                         <label for="productDescription">Description</label>
@@ -1483,25 +1483,28 @@
             submitBtn.textContent = 'Traitement...';
 
             try {
-                // Upload de l'image si présente
-                if (isEdit && (!fileInput || !fileInput.files[0])) {
-                    // Keep existing image
+                // Upload des images si présentes
+                if (fileInput && fileInput.files.length > 0) {
+                    submitBtn.textContent = `Upload de ${fileInput.files.length} image(s)...`;
+                    if (typeof uploadImageToImgBB === 'function') {
+                        // On utilise Promise.all pour uploader les images en parallèle
+                        const uploadPromises = Array.from(fileInput.files).map(file => uploadImageToImgBB(file, IMGBB_API_KEY));
+                        const uploadedUrls = await Promise.all(uploadPromises);
+                        imageUrl = uploadedUrls.join(','); // On joint les URLs avec une virgule
+                    } else {
+                        console.warn("Fonction uploadImageToImgBB non trouvée.");
+                        throw new Error("La fonction d'upload d'image est manquante.");
+                    }
+                } else if (isEdit) {
+                    // Si c'est une modification et qu'aucun nouveau fichier n'est sélectionné, on garde l'ancienne image.
                     const items = type === 'service' ? currentServices : currentProducts;
                     const item = items.find(i => i.IDItem === idInput.value);
                     if (item) imageUrl = item.ImageUrl || item.Image || '';
                 }
-                if (fileInput && fileInput.files[0]) {
-                    submitBtn.textContent = 'Upload image...';
-                    if (typeof uploadImageToImgBB === 'function') {
-                        imageUrl = await uploadImageToImgBB(fileInput.files[0], IMGBB_API_KEY);
-                    } else {
-                        console.warn("Fonction uploadImageToImgBB non trouvée.");
-                    }
-                }
             } catch (err) {
                 alert("Erreur lors de l'upload de l'image : " + err.message);
                 submitBtn.disabled = false;
-                submitBtn.textContent = 'Ajouter';
+                submitBtn.textContent = isEdit ? 'Mettre à jour' : 'Ajouter';
                 return;
             }
 
