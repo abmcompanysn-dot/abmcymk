@@ -26,6 +26,11 @@ document.addEventListener('DOMContentLoaded', () => {
 window.openLightbox = openLightbox;
 window.shareBusiness = shareBusiness; // Rendre accessible globalement
 window.shareProduct = shareProduct; // Rendre accessible globalement
+// NOUVEAU: Fonctions pour le modal produit
+window.openProductModal = openProductModal;
+window.closeProductModal = closeProductModal;
+window.navigateModalGallery = navigateModalGallery;
+window.setModalMainImage = setModalMainImage;
 
 // Injecter des styles CSS pour cacher la barre de défilement des carousels (esthétique)
 const style = document.createElement('style');
@@ -108,6 +113,9 @@ async function initBusinessPage() {
 
         // NOUVEAU: Signaler à la page que les données sont prêtes (pour afficher les avis, etc.)
         window.dispatchEvent(new CustomEvent('business-data-loaded', { detail: result.data }));
+
+        // NOUVEAU: Stocker les items globalement pour le modal
+        window.BUSINESS_ITEMS = [...services, ...products];
 
         // 2. Remplir la page avec les données récupérées
         displayBusinessInfo(businessInfo);
@@ -255,7 +263,7 @@ function displayItems(items, containerId, itemType, businessId, businessInfo) {
 
         return `
         <div class="bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-300 flex flex-col h-full border border-gray-100 overflow-hidden group">
-            <div class="relative aspect-w-1 aspect-h-1 overflow-hidden cursor-pointer bg-gray-100" onclick="openLightbox('${safeImageUrl}', '${safeName}')">
+        <div class="relative aspect-w-1 aspect-h-1 aspect-square overflow-hidden cursor-pointer bg-gray-100" onclick="openProductModal('${id}')">
                 <img src="${imageUrl}" alt="${name}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110">
                 <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-opacity"></div>
                 ${item.Categorie ? `<span class="absolute top-2 left-2 text-[10px] font-bold bg-white/90 text-gray-700 px-2 py-0.5 rounded-full shadow-sm backdrop-blur-sm">${item.Categorie}</span>` : ''}
@@ -328,6 +336,98 @@ function addToCart(id, name, price, image, type, businessId, businessName, busin
         btn.classList.remove('bg-green-500', 'text-white');
         btn.classList.add('bg-black');
     }, 1000);
+}
+
+/**
+ * Variables pour la galerie du modal
+ */
+let currentModalImages = [];
+let currentModalImageIndex = 0;
+
+/**
+ * Ouvre le modal de détails produit.
+ */
+function openProductModal(itemId) {
+    const item = window.BUSINESS_ITEMS.find(i => (i.IDItem || i.IDProduit || i.IDService) == itemId);
+    if (!item) return;
+
+    // Remplir les infos
+    document.getElementById('modal-product-name').textContent = item.Nom || item.NomService || item.NomProduit;
+    document.getElementById('modal-product-category').textContent = item.Categorie || 'Produit';
+    document.getElementById('modal-product-price').textContent = Number(item.Prix).toLocaleString('fr-FR') + ' FCFA';
+    document.getElementById('modal-product-description').textContent = item.Description || 'Aucune description disponible.';
+
+    // Gestion des images (Supporte plusieurs images séparées par des virgules)
+    const rawImage = item.ImageURL || 'https://via.placeholder.com/150?text=Pas+d+image';
+    currentModalImages = rawImage.split(',').map(url => url.trim()).filter(url => url);
+    if (currentModalImages.length === 0) currentModalImages = ['https://via.placeholder.com/150?text=Pas+d+image'];
+    
+    currentModalImageIndex = 0;
+    updateModalGallery();
+
+    // Configurer le bouton "Ajouter au panier"
+    const addToCartBtn = document.getElementById('modal-add-to-cart-btn');
+    const id = item.IDItem || item.IDProduit || item.IDService;
+    const name = (item.Nom || item.NomService || item.NomProduit).replace(/'/g, "\\'");
+    const price = item.Prix;
+    const img = currentModalImages[0].replace(/'/g, "\\'");
+    const type = item.IDService ? 'service' : 'produit';
+    const businessId = window.BUSINESS_ID;
+    const businessName = document.getElementById('business-name').textContent.replace(/'/g, "\\'");
+    const businessAddress = document.getElementById('business-address').textContent.replace(/'/g, "\\'");
+
+    addToCartBtn.setAttribute('onclick', `addToCart('${id}', '${name}', ${price}, '${img}', '${type}', '${businessId}', '${businessName}', '${businessAddress}'); closeProductModal();`);
+
+    // Configurer le bouton "Donner un avis"
+    const reviewBtn = document.getElementById('modal-review-btn');
+    reviewBtn.onclick = () => openReviewForProduct(item.Nom || item.NomService || item.NomProduit);
+
+    // Afficher le modal
+    document.getElementById('product-modal').classList.remove('hidden');
+}
+
+function updateModalGallery() {
+    const mainImg = document.getElementById('modal-main-image');
+    mainImg.src = currentModalImages[currentModalImageIndex];
+
+    const prevBtn = document.getElementById('modal-prev-btn');
+    const nextBtn = document.getElementById('modal-next-btn');
+    const thumbnailsContainer = document.getElementById('modal-thumbnails');
+
+    if (currentModalImages.length > 1) {
+        prevBtn.classList.remove('hidden');
+        nextBtn.classList.remove('hidden');
+        thumbnailsContainer.innerHTML = currentModalImages.map((url, idx) => `
+            <img src="${url}" class="w-16 h-16 object-cover rounded-lg cursor-pointer border-2 transition-all ${idx === currentModalImageIndex ? 'border-gold scale-105' : 'border-transparent opacity-70 hover:opacity-100'}" onclick="setModalMainImage(${idx})">
+        `).join('');
+    } else {
+        prevBtn.classList.add('hidden');
+        nextBtn.classList.add('hidden');
+        thumbnailsContainer.innerHTML = '';
+    }
+}
+
+function navigateModalGallery(direction) {
+    currentModalImageIndex = (currentModalImageIndex + direction + currentModalImages.length) % currentModalImages.length;
+    updateModalGallery();
+}
+
+function setModalMainImage(index) {
+    currentModalImageIndex = index;
+    updateModalGallery();
+}
+
+function closeProductModal() {
+    document.getElementById('product-modal').classList.add('hidden');
+}
+
+function openReviewForProduct(productName) {
+    closeProductModal();
+    switchTab('reviews'); // Basculer vers l'onglet avis
+    const reviewInput = document.getElementById('reviewPositif');
+    reviewInput.value = `Avis sur ${productName} : `;
+    reviewInput.focus();
+    document.getElementById('tab-reviews').scrollIntoView({ behavior: 'smooth' });
 }
 
 /**
